@@ -32,15 +32,16 @@ const ICON_CHOICES = ["sun","walk","book","focus","heart","dumb","moon","cal","s
 const MASCOT = `<svg viewBox="0 0 120 120">
   <ellipse cx="60" cy="113" rx="30" ry="5" fill="rgba(0,0,0,.12)"/>
   <g class="mbody">
-    <ellipse cx="45" cy="104" rx="11" ry="6.5" fill="var(--m-leaf)"/>
-    <ellipse cx="75" cy="104" rx="11" ry="6.5" fill="var(--m-leaf)"/>
-    <ellipse class="arm l" cx="17" cy="72" rx="7.5" ry="12" fill="var(--m-leaf)"/>
-    <ellipse class="arm r" cx="103" cy="72" rx="7.5" ry="12" fill="var(--m-leaf)"/>
+    <ellipse cx="45" cy="104" rx="11" ry="6.5" fill="var(--m-limb)"/>
+    <ellipse cx="75" cy="104" rx="11" ry="6.5" fill="var(--m-limb)"/>
+    <ellipse class="arm l" cx="17" cy="72" rx="7.5" ry="12" fill="var(--m-limb)"/>
+    <ellipse class="arm r" cx="103" cy="72" rx="7.5" ry="12" fill="var(--m-limb)"/>
     <path d="M60 24c26 0 42 18 42 44 0 25-17 39-42 39S18 93 18 68c0-26 16-44 42-44z" fill="var(--m-body)"/>
     <ellipse cx="60" cy="82" rx="25" ry="19" fill="var(--m-belly)"/>
     <path d="M60 25V13" stroke="var(--m-leaf)" stroke-width="4" stroke-linecap="round"/>
     <path d="M60 15C51 3 39 6 41 15c8 3 14 3 19 0z" fill="var(--m-leaf)"/>
-    <path d="M60 15c9-12 21-9 19 0-8 3-14 3-19 0z" fill="var(--m-body)"/>
+    <path d="M60 15c9-12 21-9 19 0-8 3-14 3-19 0z" fill="var(--m-leaf2)"/>
+    <g class="flower"><circle cx="60" cy="4" r="4.2" fill="#ff8fbf"/><circle cx="65.5" cy="8" r="4.2" fill="#ff8fbf"/><circle cx="63.4" cy="14.2" r="4.2" fill="#ff8fbf"/><circle cx="56.6" cy="14.2" r="4.2" fill="#ff8fbf"/><circle cx="54.5" cy="8" r="4.2" fill="#ff8fbf"/><circle cx="60" cy="9.6" r="3" fill="#ffd34d"/></g>
     <g class="e-open">
       <ellipse cx="46" cy="58" rx="10" ry="11" fill="#fff"/><ellipse cx="74" cy="58" rx="10" ry="11" fill="#fff"/>
       <g class="look"><g class="pupil"><circle cx="47.5" cy="60" r="5.5" fill="var(--m-ink)"/><circle cx="75.5" cy="60" r="5.5" fill="var(--m-ink)"/></g></g>
@@ -48,7 +49,8 @@ const MASCOT = `<svg viewBox="0 0 120 120">
     </g>
     <g class="e-happy" fill="none" stroke="var(--m-ink)" stroke-width="4.5" stroke-linecap="round"><path d="M37 61q9-11 18 0"/><path d="M65 61q9-11 18 0"/></g>
     <g class="e-sleep" fill="none" stroke="var(--m-ink)" stroke-width="4" stroke-linecap="round"><path d="M38 60q8 5 16 0"/><path d="M66 60q8 5 16 0"/></g>
-    <ellipse cx="34" cy="72" rx="6.5" ry="4" fill="#ff8fb3" opacity=".75"/><ellipse cx="86" cy="72" rx="6.5" ry="4" fill="#ff8fb3" opacity=".75"/>
+    <g class="cheeks"><ellipse cx="34" cy="72" rx="6.5" ry="4" fill="#ff8fb3" opacity=".75"/><ellipse cx="86" cy="72" rx="6.5" ry="4" fill="#ff8fb3" opacity=".75"/></g>
+    <g class="hearts" fill="#ff6fa8"><path d="M34 77c-5-3.4-7.2-5.6-7.2-8.2a3.6 3.6 0 0 1 7.2-1.1 3.6 3.6 0 0 1 7.2 1.1c0 2.6-2.2 4.8-7.2 8.2z"/><path d="M86 77c-5-3.4-7.2-5.6-7.2-8.2a3.6 3.6 0 0 1 7.2-1.1 3.6 3.6 0 0 1 7.2 1.1c0 2.6-2.2 4.8-7.2 8.2z"/></g>
     <path class="mo-smile" d="M52 74q8 8 16 0" fill="none" stroke="var(--m-ink)" stroke-width="4" stroke-linecap="round"/>
     <g class="mo-big"><path d="M49 71q11 18 22 0z" fill="#8a2338"/><path d="M54 79q6 5 12 0q-6-4-12 0z" fill="#ff7a8f"/></g>
     <path class="mo-flat" d="M54 76q6 2 12 0" fill="none" stroke="var(--m-ink)" stroke-width="4" stroke-linecap="round"/>
@@ -87,6 +89,20 @@ function applyStatic() {
   $("stStreak").title = T("streakTip"); $("stXP").title = T("xpToday"); $("stLv").title = T("levelTip"); $("stCog").setAttribute("aria-label", T("settings"));
 }
 
+/* ================= Colour themes ================= */
+const THEME_KEY = "tunas-theme";
+const THEMES = [ { id: "pandan", c: "#4fc21b", bar: "#4fc21b" }, { id: "sakura", c: "#ff6fa8", bar: "#ff6fa8" }, { id: "langit", c: "#1cb0f6", bar: "#1cb0f6" }, { id: "ungu", c: "#a46cf0", bar: "#a46cf0" } ];
+let THEME = "pandan"; try { THEME = localStorage.getItem(THEME_KEY) || "pandan"; } catch (e) {}
+function applyTheme(id, persist) {
+  const t = THEMES.find(x => x.id === id) || THEMES[0]; THEME = t.id;
+  if (t.id === "pandan") delete document.documentElement.dataset.accent; else document.documentElement.dataset.accent = t.id;
+  const m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", t.bar);
+  if (persist) { try { localStorage.setItem(THEME_KEY, t.id); } catch (e) {} }
+}
+applyTheme(THEME, false);
+const themePicker = () => `<div class="swatches" role="group" aria-label="${T("theme")}">${THEMES.map(t => `<button type="button" class="swatch" data-theme-pick="${t.id}" aria-pressed="${THEME === t.id}" style="--sw:${t.c}"><i></i><span>${T("themeNames")[t.id]}</span></button>`).join("")}</div>`;
+function pickTheme(id) { applyTheme(id, true); sfx("ding"); jump($("mascot")); if (THEME === "sakura") say(T("sakuraSay"), "", "happy", 2500); }
+
 /* ================= Routine config ================= */
 const CFG_KEY = "tunas-config", DATA_KEY = "tunas-data-v1", SND_KEY = "tunas-sound";
 const defaultRoutine = () => { const r = window.resolveTemplate(window.TUNAS_TEMPLATES.find(t => t.id === "worker").routine, LANG); r.name = LANG === "ms" ? "Kawan" : "Friend"; return r; };
@@ -113,7 +129,9 @@ function applyRoutine(r) {
   FOCUS = {};
   for (let k = 0; k < 7; k++) { const f = (r.focus || {})[k] || (r.focus || {})[String(k)] || {}; FOCUS[k] = { t: f.title || (LANG === "ms" ? "1 jam: fokus" : "1 hour: focus"), n: f.note || "" }; }
   WORKOUTS = {};
-  Object.entries(r.workouts || {}).forEach(([day, w]) => {
+  const woOn = r.showWorkouts !== false;
+  if (!woOn) BLOCKS.forEach(b => b.items.forEach(i => { i.hide = null; }));
+  Object.entries(woOn ? (r.workouts || {}) : {}).forEach(([day, w]) => {
     if (!w || !Array.isArray(w.exercises) || !w.exercises.length) return;
     const from = w.from != null ? tm(w.from, null) : null; let to = w.to != null ? tm(w.to, null) : null;
     if (from != null && to != null && to <= from) to += 1440;
@@ -261,7 +279,7 @@ function sfx(kind) {
   } catch (e) {}
 }
 function buzz(p) { try { navigator.vibrate && navigator.vibrate(p || 12); } catch (e) {} }
-function floatXP(x, y, text) { if (reduced()) return; const f = document.createElement("div"); f.className = "fx"; f.textContent = text;
+function floatXP(x, y, text) { if (reduced()) return; const f = document.createElement("div"); f.className = "fx"; f.textContent = (THEME === "sakura" ? "♥ " : "") + text;
   f.style.left = Math.max(8, Math.min(innerWidth - 90, x)) + "px"; f.style.top = (y - 14) + "px"; document.body.appendChild(f); setTimeout(() => f.remove(), 950); }
 function toast(html, icon, ms) { const t = document.createElement("div"); t.className = "toast"; t.innerHTML = `<i>${I[icon || "star"]}</i><span>${html}</span>`;
   $("toasts").appendChild(t); setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 320); }, ms || 2800); }
@@ -691,6 +709,9 @@ function renderSettings(keep) {
     <div class="set-group"><h3>${T("yourName")}</h3><p>${T("nameHelp")}</p>
       <input class="field" id="setName" value="${esc(CFG.name || "")}" placeholder="${T("namePh")}" autocomplete="given-name" maxlength="30"></div>
     <div class="set-group"><h3>${T("language")}</h3>${segLang("langSeg")}</div>
+    <div class="set-group"><h3>${T("theme")}</h3><p>${T("themeHelp")}</p>${themePicker()}</div>
+    <div class="set-group"><div class="sw-row"><div><h3>${T("showWo")}</h3><p>${T("showWoHelp")}</p></div>
+      <button class="toggle" type="button" role="switch" aria-checked="${CFG.showWorkouts !== false}" data-act="toggleWo" aria-label="${T("showWo")}"><i></i></button></div></div>
     <div class="set-group"><h3>${T("routine")}</h3>
       <p>${T("using")} <span class="pill-ok">${esc(CFG.label || T("custom"))}</span> · ${T("sections", BLOCKS.length, Object.keys(WORKOUTS).length)}</p>
       <div class="row"><button class="btn small" type="button" data-act="edit">${T("editRoutine")}</button>
@@ -738,6 +759,7 @@ function setLang(l) {
 }
 function settingsAction(act) {
   if (act === "tickAll") return tickAll();
+  if (act === "toggleWo") { const r = { ...RAW, showWorkouts: CFG.showWorkouts === false }; saveRoutine(r); lastS = null; prevCleared = null; refresh(true); toast(r.showWorkouts ? T("woShown") : T("woHidden"), "check"); return; }
   if (act === "edit") return openEditor();
   if (act === "template") { closeSheet(); return openWelcome(2, true); }
   if (act === "importRoutine") return $("fileRoutine").click();
@@ -750,7 +772,8 @@ function settingsAction(act) {
   if (act === "restore") return $("fileBackup").click();
   if (act === "sound") { toggleSound(); return renderSettings(true); }
 }
-$("sheet").addEventListener("click", e => { const b = e.target.closest("[data-lang]"); if (b) { setLang(b.dataset.lang); } });
+$("sheet").addEventListener("click", e => { const b = e.target.closest("[data-lang]"); if (b) { setLang(b.dataset.lang); return; }
+  const t = e.target.closest("[data-theme-pick]"); if (t) { pickTheme(t.dataset.themePick); if (sheetId === "settings") renderSettings(true); } });
 function readFile(input, cb) { const f = input.files && input.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { cb(String(r.result)); input.value = ""; }; r.readAsText(f); }
 $("fileRoutine").addEventListener("change", e => readFile(e.target, loadRoutineText));
 $("fileBackup").addEventListener("change", e => readFile(e.target, text => {
@@ -928,10 +951,10 @@ function saveEditor() {
 }
 
 /* ================= Welcome ================= */
-let WEL = { step: 1, tpl: "worker", switching: false, name: "" };
+let WEL = { step: 1, tpls: new Set(["worker"]), includeWo: true, switching: false, name: "" };
 function countHabits(r) { return (r.blocks || []).reduce((s, b) => s + (b.items || []).length, 0); }
 function openWelcome(step, switching) {
-  WEL = { step: step || 1, tpl: "worker", switching: !!switching, name: switching ? (CFG.name || "") : "" };
+  WEL = { step: step || 1, tpls: new Set(["worker"]), includeWo: true, switching: !!switching, name: switching ? (CFG.name || "") : "" };
   $("welcome").hidden = false; document.body.classList.add("locked"); renderWelcome();
 }
 function closeWelcome() { $("welcome").hidden = true; document.body.classList.remove("locked"); }
@@ -940,6 +963,7 @@ function renderWelcome() {
   if (WEL.step === 1) {
     el.innerHTML = `<div class="w-in"><div class="mascot cheer" id="wMascot">${MASCOT}</div><h2 class="green">${T("wHi")}</h2><p>${T("wSub")}</p>
       ${segLang("wLang")}
+      <div class="w-label">${T("wTheme")}</div>${themePicker()}
       <label class="w-label" for="wName">${T("wNameQ")}</label><input class="field w-name" id="wName" value="${esc(WEL.name)}" placeholder="${T("namePh")}" maxlength="30" autocomplete="given-name">
       <button class="btn" type="button" id="wNext">${T("next")}</button></div>`;
     $("wName").addEventListener("input", e => { WEL.name = e.target.value; });
@@ -947,20 +971,48 @@ function renderWelcome() {
     $("wNext").onclick = () => { WEL.step = 2; renderWelcome(); };
     jump($("wMascot"));
   } else {
-    el.innerHTML = `<div class="w-in wide"><h2>${T("wPick")}</h2><p>${T("wPickSub")}</p>
-      <div class="tpl-grid">${window.TUNAS_TEMPLATES.map(t => { const r = window.resolveTemplate(t.routine, LANG);
-        return `<button type="button" class="tpl" data-tpl="${t.id}" aria-pressed="${WEL.tpl === t.id}"><span class="tpl-ico">${I[t.icon]}</span><b>${esc(window.resolveTemplate(t.title, LANG))}</b><span>${esc(window.resolveTemplate(t.desc, LANG))}</span><small>${T("wHabits", countHabits(r), Object.keys(r.workouts || {}).length)}</small></button>`; }).join("")}</div>
+    const anyWo = [...WEL.tpls].some(id => Object.keys((window.TUNAS_TEMPLATES.find(t => t.id === id) || {}).routine?.workouts || {}).length);
+    el.innerHTML = `<div class="w-in wide"><h2>${T("wPick")}</h2><p>${T("wPickMulti")}</p>
+      <div class="tpl-grid">${window.TUNAS_TEMPLATES.filter(t => !t.hidden).map(t => { const r = window.resolveTemplate(t.routine, LANG);
+        return `<button type="button" class="tpl" data-tpl="${t.id}" aria-pressed="${WEL.tpls.has(t.id)}"><span class="tpl-ico">${I[t.icon]}</span><span class="tpl-tick">${I.check}</span><b>${esc(window.resolveTemplate(t.title, LANG))}</b><span>${esc(window.resolveTemplate(t.desc, LANG))}</span><small>${T("wHabits", countHabits(r), Object.keys(r.workouts || {}).length)}</small></button>`; }).join("")}</div>
+      <p class="w-mix">${T("wMixNote", WEL.tpls.size)}</p>
+      ${anyWo ? `<div class="sw-row w-wo"><div><b>${T("wIncludeWo")}</b><span>${T("wIncludeWoHelp")}</span></div><button class="toggle" type="button" role="switch" id="wWo" aria-checked="${WEL.includeWo}" aria-label="${T("wIncludeWo")}"><i></i></button></div>` : ""}
       <button class="btn" type="button" id="wGo">${T("wGo")}</button>
       <div class="w-links"><button class="linkish" type="button" id="wBack">${WEL.switching ? T("cancel") : T("back")}</button>${WEL.switching ? "" : `<button class="linkish" type="button" id="wFile">${T("wHaveFile")}</button>`}</div></div>`;
-    el.querySelectorAll("[data-tpl]").forEach(b => b.onclick = () => { WEL.tpl = b.dataset.tpl; el.querySelectorAll("[data-tpl]").forEach(x => x.setAttribute("aria-pressed", x.dataset.tpl === WEL.tpl)); });
+    el.querySelectorAll("[data-tpl]").forEach(b => b.onclick = () => { const id = b.dataset.tpl;
+      if (WEL.tpls.has(id)) { if (WEL.tpls.size > 1) WEL.tpls.delete(id); } else WEL.tpls.add(id);
+      const top = el.scrollTop; renderWelcome(); el.scrollTop = top; });
+    if ($("wWo")) $("wWo").onclick = () => { WEL.includeWo = !WEL.includeWo; $("wWo").setAttribute("aria-checked", WEL.includeWo); };
     $("wBack").onclick = () => { if (WEL.switching) closeWelcome(); else { WEL.step = 1; renderWelcome(); } };
     if ($("wFile")) $("wFile").onclick = () => $("fileRoutine").click();
     $("wGo").onclick = finishWelcome;
   }
 }
-$("welcome").addEventListener("click", e => { const b = e.target.closest("[data-lang]"); if (b) { setLang(b.dataset.lang); renderWelcome(); } });
+$("welcome").addEventListener("click", e => { const b = e.target.closest("[data-lang]"); if (b) { setLang(b.dataset.lang); renderWelcome(); return; }
+  const t = e.target.closest("[data-theme-pick]"); if (t) { applyTheme(t.dataset.themePick, true); sfx("ding"); renderWelcome(); } });
+// Combine several templates: same-id sections share habits (no duplicates), other sections are added in time order.
+function mergeRoutines(list) {
+  if (list.length === 1) return list[0];
+  const out = clone(list[0]); out.workouts ||= {}; out.weekly ||= []; out.focus ||= {}; out.tips ||= [];
+  out.label = list.map(r => r.label).join(" + ");
+  const blocks = new Map(out.blocks.map(b => [b.id, b]));
+  list.slice(1).forEach(r => {
+    (r.blocks || []).forEach(b => { if (blocks.has(b.id)) { const t = blocks.get(b.id), ids = new Set(t.items.map(i => i.id)); b.items.forEach(i => { if (!ids.has(i.id)) t.items.push(clone(i)); }); } else blocks.set(b.id, clone(b)); });
+    Object.entries(r.workouts || {}).forEach(([k, w]) => { if (!out.workouts[k]) out.workouts[k] = clone(w); });
+    (r.weekly || []).forEach(w => { if (!out.weekly.some(x => x.id === w.id)) out.weekly.push(clone(w)); });
+    Object.entries(r.focus || {}).forEach(([k, f]) => { if (!out.focus[k]) out.focus[k] = f; });
+    out.tips.push(...(r.tips || [])); if (!out.guide && r.guide) out.guide = r.guide; if (!out.away && r.away) out.away = r.away;
+  });
+  const wrap = m => (m < 4 * 60 ? m + 1440 : m);
+  out.blocks = [...blocks.values()].sort((x, y) => wrap(tm(x.from, 0)) - wrap(tm(y.from, 0)));
+  return out;
+}
 function finishWelcome() {
-  const tpl = window.TUNAS_TEMPLATES.find(t => t.id === WEL.tpl), r = window.resolveTemplate(tpl.routine, LANG);
+  let ids = [...WEL.tpls];
+  if (ids.includes("student") && ids.includes("worker")) ids = ["studywork", ...ids.filter(x => x !== "student" && x !== "worker" && x !== "studywork")];
+  const order = window.TUNAS_TEMPLATES.map(t => t.id); ids.sort((x, y) => order.indexOf(x) - order.indexOf(y));
+  const r = mergeRoutines(ids.map(id => window.resolveTemplate(window.TUNAS_TEMPLATES.find(t => t.id === id).routine, LANG)));
+  r.showWorkouts = !!WEL.includeWo;
   r.name = String(WEL.name || "").trim().slice(0, 30) || (LANG === "ms" ? "Kawan" : "Friend");
   saveRoutine(r); store.welcomed = true; save(); lastS = null; prevCleared = null;
   closeWelcome(); renderGuide(); refresh(); confetti(); sfx("clear");

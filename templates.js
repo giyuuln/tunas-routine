@@ -234,7 +234,81 @@
     guide: null
   };
 
+
+  const studywork = {
+    version: 1, label: t("Study + Work routine", "Rutin belajar + kerja"), name: "",
+    blocks: [
+      { id: "morning", remind: "06:45", title: t("Morning", "Pagi"), icon: "sun", from: "05:00", to: "08:30", range: "6:45 – 8:00 am",
+        say: [t("Busy day! Quick routine first.", "Hari sibuk! Rutin ringkas dulu."), t("Bag for class, uniform for work.", "Beg untuk kelas, baju untuk kerja.")],
+        items: [
+          { id: "wake", title: t("Wake up + glass of water", "Bangun + segelas air"), time: "6:45" },
+          { id: "am-clean", title: t("Wash face", "Cuci muka"), time: "6:50" },
+          { id: "am-moist", title: t("Moisturizer", "Pelembap"), time: "6:55" },
+          { id: "spf", title: t("Sunscreen", "Pelindung matahari"), time: "7:00", quest: true },
+          { id: "bfast", title: t("Breakfast", "Sarapan"), note: t("Eggs, bread or oats. Not just a sweet drink.", "Telur, roti atau oat. Bukan air manis sahaja."), time: "7:10" },
+          { id: "bag", title: t("Pack bag, laptop and work clothes", "Kemas beg, laptop dan baju kerja"), time: "7:30" }
+        ] },
+      { id: "between", remind: "13:00", title: t("Class to work", "Kelas ke kerja"), icon: "book", from: "12:30", to: "18:00", range: t("between class and shift", "antara kelas dan syif"),
+        say: [t("Quick reset between class and work.", "Rehat sekejap antara kelas dan kerja."), t("Eat properly and drink water.", "Makan betul-betul dan minum air.")],
+        items: [
+          { id: "lunch", title: t("Proper lunch", "Makan tengah hari betul-betul"), note: t("Protein + veg so you don't crash at work", "Protein + sayur supaya tak lemau masa kerja") },
+          { id: "notes", title: t("Quick review of today's notes (15 min)", "Ulang kaji nota hari ini (15 minit)"), quest: true },
+          { id: "water", title: t("Refill your water bottle", "Isi semula botol air") },
+          { id: "tasks", title: t("Check assignments and deadlines", "Semak tugasan dan tarikh akhir") }
+        ] },
+      { id: "evening", remind: "19:30", title: t("After work", "Lepas kerja"), icon: "walk", from: "18:00", to: "21:00", range: "7:30 – 9:00 pm",
+        say: [t("Shift done! Rest a bit, then dinner.", "Syif habis! Rehat sekejap, lepas tu makan."), t("You're doing great.", "Kau buat dengan baik.")],
+        items: [
+          { id: "pm-water", title: t("Drink water when you get home", "Minum air bila sampai rumah"), time: "7:30" },
+          { id: "dinner", title: t("Dinner", "Makan malam"), note: t("Less rice, add protein and veg", "Kurang nasi, tambah protein dan sayur"), time: "8:00" },
+          { id: "move", title: t("Stretch or walk 15 min", "Regangan atau jalan 15 minit"), time: "8:30", hideOnDays: [6] }
+        ] },
+      { id: "study", remind: "21:00", title: t("Study time", "Masa belajar"), icon: "focus", from: "21:00", to: "23:00", range: "9:00 – 10:30 pm",
+        items: [
+          { id: "focus-hour", useFocus: true, time: "9:00", quest: true },
+          { id: "tomorrow", title: t("Prepare for tomorrow", "Sedia untuk esok"), note: t("Class bag, work clothes, charger", "Beg kelas, baju kerja, pengecas"), time: "10:15" },
+          { id: "free", title: t("Free time, no guilt", "Masa bebas, tanpa rasa bersalah"), time: "10:30" }
+        ] },
+      { id: "night", remind: "23:00", title: t("Night", "Malam"), icon: "moon", from: "23:00", to: "05:00", range: "11:00 pm – 12:00 am",
+        say: [t("Long day. Wind down now.", "Hari yang panjang. Masa berehat."), t("Phone away, lights off.", "Letak phone, tutup lampu.")],
+        items: [
+          { id: "nt-clean", title: t("Wash face", "Cuci muka"), time: "11:00" },
+          { id: "nt-moist", title: t("Moisturizer", "Pelembap"), time: "11:05" },
+          { id: "phone", title: t("Phone away", "Letak phone jauh"), time: "11:30" },
+          { id: "sleep", title: t("Sleep", "Tidur"), note: t("Aim for 7 hours", "Sasarkan 7 jam"), time: "12:00", quest: true }
+        ] }
+    ],
+    focus: focusWeek(
+      { title: t("Study: hardest subject (45 min)", "Belajar: subjek paling susah (45 minit)"), note: t("Phone in another room", "Letak phone di bilik lain") },
+      { title: t("Study: assignments (45 min)", "Belajar: siapkan tugasan (45 minit)"), note: t("Finish one part fully", "Siapkan satu bahagian sepenuhnya") },
+      { title: t("Night off", "Malam cuti"), note: t("Rest. Work and class both done.", "Rehat. Kelas dan kerja dah siap.") }),
+    workouts: {
+      "6": bodyweight(t("Weekend Session", "Sesi Hujung Minggu"), { remind: "10:00", after: "morning" })
+    },
+    progression: {},
+    weekly: [
+      { id: "plan", title: t("Plan the week: classes, shifts and deadlines", "Rancang minggu: kelas, syif dan tarikh akhir") },
+      { id: "laundry", title: t("Laundry and iron work clothes", "Basuh dan gosok baju kerja") },
+      { id: "money", title: t("Check spending and savings", "Semak perbelanjaan dan simpanan") },
+      { id: "room", title: t("Tidy your room", "Kemas bilik") }
+    ],
+    away: { from: "08:30", to: "12:30", say: [t("Good luck in class!", "Semoga lancar di kelas!"), t("Then work later. Pace yourself.", "Lepas tu kerja. Jaga tenaga.")] },
+    tips: [
+      t("**Use small gaps.** 15 minutes between class and work is enough to review notes.", "**Guna masa terluang.** 15 minit antara kelas dan kerja cukup untuk ulang kaji."),
+      t("**Pack the night before.** Busy mornings get easier.", "**Kemas beg malam sebelumnya.** Pagi sibuk jadi senang."),
+      t("**Sleep is not optional.** Tired brains learn slower.", "**Tidur bukan pilihan.** Otak penat lambat belajar."),
+      t("**Rest on purpose.** One night off a week keeps you going.", "**Rehat dengan sengaja.** Satu malam cuti seminggu buat kau bertahan.")
+    ],
+    guide: {
+      title: t("Study + work tips", "Tip belajar + kerja"),
+      sections: [{ title: t("Balancing both", "Mengimbangi kedua-duanya"), lines: [
+        t("**Plan your week on Sunday:** classes, shifts and deadlines in one place.", "**Rancang minggu pada hari Ahad:** kelas, syif dan tarikh akhir di satu tempat."),
+        t("**Tell your boss your exam dates early.** Most will adjust your shifts.", "**Beritahu majikan tarikh peperiksaan awal.** Kebanyakan akan ubah syif kau.") ] }]
+    }
+  };
+
   window.TUNAS_TEMPLATES = [
+    { id: "studywork", hidden: true, icon: "book", title: t("Study + Work", "Belajar + Kerja"), desc: t("Class, a shift, then study at night.", "Kelas, syif kerja, kemudian belajar malam."), routine: studywork },
     { id: "student", icon: "book", title: t("Student", "Pelajar"), desc: t("Classes, study blocks and a quick home workout twice a week.", "Kelas, masa belajar dan senaman ringkas dua kali seminggu."), routine: student },
     { id: "worker", icon: "walk", title: t("Worker", "Pekerja"), desc: t("Morning skincare, an evening walk, focus hour and a good night's sleep.", "Penjagaan kulit pagi, jalan petang, sejam fokus dan tidur cukup."), routine: worker },
     { id: "fitness", icon: "dumb", title: t("Fitness", "Kecergasan"), desc: t("Protein, steps, three strength days and recovery.", "Protein, langkah, tiga hari latihan kekuatan dan pemulihan."), routine: fitness },
