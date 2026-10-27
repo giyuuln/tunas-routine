@@ -562,6 +562,16 @@ function gcalLink(r) {
   const q = new URLSearchParams({ action: "TEMPLATE", text: T("remTitle", r.title), details: T("remDetails", r.title, appLink(r.id)), dates: `${stamp(s)}/${stamp(e)}`, ctz: TZ, recur: r.rule });
   return `https://calendar.google.com/calendar/render?${q.toString()}`;
 }
+// Android: open the phone's calendar app first (intent), fall back to the Google Calendar web page.
+const IS_ANDROID = /Android/i.test(navigator.userAgent || "");
+function appCalLink(r) {
+  const s = nextStart(r), e = new Date(s.getTime() + 15 * 60000), enc = encodeURIComponent;
+  return "intent:#Intent;action=android.intent.action.INSERT;type=vnd.android.cursor.item/event;" +
+    `S.title=${enc(T("remTitle", r.title))};S.description=${enc(T("remDetails", r.title, appLink(r.id)))};` +
+    `S.rrule=${enc(r.rule.replace(/^RRULE:/, ""))};l.beginTime=${s.getTime()};l.endTime=${e.getTime()};B.allDay=false;` +
+    `S.browser_fallback_url=${enc(gcalLink(r))};end`;
+}
+const remLink = r => IS_ANDROID ? appCalLink(r) : gcalLink(r);
 function buildICS() {
   const utc = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z"), clean = s => String(s).replace(/[,;\\]/g, " ");
   const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Tunas Routine//EN", "CALSCALE:GREGORIAN"];
@@ -605,7 +615,7 @@ function renderSettings(keep) {
       ${settingsPane === "paste" ? `<textarea class="field" id="pasteBox" placeholder="${T("pastePh")}"></textarea><div class="row"><button class="btn small" type="button" data-act="pasteApply">${T("useThis")}</button></div>` : ""}
     </div>
     <div class="set-group"><h3>${T("reminders")}</h3><p>${T("remHelp")}</p>
-      ${reminderList().map(r => `<div class="rem"><span><b>${esc(r.title)}</b>${fmtClock(r.mins)} · ${r.weekday != null ? T("onDays")[r.weekday] : T("everyDay")}</span><a class="btn ghost small" href="${esc(gcalLink(r))}" target="_blank" rel="noopener">${T("add")}</a></div>`).join("")}
+      ${reminderList().map(r => `<div class="rem"><span><b>${esc(r.title)}</b>${fmtClock(r.mins)} · ${r.weekday != null ? T("onDays")[r.weekday] : T("everyDay")}</span><a class="btn ghost small" href="${esc(remLink(r))}" ${IS_ANDROID ? "" : 'target="_blank" rel="noopener"'}>${T("add")}</a></div>`).join("")}
       <div class="row"><button class="btn ghost small" type="button" data-act="ics">${T("icsAll")}</button></div>
       <p>${T("icsHelp")}</p></div>
     <div class="set-group"><h3>${T("share")}</h3><p>${T("shareHelp")}</p><div class="row"><button class="btn small" type="button" data-act="share">${T("shareBtn")}</button></div></div>
