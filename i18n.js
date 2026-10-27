@@ -57,6 +57,7 @@ window.TUNAS_I18N = {
     tToday: "Today", tStreak: "Streak", tLevel: "Level", tXP: "XP earned", tDone: "Done", tTotal: "Total XP", tNext: "To next",
     badgeOne: n => `Badge unlocked: <b>${n}</b>`, badgeMany: n => `<b>${n} badges</b> unlocked`,
     questDone: xp => `Quest complete! <b>+${xp} XP</b>`, prToast: xp => `New personal record! <b>+${xp} XP</b>`, prSay: "NEW PR! Power lah!",
+    updTitle: "New version ready!", updSub: "Refresh to get the latest Tunas. Your ticks stay safe.", updBtn: "Refresh", updLater: "Later",
     titles: ["Rookie","Starter","Consistent","Grinder","Disciplined","Glow-up","Locked in","Machine","Elite","Legend"],
     badge: {
       first:["First step","Tick your first habit"], quest:["Quest done","Finish every ★ habit in a day"], perfect:["Perfect day","Finish every habit in one day"],
@@ -207,6 +208,7 @@ window.TUNAS_I18N = {
     tToday: "Hari ini", tStreak: "Streak", tLevel: "Tahap", tXP: "XP dapat", tDone: "Siap", tTotal: "Jumlah XP", tNext: "Lagi",
     badgeOne: n => `Lencana dibuka: <b>${n}</b>`, badgeMany: n => `<b>${n} lencana</b> dibuka`,
     questDone: xp => `Misi siap! <b>+${xp} XP</b>`, prToast: xp => `Rekod peribadi baru! <b>+${xp} XP</b>`, prSay: "REKOD BARU! Power lah!",
+    updTitle: "Versi baru dah sampai!", updSub: "Refresh untuk dapat Tunas terbaru. Tick kau semua selamat.", updBtn: "Refresh", updLater: "Nanti",
     titles: ["Baru Mula","Pemula","Konsisten","Pejuang","Berdisiplin","Glow-up","Fokus Penuh","Mesin","Elit","Legenda"],
     badge: {
       first:["Langkah pertama","Tanda tabiat pertama"], quest:["Misi siap","Siapkan semua tabiat ★ dalam sehari"], perfect:["Hari sempurna","Siapkan semua tabiat dalam sehari"],
