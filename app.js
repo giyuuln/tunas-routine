@@ -959,3 +959,8 @@ refresh();
 })();
 setInterval(() => { const a = document.activeElement; if (!(a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA" || a.tagName === "SELECT")) && sheetId !== "editor" && $("welcome").hidden) refresh(); }, 60000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden && sheetId !== "editor") refresh(); });
+
+/* ================= Offline support ================= */
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+}

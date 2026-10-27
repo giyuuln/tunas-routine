@@ -108,3 +108,16 @@ python3 -m http.server 8000   # then open http://localhost:8000
 ```
 
 When you change app files, bump `VERSION` in `sw.js` so installed phones pick up the update.
+
+## Privacy
+
+Tunas has no account, no server and no tracking. Your routine, ticks, XP and workout logs are saved only in your phone's browser storage (`localStorage`), so the developer never receives or sees anyone's data. A Content-Security-Policy in `index.html` stops the app from sending data to any outside website. Use **Settings → Download backup** to keep your own copy.
+
+## Contributing
+
+Ideas, bug fixes, templates and translations are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) first, especially the rules that keep user data on the phone.
+
+## License
+
+[MIT](LICENSE). You're free to use, change and share Tunas, as long as you keep the license notice.
+
