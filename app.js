@@ -1114,5 +1114,25 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden && sh
 
 /* ================= Offline support ================= */
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  // A new version installs in the background, but this page keeps running the old files.
+  // When a new service worker takes over, offer a friendly Refresh instead of leaving people on the old version.
+  const SW = navigator.serviceWorker;
+  let hadController = !!SW.controller, lastCheck = Date.now();
+  SW.addEventListener("controllerchange", () => { if (hadController) showUpdate(); hadController = true; });
+  window.addEventListener("load", () => SW.register("sw.js").then(reg => {
+    // Installed apps can stay open for days, so look for a new version when the app comes back to the front (at most hourly).
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden || Date.now() - lastCheck < 3600000) return;
+      lastCheck = Date.now(); reg.update().catch(() => {});
+    });
+  }).catch(() => {}));
+}
+function showUpdate() {
+  const el = $("updbar");
+  el.innerHTML = `<div class="in"><div class="ui">${I.up}</div><div class="ut"><b>${T("updTitle")}</b>${T("updSub")}</div>
+    <button class="btn small" type="button" id="updGo">${T("updBtn")}</button>
+    <button class="ux" type="button" id="updLater" aria-label="${T("updLater")}" title="${T("updLater")}">${I.x}</button></div>`;
+  el.hidden = false;
+  $("updGo").onclick = () => location.reload();
+  $("updLater").onclick = () => { el.hidden = true; };
 }
