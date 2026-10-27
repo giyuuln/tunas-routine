@@ -97,7 +97,7 @@ window.TUNAS_I18N = {
     edNewWorkout: "Workout", edWeeklyHelp: "Things to do once a week. They reset every Monday.", edAddWeekly: "Add weekly task", edWeeklyPh: "Weekly task",
     cancel: "Cancel", save: "Save", saved: "Routine saved", needSection: "Keep at least one section with a habit.",
     // welcome
-    theme: "Theme", themeHelp: "Each colour gives Tunas a different personality and look.", themeNames: { pandan: "Pandan", sakura: "Sakura", langit: "Langit", ungu: "Ungu" },
+    theme: "Theme", themeHelp: "Each colour gives Tunas a different personality and look.", themeNames: { pandan: "Pandan", sakura: "Sakura", langit: "Langit", ungu: "Anggur" },
     themeHello: "Pandan mode! Classic cheerful Tunas is back.", themeTags: { pandan: "Cheerful", sakura: "Sweet", langit: "Chill", ungu: "Hype" }, themeTagLine: t => `Personality: ${t}`,
     persona: {
       sakura: {
@@ -137,7 +137,7 @@ window.TUNAS_I18N = {
         sayStartSec: t => `${t} quest started!`, sayTickle: ["Hey! No spamming the boss!", "Okay okay, +1 friendship XP!"], sayGreet: (p, n) => `${p}, ${n}! Ready, player one?`,
         clearedSubs: ["Stage cleared. Next!", "That's a W.", "Combo x2. Keep it going!"],
         perfectSub: n => `Every quest cleared. Legendary, ${n}!`, levelSub: t => `LEVEL UP! Rank: ${t}. Keep grinding!`, tapAgain: "Tap again for more intel",
-        themeHello: "Ungu mode! LET'S GOOO, player one!", prSay: "NEW PR! BOSS DEFEATED!", letsGo: "LET'S GOOO!"
+        themeHello: "Anggur mode! LET'S GOOO, player one!", prSay: "NEW PR! BOSS DEFEATED!", letsGo: "LET'S GOOO!"
       }
     },
     wTheme: "Pick a colour",
@@ -244,7 +244,7 @@ window.TUNAS_I18N = {
     edRemoveWo: "Buang senaman", edExPh: "Senaman", edRepsPh: "8–12", edRestPh: "60s", edBW: "Berat badan", edAddEx: "Tambah senaman",
     edNewWorkout: "Senaman", edWeeklyHelp: "Perkara sekali seminggu. Reset setiap Isnin.", edAddWeekly: "Tambah tugasan mingguan", edWeeklyPh: "Tugasan mingguan",
     cancel: "Batal", save: "Simpan", saved: "Rutin disimpan", needSection: "Kekalkan sekurang-kurangnya satu bahagian dengan tabiat.",
-    theme: "Tema", themeHelp: "Setiap warna beri Tunas personaliti dan rupa yang berbeza.", themeNames: { pandan: "Pandan", sakura: "Sakura", langit: "Langit", ungu: "Ungu" },
+    theme: "Tema", themeHelp: "Setiap warna beri Tunas personaliti dan rupa yang berbeza.", themeNames: { pandan: "Pandan", sakura: "Sakura", langit: "Langit", ungu: "Anggur" },
     themeHello: "Mod Pandan! Tunas ceria klasik dah kembali.", themeTags: { pandan: "Ceria", sakura: "Manis", langit: "Tenang", ungu: "Hype" }, themeTagLine: t => `Personaliti: ${t}`,
     persona: {
       sakura: {
@@ -284,7 +284,7 @@ window.TUNAS_I18N = {
         sayStartSec: t => `Misi ${t} bermula!`, sayTickle: ["Hoi! Jangan spam boss!", "Okay okay, +1 XP persahabatan!"], sayGreet: (p, n) => `${p}, ${n}! Sedia, pemain satu?`,
         clearedSubs: ["Peringkat siap. Seterusnya!", "Itu satu kemenangan.", "Combo x2. Teruskan!"],
         perfectSub: n => `Semua misi siap. Legenda, ${n}!`, levelSub: t => `NAIK LEVEL! Pangkat: ${t}. Teruskan grind!`, tapAgain: "Tekan lagi untuk maklumat lanjut",
-        themeHello: "Mod Ungu! JOMMM, pemain satu!", prSay: "REKOD BARU! BOSS TUMBANG!", letsGo: "JOMMM!"
+        themeHello: "Mod Anggur! JOMMM, pemain satu!", prSay: "REKOD BARU! BOSS TUMBANG!", letsGo: "JOMMM!"
       }
     },
     wTheme: "Pilih warna",
