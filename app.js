@@ -78,6 +78,43 @@ function tm(s, fallback) {
 const hhmm = m => `${pad(Math.floor((m % 1440) / 60))}:${pad(m % 60)}`;
 const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m / 60), mm = pad(m % 60); return `${(h % 12) || 12}:${mm} ${h < 12 ? "am" : "pm"}`; };
 
+/* ================= Error handling ================= */
+const APP_VERSION = "2026.10.27";
+const ERR_KEY = "tunas-errors";
+let errShownAt = 0; const notices = [];
+function logError(where, err) {
+  const msg = String((err && (err.message || err.reason)) || err || "unknown").slice(0, 200);
+  try { console.error("[Tunas]", where, err); } catch (e) {}
+  try { const list = JSON.parse(localStorage.getItem(ERR_KEY) || "[]"); list.unshift({ t: new Date().toISOString(), where: String(where).slice(0, 60), msg, v: APP_VERSION });
+    localStorage.setItem(ERR_KEY, JSON.stringify(list.slice(0, 15))); } catch (e) {}
+}
+// Log the error and tell the user once in a while (not a flood of toasts).
+function reportError(where, err, msgKey) {
+  logError(where, err);
+  if (Date.now() - errShownAt < 4000) return; errShownAt = Date.now();
+  try { toast(T(msgKey || "errGeneric"), "x", 5000); } catch (e) {}
+}
+window.addEventListener("error", e => { if (!e || (e.message && /^Script error/.test(e.message))) return; reportError("window", e.error || e.message); });
+window.addEventListener("unhandledrejection", e => reportError("promise", e && e.reason));
+
+// Storage that never throws: returns false (and tells the user why) instead of silently losing data.
+function storeGet(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+function storeDel(key) { try { localStorage.removeItem(key); } catch (e) {} }
+function storeSet(key, value) {
+  try { localStorage.setItem(key, value); return true; }
+  catch (e) {
+    const full = e && (e.name === "QuotaExceededError" || e.name === "NS_ERROR_DOM_QUOTA_REACHED" || e.code === 22 || e.code === 1014);
+    reportError("storage:" + key, e, full ? "errStorageFull" : "errStorageBlocked"); return false;
+  }
+}
+// Read saved JSON. If it's damaged, keep a copy under a new key so nothing is lost, then start fresh.
+function loadJSON(key, check) {
+  const raw = storeGet(key); if (raw == null) return { value: null };
+  try { const v = JSON.parse(raw); if (check(v)) return { value: v }; throw new Error("unexpected shape"); }
+  catch (e) { try { localStorage.setItem(`${key}-corrupt-${Date.now()}`, raw); } catch (_) {} logError("load:" + key, e); notices.push("errCorrupt"); return { value: null, corrupt: true }; }
+}
+const LIMITS = { routineBytes: 1000000, backupBytes: 4000000, sections: 30, items: 80, exercises: 30, weekly: 30, text: 300 };
+
 /* ================= Language ================= */
 const LANG_KEY = "tunas-lang";
 let LANG = "en";
@@ -113,16 +150,28 @@ function pickTheme(id) { applyTheme(id, true); sfx("ding"); jump($("mascot")); s
 /* ================= Routine config ================= */
 const CFG_KEY = "tunas-config", DATA_KEY = "tunas-data-v1", SND_KEY = "tunas-sound";
 const defaultRoutine = () => { const r = window.resolveTemplate(window.TUNAS_TEMPLATES.find(t => t.id === "worker").routine, LANG); r.name = LANG === "ms" ? "Kawan" : "Friend"; return r; };
-let RAW = null, RAW_IS_DEFAULT = false;
-try { RAW = JSON.parse(localStorage.getItem(CFG_KEY)); } catch (e) {}
-if (!RAW || !Array.isArray(RAW.blocks)) { RAW = defaultRoutine(); RAW_IS_DEFAULT = true; }
+let RAW = loadJSON(CFG_KEY, v => v && Array.isArray(v.blocks) && v.blocks.length).value, RAW_IS_DEFAULT = false;
+if (!RAW) { RAW = defaultRoutine(); RAW_IS_DEFAULT = true; }
 
 let CFG, BLOCKS, FOCUS, WORKOUTS, PROG, WEEKLY, TIPS, EXMAP;
 function validateRoutine(r) {
-  if (!r || typeof r !== "object") return T("badFile");
+  if (!r || typeof r !== "object" || Array.isArray(r)) return T("badFile");
   if (!Array.isArray(r.blocks) || !r.blocks.length) return T("errNoBlocks");
-  for (const b of r.blocks) if (!b || !Array.isArray(b.items)) return T("errNoItems", b && b.title || "?");
+  if (r.blocks.length > LIMITS.sections) return T("errTooBig");
+  for (const b of r.blocks) {
+    if (!b || typeof b !== "object" || !Array.isArray(b.items)) return T("errNoItems", b && b.title || "?");
+    if (b.items.length > LIMITS.items) return T("errTooBig");
+  }
+  for (const w of Object.values(r.workouts || {})) if (w && Array.isArray(w.exercises) && w.exercises.length > LIMITS.exercises) return T("errTooBig");
+  if (Array.isArray(r.weekly) && r.weekly.length > LIMITS.weekly) return T("errTooBig");
   return null;
+}
+// Cut very long text so one huge field can't break the layout or fill storage.
+function clampText(o) {
+  if (typeof o === "string") return o.length > LIMITS.text ? o.slice(0, LIMITS.text) : o;
+  if (Array.isArray(o)) return o.map(clampText);
+  if (o && typeof o === "object") { const out = {}; Object.keys(o).forEach(k => { if (k !== "__proto__" && k !== "constructor") out[k] = clampText(o[k]); }); return out; }
+  return o;
 }
 function applyRoutine(r) {
   CFG = r;
@@ -151,8 +200,18 @@ function applyRoutine(r) {
   TIPS = (r.tips && r.tips.length) ? r.tips : ["**Small steps, every day.**"];
   EXMAP = {}; Object.values(WORKOUTS).forEach(W => W.ex.forEach(ex => { EXMAP[ex.id] ||= ex; }));
 }
-applyRoutine(RAW);
-function saveRoutine(r) { try { localStorage.setItem(CFG_KEY, JSON.stringify(r)); } catch (e) {} RAW = r; RAW_IS_DEFAULT = false; applyRoutine(r); }
+try { applyRoutine(RAW); }
+catch (e) { // A saved routine that can't be shown: keep a copy and fall back to the starter routine.
+  logError("applyRoutine", e); const raw = storeGet(CFG_KEY); if (raw) storeSet(`${CFG_KEY}-corrupt-${Date.now()}`, raw);
+  notices.push("errCorrupt"); RAW = defaultRoutine(); RAW_IS_DEFAULT = true; applyRoutine(RAW);
+}
+// Save first, then switch. If saving fails, the old routine stays active and nothing half-changes.
+function saveRoutine(r) {
+  const prev = RAW;
+  try { applyRoutine(r); } catch (e) { reportError("applyRoutine", e, "errSaveRoutine"); applyRoutine(prev); return false; }
+  if (!storeSet(CFG_KEY, JSON.stringify(r))) { applyRoutine(prev); return false; }
+  RAW = r; RAW_IS_DEFAULT = false; return true;
+}
 
 /* ================= Game rules ================= */
 const XP = { item: 10, key: 20, workout: 50, perfect: 50, quest: 40, pr: 25, weekly: 15 };
@@ -168,11 +227,10 @@ const badgeName = id => (T("badge")[id] || [id, ""])[0], badgeHow = id => (T("ba
 const titleOf = n => { const t = T("titles"); return t[Math.min(n - 1, t.length - 1)]; };
 
 /* ================= Progress storage ================= */
-let store = { days:{}, weeks:{}, logs:{}, seen:{}, rest:{} };
-try { const s = JSON.parse(localStorage.getItem(DATA_KEY)); if (s && s.days) store = s; } catch (e) {}
+let store = loadJSON(DATA_KEY, v => v && typeof v === "object" && v.days && typeof v.days === "object").value || { days:{}, weeks:{}, logs:{}, seen:{}, rest:{} };
 function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; }
 normStore();
-function save() { try { localStorage.setItem(DATA_KEY, JSON.stringify(store)); } catch (e) {} }
+function save() { return storeSet(DATA_KEY, JSON.stringify(store)); }
 let soundOn = true; try { soundOn = localStorage.getItem(SND_KEY) !== "off"; } catch (e) {}
 
 /* ================= Dates ================= */
@@ -514,19 +572,28 @@ function renderGuide() {
 /* ================= Bottom sheet ================= */
 let sheetId = null, lastFocus = null;
 function openSheet(id) {
+  // Phone back button closes the sheet instead of leaving the app.
+  if (!sheetId && !(history.state && history.state.tunasSheet)) { try { history.pushState({ tunasSheet: 1 }, ""); } catch (e) {} }
   sheetId = id; lastFocus = document.activeElement;
   $("scrim").hidden = false; $("sheet").hidden = false; document.body.classList.add("locked");
   renderSheet(false);
   requestAnimationFrame(() => { $("scrim").classList.add("show"); $("sheet").classList.add("show"); const x = $("shClose"); x && x.focus({ preventScroll: true }); });
 }
-function closeSheet() {
+function closeSheet(fromBack) {
   if (!sheetId) return; sheetId = null; ED = null;
+  if (!fromBack && history.state && history.state.tunasSheet) { try { history.back(); } catch (e) {} }
   $("scrim").classList.remove("show"); $("sheet").classList.remove("show"); document.body.classList.remove("locked");
   setTimeout(() => { if (!sheetId) { $("scrim").hidden = true; $("sheet").hidden = true; } }, 320);
   if (lastFocus && lastFocus.focus) lastFocus.focus({ preventScroll: true });
 }
-$("scrim").onclick = () => { if (sheetId !== "editor") closeSheet(); };
-document.addEventListener("keydown", e => { if (e.key === "Escape") { if (!$("cele").hidden) return nextCele(); if (sheetId !== "editor") closeSheet(); } });
+$("scrim").onclick = () => { if (sheetId === "editor") requestCloseEditor(); else closeSheet(); };
+document.addEventListener("keydown", e => { if (e.key === "Escape") { if (!$("cele").hidden) return nextCele(); if (sheetId === "editor") requestCloseEditor(); else closeSheet(); } });
+window.addEventListener("popstate", () => {
+  if (!sheetId) return;
+  if (sheetId === "editor" && ED && ED.dirty) { try { history.pushState({ tunasSheet: 1 }, ""); } catch (e) {} requestCloseEditor(); return; }
+  closeSheet(true);
+});
+window.addEventListener("beforeunload", e => { if (ED && ED.dirty) { e.preventDefault(); e.returnValue = ""; } });
 
 function taskHTML(i, checked, tag) {
   return `<button class="task" type="button" role="checkbox" aria-checked="${checked}" data-task="${i.id}">
@@ -739,23 +806,36 @@ function renderSettings(keep) {
       <div class="row"><button class="btn small" type="button" data-act="backup">${T("downloadBackup")}</button>
         <button class="btn ghost small" type="button" data-act="restore">${T("restoreBackup")}</button></div></div>
     <div class="set-group"><h3>${T("sound")}</h3><div class="row"><button class="btn ghost small" type="button" data-act="sound">${soundOn ? T("soundOff") : T("soundOn")}</button></div></div>
-    <div class="set-group"><h3>${T("about")}</h3><p>${T("aboutText")}</p></div>`;
-  $("setName").addEventListener("change", e => { const v = e.target.value.trim().slice(0, 30); const r = { ...RAW, name: v || (LANG === "ms" ? "Kawan" : "Friend") }; saveRoutine(r); toast(T("nameSaved"), "check"); contextSay(); });
+    <div class="set-group"><h3>${T("errLog")}</h3><p>${T("errLogHelp")}</p>${errLogHTML()}</div>
+    <div class="set-group"><h3>${T("about")}</h3><p>${T("aboutText")}</p><p class="ver">v${APP_VERSION}</p></div>`;
+  $("setName").addEventListener("change", e => { const v = e.target.value.trim().slice(0, 30); const r = { ...RAW, name: v || (LANG === "ms" ? "Kawan" : "Friend") }; if (saveRoutine(r)) { toast(T("nameSaved"), "check"); contextSay(); } });
   if (keep) body.scrollTop = top;
   if (settingsPane === "paste") $("pasteBox").focus();
 }
+function errLogHTML() {
+  let list = []; try { list = JSON.parse(storeGet(ERR_KEY) || "[]"); } catch (e) {}
+  if (!list.length) return `<p class="pill-ok">${T("errLogEmpty")}</p>`;
+  return `<ul class="errlog">${list.slice(0, 5).map(x => `<li><b>${esc(new Date(x.t).toLocaleString(locale()))}</b> · ${esc(x.where)}<br>${esc(x.msg)}</li>`).join("")}</ul>
+    <div class="row"><button class="btn ghost small" type="button" data-act="copyLog">${T("copyLog")}</button><button class="btn ghost small" type="button" data-act="clearLog">${T("clearLog")}</button></div>`;
+}
 function loadRoutineText(text) {
+  if (String(text || "").length > LIMITS.routineBytes) { toast(T("errFileTooBig", LIMITS.routineBytes / 1e6), "x"); return false; }
   let r; try { r = JSON.parse(text); } catch (e) { toast(T("badFile"), "x"); return false; }
   const err = validateRoutine(r); if (err) { toast(esc(err), "x"); return false; }
-  saveRoutine(r); lastS = null; prevCleared = null; settingsPane = ""; store.welcomed = true; save();
+  r = clampText(r);
+  if (!saveRoutine(r)) return false;
+  lastS = null; prevCleared = null; settingsPane = ""; store.welcomed = true; save();
   if (!$("welcome").hidden) closeWelcome();
   renderGuide(); refresh(true); toast(T("loaded", esc(r.label || T("custom"))), "check"); sfx("clear");
   return true;
 }
 function downloadText(name, text, type) {
-  const blob = new Blob([text], { type });
-  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
-  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  try {
+    const blob = new Blob([text], { type });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    if (name.startsWith("tunas-backup")) { store.lastBackup = Date.now(); save(); }
+  } catch (e) { reportError("download", e, "errDownload"); }
 }
 const download = (name, obj) => downloadText(name, JSON.stringify(obj, null, 2), "application/json");
 function setLang(l) {
@@ -766,12 +846,14 @@ function setLang(l) {
 }
 function settingsAction(act) {
   if (act === "tickAll") return tickAll();
-  if (act === "toggleWo") { const r = { ...RAW, showWorkouts: CFG.showWorkouts === false }; saveRoutine(r); lastS = null; prevCleared = null; refresh(true); toast(r.showWorkouts ? T("woShown") : T("woHidden"), "check"); return; }
+  if (act === "toggleWo") { const r = { ...RAW, showWorkouts: CFG.showWorkouts === false }; if (!saveRoutine(r)) return renderSettings(true); lastS = null; prevCleared = null; refresh(true); toast(r.showWorkouts ? T("woShown") : T("woHidden"), "check"); return; }
   if (act === "edit") return openEditor();
   if (act === "template") { closeSheet(); return openWelcome(2, true); }
   if (act === "importRoutine") return $("fileRoutine").click();
   if (act === "pasteToggle") { settingsPane = settingsPane === "paste" ? "" : "paste"; return renderSettings(true); }
   if (act === "pasteApply") return loadRoutineText($("pasteBox").value);
+  if (act === "copyLog") { const txt = storeGet(ERR_KEY) || "[]"; (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => toast(T("copiedLog"), "check")).catch(() => toast(esc(txt).slice(0, 400), "x", 8000)); return; }
+  if (act === "clearLog") { storeDel(ERR_KEY); return renderSettings(true); }
   if (act === "exportRoutine") return download(`${slug(CFG.label || "routine")}.json`, RAW);
   if (act === "ics") return downloadText("tunas-reminders.ics", buildICS(), "text/calendar");
   if (act === "share") return shareApp();
@@ -781,24 +863,53 @@ function settingsAction(act) {
 }
 $("sheet").addEventListener("click", e => { const b = e.target.closest("[data-lang]"); if (b) { setLang(b.dataset.lang); return; }
   const t = e.target.closest("[data-theme-pick]"); if (t) { pickTheme(t.dataset.themePick); if (sheetId === "settings") renderSettings(true); } });
-function readFile(input, cb) { const f = input.files && input.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { cb(String(r.result)); input.value = ""; }; r.readAsText(f); }
-$("fileRoutine").addEventListener("change", e => readFile(e.target, loadRoutineText));
+function readFile(input, cb, maxBytes) {
+  const f = input.files && input.files[0]; if (!f) return;
+  if (maxBytes && f.size > maxBytes) { input.value = ""; toast(T("errFileTooBig", maxBytes / 1e6), "x"); return; }
+  const r = new FileReader();
+  r.onload = () => { input.value = ""; try { cb(String(r.result)); } catch (e) { reportError("import", e, "errReadFile"); } };
+  r.onerror = () => { input.value = ""; reportError("readFile", r.error, "errReadFile"); };
+  r.readAsText(f);
+}
+$("fileRoutine").addEventListener("change", e => readFile(e.target, loadRoutineText, LIMITS.routineBytes));
 $("fileBackup").addEventListener("change", e => readFile(e.target, text => {
   let b; try { b = JSON.parse(text); } catch (err) { return toast(T("notBackup"), "x"); }
-  if (!b || b.app !== "tunas" || !b.data || !b.data.days) return toast(T("notBackup"), "x");
-  store = b.data; normStore(); store.welcomed = true; save();
-  if (b.routine && !validateRoutine(b.routine)) { saveRoutine(b.routine); renderGuide(); }
+  if (!b || b.app !== "tunas" || !b.data || typeof b.data.days !== "object") return toast(T("notBackup"), "x");
+  // Restore only if it can actually be saved; otherwise keep the current data untouched.
+  const prevStore = store; store = b.data; normStore(); store.welcomed = true;
+  if (!save()) { store = prevStore; return; }
+  if (b.routine && !validateRoutine(b.routine)) { if (saveRoutine(clampText(b.routine))) renderGuide(); }
   lastS = null; prevCleared = null; refresh(true); toast(T("restored"), "check");
-}));
+}, LIMITS.backupBytes));
 $("stCog").onclick = () => { settingsPane = ""; openSheet("settings"); };
 
 /* ================= Routine editor ================= */
-let ED = null;
+let ED = null, draftTimer = null;
+const DRAFT_KEY = "tunas-editor-draft";
 function openEditor() {
   const draft = clone(RAW); draft.focus ||= {}; draft.workouts ||= {}; draft.weekly ||= [];
-  ED = { draft, tab: "sections", day: routineDate().getDay(), more: new Set(), iconFor: null, confirm: null, focusTo: null };
+  const base = JSON.stringify(draft);
+  // A draft left from last time (app closed, phone died, crash)? Offer to bring it back.
+  let offer = null; const saved = loadJSON(DRAFT_KEY, v => v && v.draft && Array.isArray(v.draft.blocks)).value;
+  if (saved && JSON.stringify(saved.draft) !== base) offer = saved; else if (saved) storeDel(DRAFT_KEY);
+  ED = { draft, base, dirty: false, ask: false, offer, tab: "sections", day: routineDate().getDay(), more: new Set(), iconFor: null, confirm: null, focusTo: null };
   if (sheetId) { sheetId = "editor"; renderSheet(false); } else openSheet("editor");
+  $("shBody").scrollTop = 0;
 }
+// Mark the draft as changed and cache it on the phone (debounced), so nothing is lost before Save.
+function markDirty() {
+  if (!ED) return;
+  ED.dirty = JSON.stringify(ED.draft) !== ED.base;
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(() => { if (!ED) return; if (ED.dirty) storeSet(DRAFT_KEY, JSON.stringify({ draft: ED.draft, at: Date.now() })); else storeDel(DRAFT_KEY); }, 400);
+  const hint = $("edDirty"); if (hint) hint.hidden = !ED.dirty;
+}
+function requestCloseEditor() {
+  if (!ED) return;
+  if (ED.dirty) { ED.ask = true; renderEditor(true); const f = document.querySelector(".ed-foot"); f && f.scrollIntoView({ block: "end" }); const k = $("edKeepBtn"); k && k.focus({ preventScroll: true }); return; }
+  exitEditor(false);
+}
+function exitEditor(discard) { clearTimeout(draftTimer); if (discard) storeDel(DRAFT_KEY); ED = null; sheetId = "settings"; renderSheet(false); }
 function getPath(obj, path) { return path.split(".").reduce((o, k) => (o == null ? o : o[k]), obj); }
 function setPath(obj, path, val) {
   const ks = path.split("."); let o = obj;
@@ -812,11 +923,13 @@ function delBtn(key, attrs) {
 }
 function renderEditor(keep) {
   const body = $("shBody"), top = keep ? body.scrollTop : 0, D = ED.draft;
-  $("shHead").innerHTML = sheetHead("cog", T("edTitle"), T("edSub"), null, "--sky");
+  $("shHead").innerHTML = sheetHead("cog", T("edTitle"), `${T("edSub")} <span class="ed-dirty" id="edDirty" ${ED.dirty ? "" : "hidden"}>● ${T("edUnsaved")}</span>`, null, "--sky");
   $("shHead").querySelector(".sh-ico").innerHTML = I.pencil;
-  $("shClose").onclick = () => { ED = null; sheetId = "settings"; renderSheet(false); };
+  $("shClose").onclick = requestCloseEditor;
   const tabs = ["sections", "workouts", "weekly"].map(t => `<button type="button" data-ed="tab" data-tab="${t}" aria-pressed="${ED.tab === t}">${T(t === "sections" ? "edSections" : t === "workouts" ? "edWorkouts" : "edWeekly")}</button>`).join("");
-  let h = `<div class="seg" role="group">${tabs}</div>`;
+  let h = ED.offer ? `<div class="ed-restore" role="status"><div><b>${T("edRestoreQ", esc(new Date(ED.offer.at).toLocaleString(locale(), { weekday: "short", hour: "numeric", minute: "2-digit" })))}</b></div>
+    <div class="row"><button class="btn small" type="button" data-ed="restoreDraft">${T("edRestore")}</button><button class="btn ghost small" type="button" data-ed="dropDraft">${T("edDiscard")}</button></div></div>` : "";
+  h += `<div class="seg" role="group">${tabs}</div>`;
   if (ED.tab === "sections") {
     const woDays = Object.keys(D.workouts || {}).length;
     D.blocks.forEach((b, bi) => {
@@ -871,16 +984,20 @@ function renderEditor(keep) {
     });
     h += `<button class="btn ghost small ed-add" type="button" data-ed="addWeekly">${I.plus}${T("edAddWeekly")}</button>`;
   }
-  h += `<div class="ed-foot"><button class="btn ghost" type="button" data-ed="cancel">${T("cancel")}</button><button class="btn" type="button" data-ed="save">${T("save")}</button></div>`;
+  h += ED.ask
+    ? `<div class="ed-foot ask" role="alertdialog" aria-labelledby="edAskT"><div class="ed-ask-t"><b id="edAskT">${T("edDiscardQ")}</b><span>${T("edDiscardSub")}</span></div>
+        <div class="ed-ask-row"><button class="btn ghost" type="button" data-ed="keep" id="edKeepBtn">${T("edKeep")}</button><button class="btn danger-btn" type="button" data-ed="discard">${T("edDiscard")}</button><button class="btn" type="button" data-ed="save">${T("save")}</button></div></div>`
+    : `<div class="ed-foot"><button class="btn ghost" type="button" data-ed="cancel">${T("cancel")}</button><button class="btn" type="button" data-ed="save">${T("save")}</button></div>`;
   body.innerHTML = h; if (keep) body.scrollTop = top;
   const af = body.querySelector("[data-autofocus]"); if (af) { af.focus(); af.scrollIntoView({ block: "center" }); } ED.focusTo = null;
 }
 function swap(arr, i, j) { if (j < 0 || j >= arr.length) return; [arr[i], arr[j]] = [arr[j], arr[i]]; }
 function editorInput(e) {
   const t = e.target, path = t.dataset && t.dataset.path; if (!path || !ED) return;
-  setPath(ED.draft, path, t.value);
+  setPath(ED.draft, path, String(t.value).slice(0, LIMITS.text));
   let m = /^blocks\.(\d+)\.(from|to)$/.exec(path); if (m) ED.draft.blocks[+m[1]]._rangeDirty = true;
   m = /^workouts\.(\d+)\.from$/.exec(path); if (m) ED.draft.workouts[m[1]]._timeDirty = true;
+  markDirty();
 }
 function editorClick(e) {
   const chk = e.target.closest("[data-ed-check]");
@@ -889,20 +1006,26 @@ function editorClick(e) {
     if (kind === "alt") { const it = D.blocks[+chk.dataset.bi].items[+chk.dataset.ii]; it.everyOtherDay = chk.checked; }
     if (kind === "skip") { const it = D.blocks[+chk.dataset.bi].items[+chk.dataset.ii]; it.hideOnDays = chk.checked ? Object.keys(D.workouts || {}).map(Number) : []; }
     if (kind === "bw") { D.workouts[chk.dataset.k].exercises[+chk.dataset.ei].bodyweight = chk.checked; }
-    return;
+    markDirty(); return;
   }
   const b = e.target.closest("[data-ed]"); if (!b) return;
   const D = ED.draft, a = b.dataset.ed, bi = +b.dataset.bi, ii = +b.dataset.ii, k = b.dataset.k, ei = +b.dataset.ei;
   if (a !== "del") ED.confirm = null;
+  if (a !== "keep" && a !== "discard" && a !== "save") ED.ask = false;
+  const tooMany = n => { if (n >= LIMITS.items) { toast(T("errTooBig"), "x"); return true; } return false; };
   switch (a) {
+    case "keep": ED.ask = false; break;
+    case "discard": return exitEditor(true);
+    case "restoreDraft": ED.draft = ED.offer.draft; ED.offer = null; ED.more.clear(); break;
+    case "dropDraft": ED.offer = null; storeDel(DRAFT_KEY); break;
     case "tab": ED.tab = b.dataset.tab; break;
     case "iconMenu": ED.iconFor = ED.iconFor === bi ? null : bi; break;
     case "setIcon": D.blocks[bi].icon = b.dataset.icon; ED.iconFor = null; break;
     case "secUp": swap(D.blocks, bi, bi - 1); ED.more.clear(); break;
     case "secDown": swap(D.blocks, bi, bi + 1); ED.more.clear(); break;
-    case "addSec": { const from = 12 * 60; D.blocks.push({ id: uid(), title: T("edNewSection"), icon: "star", from: hhmm(from), to: hhmm(from + 60), remind: hhmm(from), _rangeDirty: true, items: [{ id: uid(), title: "" }] });
+    case "addSec": { if (D.blocks.length >= LIMITS.sections) { toast(T("errTooBig"), "x"); break; } const from = 12 * 60; D.blocks.push({ id: uid(), title: T("edNewSection"), icon: "star", from: hhmm(from), to: hhmm(from + 60), remind: hhmm(from), _rangeDirty: true, items: [{ id: uid(), title: "" }] });
       ED.focusTo = `blocks.${D.blocks.length - 1}.title`; break; }
-    case "addItem": D.blocks[bi].items.push({ id: uid(), title: "", time: "" }); ED.focusTo = `blocks.${bi}.items.${D.blocks[bi].items.length - 1}.title`; break;
+    case "addItem": if (tooMany(D.blocks[bi].items.length)) break; D.blocks[bi].items.push({ id: uid(), title: "", time: "" }); ED.focusTo = `blocks.${bi}.items.${D.blocks[bi].items.length - 1}.title`; break;
     case "star": { const it = D.blocks[bi].items[ii]; it.quest = !it.quest; break; }
     case "more": { const key = `${bi}.${ii}`; ED.more.has(key) ? ED.more.delete(key) : ED.more.add(key); break; }
     case "itemUp": swap(D.blocks[bi].items, ii, ii - 1); ED.more.clear(); ED.more.add(`${bi}.${Math.max(0, ii - 1)}`); break;
@@ -926,9 +1049,10 @@ function editorClick(e) {
       else if (kind === "wo") delete D.workouts[x];
       else if (kind === "wk") D.weekly.splice(+x, 1);
       break; }
-    case "cancel": ED = null; sheetId = "settings"; renderSheet(false); return;
+    case "cancel": return requestCloseEditor();
     case "save": return saveEditor();
   }
+  markDirty();
   renderEditor(true);
 }
 function saveEditor() {
@@ -953,7 +1077,9 @@ function saveEditor() {
   r.weekly = (r.weekly || []).filter(w => String(w.title || "").trim()).map(w => { w.id = w.id || uid(); return w; });
   if (RAW_IS_DEFAULT || !r.label) r.label = T("myRoutine");
   const err = validateRoutine(r); if (err) { toast(esc(err), "x"); return; }
-  saveRoutine(r); ED = null; lastS = null; prevCleared = null; store.welcomed = true; save();
+  if (!saveRoutine(clampText(r))) return; // error already shown; the draft stays open and cached
+  clearTimeout(draftTimer); storeDel(DRAFT_KEY);
+  ED = null; lastS = null; prevCleared = null; store.welcomed = true; save();
   renderGuide(); closeSheet(); refresh(); toast(T("saved"), "check"); sfx("clear"); jump($("mascot"));
 }
 
@@ -1021,7 +1147,8 @@ function finishWelcome() {
   const r = mergeRoutines(ids.map(id => window.resolveTemplate(window.TUNAS_TEMPLATES.find(t => t.id === id).routine, LANG)));
   r.showWorkouts = !!WEL.includeWo;
   r.name = String(WEL.name || "").trim().slice(0, 30) || (LANG === "ms" ? "Kawan" : "Friend");
-  saveRoutine(r); store.welcomed = true; save(); lastS = null; prevCleared = null;
+  if (!saveRoutine(r)) return;
+  store.welcomed = true; save(); lastS = null; prevCleared = null;
   closeWelcome(); renderGuide(); refresh(); confetti(); sfx("clear");
   say(T("wWelcome", firstName()), "", "cheer", 5000); jump($("mascot"));
 }
@@ -1087,10 +1214,21 @@ function resetIdle() { area.innerHTML = `<button class="btn ghost small" type="b
 $("continueBtn").onclick = () => { audio(); const id = $("continueBtn").dataset.node; if (id) openSheet(id); };
 $("shareBtn").onclick = shareApp;
 
-applyStatic();
-resetIdle();
-renderGuide();
-refresh();
+function showRescue() {
+  const el = $("cele"); el.hidden = false;
+  el.innerHTML = `<div class="mascot sleepy">${MASCOT}</div><h2>${T("rescueTitle")}</h2><p>${T("rescueSub")}</p>
+    <button class="btn" type="button" id="rsRetry">${T("rescueRetry")}</button>
+    <button class="btn ghost" type="button" id="rsStarter">${T("rescueStarter")}</button>
+    <button class="btn ghost" type="button" id="rsData">${T("rescueBackup")}</button>`;
+  $("rsRetry").onclick = () => location.reload();
+  $("rsStarter").onclick = () => { const raw = storeGet(CFG_KEY); if (raw) storeSet(`${CFG_KEY}-corrupt-${Date.now()}`, raw); storeDel(CFG_KEY); location.reload(); };
+  $("rsData").onclick = () => { const all = {}; try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k.startsWith("tunas-")) all[k] = localStorage.getItem(k); } } catch (e) {}
+    downloadText(`tunas-rescue-${dkey(new Date())}.json`, JSON.stringify(all, null, 2), "application/json"); };
+}
+let booted = false;
+try { applyStatic(); resetIdle(); renderGuide(); refresh(); booted = true; }
+catch (e) { logError("boot", e); showRescue(); }
+[...new Set(notices)].forEach(k => setTimeout(() => toast(T(k), "x", 6500), 800));
 $("mascot").setAttribute("role", "button"); $("mascot").setAttribute("tabindex", "0"); $("mascot").setAttribute("aria-label", T("tunasLabel")); $("mascot").removeAttribute("aria-hidden");
 $("mascot").addEventListener("click", tapTunas);
 $("mascot").addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tapTunas(); } });
@@ -1109,8 +1247,9 @@ if ($("welcome").hidden) { const h = new Date().getHours(), S0 = lastS || comput
   if (id && nodes.some(n => n.id === id)) return openSheet(id);
   if (q === "workout") toast(T("noWorkout"), "star");
 })();
-setInterval(() => { const a = document.activeElement; if (!(a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA" || a.tagName === "SELECT")) && sheetId !== "editor" && $("welcome").hidden) refresh(); }, 60000);
-document.addEventListener("visibilitychange", () => { if (!document.hidden && sheetId !== "editor") refresh(); });
+function safeRefresh() { if (!booted) return; try { refresh(); } catch (e) { reportError("refresh", e); } }
+setInterval(() => { const a = document.activeElement; if (!(a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA" || a.tagName === "SELECT")) && sheetId !== "editor" && $("welcome").hidden) safeRefresh(); }, 60000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden && sheetId !== "editor") safeRefresh(); });
 
 /* ================= Offline support ================= */
 if ("serviceWorker" in navigator) {

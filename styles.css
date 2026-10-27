@@ -449,3 +449,18 @@ a.btn{text-decoration:none;display:inline-block}
 :root[data-accent="ungu"] .mascot.cheer .mbody{animation:hype .35s ease-in-out 4}
 @keyframes hype{50%{transform:translateY(-6px) rotate(-4deg)}}
 .swatch small{font-size:11px;font-weight:800;color:var(--muted);margin-top:-4px}
+/* Editor: unsaved hint, restore banner, discard confirm */
+.ed-dirty{display:inline-block;margin-left:6px;font-size:12px;font-weight:900;color:var(--orange,#ff9600)}
+.ed-restore{display:flex;flex-direction:column;gap:10px;padding:12px 14px;margin-bottom:12px;border-radius:16px;background:var(--sky-soft,#e5f4ff);border:2px solid var(--sky,#1cb0f6)}
+.ed-restore .row{display:flex;gap:8px;flex-wrap:wrap}
+.ed-foot.ask{flex-direction:column;align-items:stretch;gap:10px;border-top:3px solid var(--red,#ff4b4b);animation:askpop .25s ease-out}
+.ed-ask-t{display:flex;flex-direction:column;gap:2px}
+.ed-ask-t span{font-size:13px;color:var(--muted)}
+.ed-ask-row{display:flex;gap:8px;flex-wrap:wrap}
+.ed-ask-row .btn{flex:1 1 0;min-width:0;padding-left:8px;padding-right:8px}
+@keyframes askpop{0%{transform:scale(.96);opacity:.4}100%{transform:none;opacity:1}}
+/* Error log */
+.errlog{list-style:none;margin:8px 0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted);word-break:break-word}
+.errlog li{padding:8px 10px;border-radius:12px;background:var(--bg-soft,rgba(0,0,0,.04))}
+.set-group .row{display:flex;gap:8px;flex-wrap:wrap}
+.ver{font-size:12px;color:var(--muted)}
