@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tunas Routine</title>
+<meta name="description" content="A cute, gamified daily routine tracker with quests, XP, streaks and a workout logger.">
+<meta name="theme-color" content="#4fc21b">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tunas">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<canvas id="confetti" aria-hidden="true"></canvas>
+
+<div class="wrap">
+  <div class="top">
+    <span class="stat fire" id="stStreak" title="Day streak"></span>
+    <span class="stat xp" id="stXP" title="XP today"></span>
+    <span class="stat lv" id="stLv" title="Level"></span>
+    <button class="stat snd" id="stSnd" type="button" aria-label="Sound"></button>
+    <button class="stat cog" id="stCog" type="button" aria-label="Settings"></button>
+  </div>
+
+  <div class="hero">
+    <div class="mascot" id="mascot" aria-hidden="true"></div>
+    <div class="bubble" id="bubble">Jom start!</div>
+  </div>
+
+  <div class="card level">
+    <div class="lv-row"><div class="lv-name" id="lvName">Level 1</div><div class="lv-xp" id="lvXP">0 XP</div></div>
+    <div class="bar"><i id="lvFill"></i><b id="lvBar">0 / 250</b></div>
+  </div>
+
+  <h2 class="sec-title">Daily quests</h2>
+  <div class="card quests" id="quests"></div>
+
+  <h2 class="sec-title" id="pathTitle">Today's path</h2>
+  <div class="path" id="path"></div>
+
+  <div class="card streak-card" id="streakCard"></div>
+
+  <h2 class="sec-title">Badges <span id="badgeMeta" style="font-size:15px;color:var(--muted)"></span></h2>
+  <div class="card"><div class="bgrid" id="bgrid"></div></div>
+
+  <div class="card tip"><div class="ti"><svg viewBox="0 0 24 24"><path d="M9 21h6v-1H9zm3-19a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2z"/></svg></div><p id="tip"></p></div>
+
+  <h2 class="sec-title" id="guideTitle">Guide</h2>
+  <div class="card guide" id="guide"></div>
+
+  <div class="foot">
+    <div id="resetArea"></div>
+    <div>Everything saves on this phone only. A new day starts at 4am.</div>
+  </div>
+</div>
+
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="shTitle" hidden>
+  <div class="sh-head" id="shHead"></div>
+  <div class="sh-body" id="shBody"></div>
+</div>
+
+<div class="cele" id="cele" hidden></div>
+
+<div class="restbar" id="restbar" hidden>
+  <div class="in">
+    <div class="rt" id="restTime">1:30</div>
+    <div class="rl"><b id="restLabel">Rest</b>Breathe. Next set at zero.<div class="bar"><i id="restFill"></i></div></div>
+    <button class="btn ghost small" type="button" id="restPlus">+15s</button>
+    <button class="btn ghost small" type="button" id="restSkip">Skip</button>
+  </div>
+</div>
+
+<input type="file" id="fileRoutine" accept=".json,application/json" class="vis-hidden" tabindex="-1" aria-hidden="true">
+<input type="file" id="fileBackup" accept=".json,application/json" class="vis-hidden" tabindex="-1" aria-hidden="true">
+
+<script src="default-routine.js"></script>
+<script src="app.js"></script>
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  }
+</script>
+</body>
+</html>

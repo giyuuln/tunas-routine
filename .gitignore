@@ -1,0 +1,8 @@
+# Personal routine files stay on your phone, never in this repo
+*.private.json
+my-routine.json
+*-routine.json
+personal/
+tunas-backup-*.json
+.DS_Store
+node_modules/
