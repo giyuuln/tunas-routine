@@ -43,7 +43,7 @@ const MASCOT = `<svg viewBox="0 0 120 120">
     <path d="M60 15c9-12 21-9 19 0-8 3-14 3-19 0z" fill="var(--m-body)"/>
     <g class="e-open">
       <ellipse cx="46" cy="58" rx="10" ry="11" fill="#fff"/><ellipse cx="74" cy="58" rx="10" ry="11" fill="#fff"/>
-      <g class="pupil"><circle cx="47.5" cy="60" r="5.5" fill="var(--m-ink)"/><circle cx="75.5" cy="60" r="5.5" fill="var(--m-ink)"/></g>
+      <g class="look"><g class="pupil"><circle cx="47.5" cy="60" r="5.5" fill="var(--m-ink)"/><circle cx="75.5" cy="60" r="5.5" fill="var(--m-ink)"/></g></g>
       <circle cx="50" cy="57" r="2" fill="#fff"/><circle cx="78" cy="57" r="2" fill="#fff"/>
     </g>
     <g class="e-happy" fill="none" stroke="var(--m-ink)" stroke-width="4.5" stroke-linecap="round"><path d="M37 61q9-11 18 0"/><path d="M65 61q9-11 18 0"/></g>
@@ -280,36 +280,103 @@ function confetti() {
 /* ================= Mascot ================= */
 $("mascot").innerHTML = MASCOT;
 let mascotTimer = null;
-function setMood(el, mood) { el.classList.remove("happy","cheer","sleepy"); if (mood && mood !== "idle") el.classList.add(mood); }
+function setMood(el, mood) { el.classList.remove("happy","cheer","sleepy","think"); if (mood && mood !== "idle") el.classList.add(mood); }
 function jump(el) { if (!el || reduced()) return; el.classList.remove("jump"); void el.offsetWidth; el.classList.add("jump"); setTimeout(() => el.classList.remove("jump"), 600); }
+let typeTimer = null, lastSaid = "";
 function say(text, sub, mood, ms) {
-  const b = $("bubble"); b.innerHTML = text + (sub ? `<small>${sub}</small>` : ""); b.classList.remove("pop"); void b.offsetWidth; b.classList.add("pop");
+  const b = $("bubble"), html = text + (sub ? `<small>${sub}</small>` : "");
+  if (html !== lastSaid) {
+    lastSaid = html; clearInterval(typeTimer);
+    const tmp = document.createElement("div"); tmp.innerHTML = text; const plain = tmp.textContent;
+    if (reduced() || plain.length < 3) b.innerHTML = html;
+    else { // typewriter: main line types out, small line appears at the end
+      let i = 0; const step = Math.max(1, Math.ceil(plain.length / 40));
+      b.innerHTML = `<span class="tw"></span>`; const tw = b.firstChild;
+      typeTimer = setInterval(() => { i += step; tw.textContent = plain.slice(0, i); if (i >= plain.length) { clearInterval(typeTimer); b.innerHTML = html; } }, 22);
+    }
+    b.classList.remove("pop"); void b.offsetWidth; b.classList.add("pop");
+  }
   setMood($("mascot"), mood || "happy"); clearTimeout(mascotTimer); mascotTimer = null;
   if (ms) mascotTimer = setTimeout(() => { mascotTimer = null; contextSay(); }, ms);
+}
+const itemTitle = (i, d) => (i.dyn ? FOCUS[d.getDay()].t : i.t);
+function nextOpen(node, d) {
+  const done = store.days[dkey(d)] || {};
+  if (node.kind === "block") return node.b.items.find(i => shown(i, d) && !done[i.id]) || null;
+  if (node.kind === "workout") { const logs = store.logs[dkey(d)] || {}; return node.W.ex.find(ex => !(logs[ex.id] || []).some(s => s && s[1])) || null; }
+  const wd = store.weeks[wkey(d)] || {}; return WEEKLY.find(i => !wd[i.id]) || null;
 }
 function contextSay() {
   if (mascotTimer) return;
   const d = routineDate(), mins = nowMins(), S = lastS || computeAll(), h = new Date().getHours();
-  const now = nodesFor(d).find(n => inWindow(n, mins));
-  if (S.totalToday && S.doneToday === S.totalToday) { const p = T("sayPerfect", firstName()); return say(p[0], p[1], "happy"); }
-  if (h >= 23 || h < 4) { const l = T("sayLate"); return say(l[0], l[1], "sleepy"); }
-  if (now) {
-    const st = nodeState(now, d);
-    if (st.cleared) { const c = T("sayCleared", esc(now.title)); return say(c[0], c[1], "happy"); }
-    // Once something in this section is ticked, talk about the next unticked habit instead of the section intro.
-    if (now.kind === "block" && st.n > 0) {
-      const done = store.days[dkey(d)] || {};
-      let next = now.b.items.find(i => shown(i, d) && !done[i.id]);
-      if (next) { if (next.dyn) next = { ...next, ...FOCUS[d.getDay()] };
-        return say(T("sayNext", esc(next.t)), `${T("of", st.n, st.total)}${next.time ? " · " + esc(next.time) : ""}`, "happy"); }
-    }
-    let msg = now.say || [T("letsGo"), ""];
-    if (now.kind === "block" && now.b.items.some(i => i.dyn) && !now.say) msg = [FOCUS[d.getDay()].t + ".", T("sayFocus")];
-    return say(esc(msg[0]), `${T("of", st.n, st.total)}${msg[1] ? " · " + esc(msg[1]) : ""}`, "idle");
+  const nodes = nodesFor(d), timed = nodes.filter(n => n.from != null && n.to != null), now = timed.find(n => inWindow(n, mins));
+  const say2 = (p, mood) => say(p[0], p[1] || "", mood);
+  // 1. Whole day done
+  if (S.totalToday && S.doneToday === S.totalToday) return say2(T("sayPerfect", firstName()), "cheer");
+  // 2. Late night: talk about what's actually left tonight
+  if (h >= 23 || h < 4) {
+    const tonight = now && now.kind === "block" ? now : timed.filter(n => n.kind === "block").slice(-1)[0];
+    const st = tonight && nodeState(tonight, d), nx = tonight && nextOpen(tonight, d);
+    if (nx) return say2(T("sayLateLeft", st.total - st.n, esc(itemTitle(nx, d))), "sleepy");
+    return say2(T("sayLateDone"), "sleepy");
   }
+  // 3. Streak at risk in the evening
+  if (h >= 21 && S.streak > 0 && S.totalToday && S.doneToday / S.totalToday < 0.8 && !isRest(d)) {
+    const need = Math.ceil(0.8 * S.totalToday) - S.doneToday; return say2(T("sayStreakRisk", need, S.streak), "think");
+  }
+  // 4. The section happening right now
+  if (now) {
+    const st = nodeState(now, d), nx = nextOpen(now, d);
+    if (st.cleared) {
+      const later = timed.find(n => n.from >= now.to - 1 && n !== now && !nodeState(n, d).cleared) || timed.find(n => n.from > now.from && !nodeState(n, d).cleared);
+      return say2(later ? T("sayClearedNext", esc(now.title), esc(later.title), fmtClock(later.from)) : T("sayClearedAll", esc(now.title)), "happy");
+    }
+    if (now.kind === "workout") {
+      if (st.n === 0) { const m = now.say || T("sayWoStart", esc(now.title), esc(nx ? nx.name : "")); return say(esc(m[0]), nx ? T("sayStartWith", esc(nx.name)) : esc(m[1] || ""), "happy"); }
+      return say2(nx ? T("sayWoNext", esc(nx.name)) : T("sayWoTick"), "happy");
+    }
+    if (st.n > 0 && nx) return say(T("sayNext", esc(itemTitle(nx, d))), `${T("of", st.n, st.total)}${nx.time ? " · " + esc(nx.time) : ""}`, "happy");
+    const intro = now.say ? esc(now.say[0]) : T("sayStartSec", esc(now.title));
+    return say(intro, nx ? `${T("sayStartWith", esc(itemTitle(nx, d)))}${nx.time ? " · " + esc(nx.time) : ""}` : "", "idle");
+  }
+  // 5. A section that already ended but still has unticked habits
+  const missed = timed.filter(n => n.kind !== "weekly" && n.to <= mins && !nodeState(n, d).cleared).slice(-1)[0];
+  if (missed) { const st = nodeState(missed, d); return say2(T("sayMissed", esc(missed.title), st.total - st.n), "think"); }
+  // 6. Away (work / class), from the user's routine
   const away = CFG.away;
   if (away && mins >= tm(away.from, 510) && mins < tm(away.to, 1050)) { const a = away.say || [T("letsGo"), ""]; return say(esc(a[0]), esc(a[1] || ""), "idle"); }
+  // 7. What's coming up next
+  const up = timed.find(n => n.from > mins && !nodeState(n, d).cleared);
+  if (up) { const st = nodeState(up, d); return say2(T("sayUpcoming", esc(up.title), fmtClock(up.from), st.total - st.n), "idle"); }
   return say(T("sayHi", firstName()), T("doneToday", S.doneToday, S.totalToday), "idle");
+}
+
+/* ---- Tap Tunas: facts from the user's own routine and progress ---- */
+let factIdx = 0, tapTimes = [];
+function tunasFacts() {
+  const d = routineDate(), S = lastS || computeAll(), out = [];
+  out.push(T("factToday", S.doneToday, S.totalToday));
+  if (S.streak) out.push(T("factStreak", S.streak, S.bestStreak)); else out.push(T("factNoStreak"));
+  const counts = {}, keys = new Set();
+  for (let k = 1; k <= 7; k++) { const x = new Date(d); x.setDate(x.getDate() - k); const dn = store.days[dkey(x)] || {};
+    BLOCKS.forEach(b => b.items.forEach(i => { if (!shown(i, x)) return; keys.add(i.id); counts[i.id] = (counts[i.id] || 0) + (dn[i.id] ? 1 : 0); })); }
+  const all = BLOCKS.flatMap(b => b.items).filter(i => keys.has(i.id));
+  if (all.length && Object.keys(store.days).length > 1) {
+    const best = all.reduce((p, c) => (counts[c.id] > counts[p.id] ? c : p)); if (counts[best.id] > 0) out.push(T("factBest", esc(itemTitle(best, d)), counts[best.id]));
+    const stars = all.filter(i => i.key); const worst = (stars.length ? stars : all).reduce((p, c) => (counts[c.id] < counts[p.id] ? c : p));
+    if (counts[worst.id] < 7) out.push(T("factMissed", esc(itemTitle(worst, d)), counts[worst.id]));
+  }
+  const tw = WORKOUTS[(d.getDay() + 1) % 7]; out.push(tw ? T("factTomorrowWo", esc(tw.name)) : (Object.keys(WORKOUTS).length ? T("factTomorrowRest") : T("factTomorrow", esc((BLOCKS[0] || {}).title || ""))));
+  out.push(T("factLevel", S.L.span - S.L.cur, S.level + 1));
+  if (BLOCKS.some(b => b.items.some(i => i.dyn))) out.push(T("factFocus", esc(FOCUS[d.getDay()].t)));
+  const r = routineDate(); const left = REST_PER_MONTH - restsInMonth(r); out.push(T("factRest", left));
+  return out;
+}
+function tapTunas() {
+  audio(); const now = Date.now(); tapTimes = tapTimes.filter(t => now - t < 1500); tapTimes.push(now);
+  if (tapTimes.length >= 4) { tapTimes = []; const g = T("sayTickle"); sfx("level"); buzz([10, 30, 10, 30, 10]); return say(g[0], g[1], "cheer", 2800), jump($("mascot")); }
+  const facts = tunasFacts(); const f = facts[factIdx++ % facts.length];
+  sfx("ding"); jump($("mascot")); say(f, T("tapAgain"), "happy", 4500);
 }
 
 /* ================= Rest timer ================= */
@@ -531,7 +598,10 @@ $("shBody").addEventListener("click", e => {
   if (sheetId === "weekly") (store.weeks[wkey(d)] ||= {})[id] = v; else (store.days[dayKey] ||= {})[id] = v;
   save();
   const rect = t.getBoundingClientRect();
-  if (v) { const xp = sheetId === "weekly" ? XP.weekly : xpFor(id, d); sfx("ding"); buzz(); floatXP(rect.right - 90, rect.top + rect.height/2, `+${xp} XP`); say(pick(T("cheers")), `+${xp} XP`, "happy", 2600); jump($("mascot")); }
+  if (v) { const xp = sheetId === "weekly" ? XP.weekly : xpFor(id, d); sfx("ding"); buzz(); floatXP(rect.right - 90, rect.top + rect.height/2, `+${xp} XP`);
+    const it = id === "wo-done" ? { t: T("woDone") } : sheetId === "weekly" ? WEEKLY.find(w => w.id === id) : BLOCKS.flatMap(b => b.items).find(i => i.id === id);
+    const node = nodesFor(d).find(n => n.id === sheetId), nx = node && !sheetId.startsWith("day:") ? nextOpen(node, d) : null;
+    say(`${pick(T("cheers"))} ${esc(it ? itemTitle(it, d) : "")} ✓`, nx ? T("sayThen", esc(nx.name || itemTitle(nx, d))) + ` · +${xp} XP` : `+${xp} XP`, "happy", 3200); jump($("mascot")); }
   else sfx("undo");
   refresh(true);
   const again = document.querySelector(`[data-task="${id}"]`); again && again.focus({ preventScroll: true });
@@ -962,6 +1032,11 @@ applyStatic();
 resetIdle();
 renderGuide();
 refresh();
+$("mascot").setAttribute("role", "button"); $("mascot").setAttribute("tabindex", "0"); $("mascot").setAttribute("aria-label", T("tunasLabel")); $("mascot").removeAttribute("aria-hidden");
+$("mascot").addEventListener("click", tapTunas);
+$("mascot").addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tapTunas(); } });
+if ($("welcome").hidden) { const h = new Date().getHours(), S0 = lastS || computeAll();
+  say(T("sayGreet", T("greetParts")[h < 12 && h >= 4 ? 0 : h < 19 && h >= 12 ? 1 : 2], firstName()), T("doneToday", S0.doneToday, S0.totalToday), "cheer", 3500); }
 (function boot() {
   const q = new URLSearchParams(location.search).get("open");
   let hasLocalConfig = false; try { hasLocalConfig = !!localStorage.getItem(CFG_KEY); } catch (e) {}

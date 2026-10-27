@@ -376,3 +376,14 @@ a.btn{text-decoration:none;display:inline-block}
 .added-pill svg{width:15px;height:15px;fill:var(--green)}
 .rem-count{font-weight:900;color:var(--green-d)!important}
 .rem-note{font-size:12.5px!important}
+
+/* Lively Tunas */
+#mascot{cursor:pointer;-webkit-tap-highlight-color:transparent;border-radius:24px}
+#mascot:focus-visible{outline:3px solid var(--sky);outline-offset:4px}
+#mascot:active .mbody{transform:scale(.94)}
+.look{animation:look 9s ease-in-out infinite;transform-box:fill-box}
+@keyframes look{0%,40%,100%{transform:translate(0,0)}45%,55%{transform:translate(-2.5px,0)}60%,70%{transform:translate(2.5px,-1px)}75%{transform:translate(0,0)}}
+.mascot.think .look{animation:none;transform:translate(2px,-3px)}
+.mascot.think .mo-smile{display:none} .mascot.think .mo-flat{display:inline}
+.bubble .tw::after{content:"";display:inline-block;width:2px;height:1em;margin-left:2px;vertical-align:-2px;background:currentColor;animation:caret .6s steps(2) infinite}
+@keyframes caret{50%{opacity:0}}
