@@ -80,7 +80,7 @@ function applyRoutine(r) {
   CFG = r;
   BLOCKS = r.blocks.map(b => {
     const from = tm(b.from, 0); let to = tm(b.to, from + 120); if (to <= from) to += 1440;
-    return { id: slug(b.id || b.title), title: b.title || "Section", icon: I[b.icon] ? b.icon : "star", range: b.range || "", from, to,
+    return { id: slug(b.id || b.title), title: b.title || "Section", icon: I[b.icon] ? b.icon : "star", range: b.range || "", from, to, remind: b.remind ? tm(b.remind, null) : null,
       say: Array.isArray(b.say) ? b.say : null,
       items: (b.items || []).map(i => ({ id: slug(i.id || i.title), t: i.title || "", n: i.note || "", time: i.time || "",
         key: !!i.quest, alt: !!i.everyOtherDay, hide: Array.isArray(i.hideOnDays) ? i.hideOnDays.map(Number) : null, dyn: !!i.useFocus })) };
@@ -92,7 +92,7 @@ function applyRoutine(r) {
     if (!w || !Array.isArray(w.exercises)) return;
     const from = w.from != null ? tm(w.from, null) : null; let to = w.to != null ? tm(w.to, null) : null;
     if (from != null && to != null && to <= from) to += 1440;
-    WORKOUTS[+day] = { name: w.name || "Workout", when: w.when || "", from, to, after: slug(w.after || BLOCKS[0].id), say: Array.isArray(w.say) ? w.say : null,
+    WORKOUTS[+day] = { name: w.name || "Workout", when: w.when || "", from, to, remind: w.remind ? tm(w.remind, null) : (from != null ? from : null), after: slug(w.after || BLOCKS[0].id), say: Array.isArray(w.say) ? w.say : null,
       ex: w.exercises.map(e => ({ id: slug(e.id || e.name), name: e.name || "Exercise", reps: e.reps || "8–12", rest: e.rest || "60s", cue: e.cue || "", bw: !!e.bodyweight, unit: e.unit === "sec" ? "sec" : "" })) };
   });
   PROG = r.progression || {};
@@ -129,7 +129,7 @@ const CHEERS = ["Nice!","Mantap!","Steady lah!","Keep going!","Terbaik!","Power!
 /* ================= Progress storage ================= */
 let store = { days:{}, weeks:{}, logs:{}, seen:{} };
 try { const s = JSON.parse(localStorage.getItem(DATA_KEY)); if (s && s.days) store = s; } catch (e) {}
-store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {};
+store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {};
 function save() { try { localStorage.setItem(DATA_KEY, JSON.stringify(store)); } catch (e) {} }
 let soundOn = true; try { soundOn = localStorage.getItem(SND_KEY) !== "off"; } catch (e) {}
 
@@ -148,6 +148,10 @@ function itemsFor(d) { const out = []; BLOCKS.forEach(b => b.items.forEach(i => 
 function keyIds(d) { const out = []; BLOCKS.forEach(b => b.items.forEach(i => { if (i.key && shown(i,d)) out.push(i.id); })); if (WORKOUTS[d.getDay()]) out.push("wo-done"); return out; }
 function xpFor(id, d) { return id === "wo-done" ? XP.workout : keyIds(d).includes(id) ? XP.key : XP.item; }
 function ratio(d) { const ids = itemsFor(d), done = store.days[dkey(d)] || {}; return ids.length ? ids.filter(id => done[id]).length / ids.length : 0; }
+const REST_PER_MONTH = 2;
+const isRest = d => !!store.rest[dkey(d)];
+const dayOK = d => isRest(d) || ratio(d) >= 0.8;
+function restsInMonth(d) { const p = dkey(d).slice(0, 7); return Object.keys(store.rest).filter(k => store.rest[k] && k.startsWith(p)).length; }
 
 /* ================= Workout records ================= */
 function score(ex, s) { if (!ex || !s) return 0; const kg = parseFloat(s[0]) || 0, r = parseFloat(s[1]) || 0; if (!r) return 0; return ex.bw ? r : (kg > 0 ? kg * (1 + r/30) : r * 0.01); }
@@ -184,10 +188,10 @@ function computeAll() {
     if (keys.length && keys.every(id => dn[id])) quests++;
     if (dn["wo-done"]) { workouts++; const w = wkey(dd); woWeeks[w] = (woWeeks[w] || 0) + 1; } });
   Object.values(store.weeks).forEach(w => Object.values(w || {}).forEach(v => { if (v) { xp += XP.weekly; ticks++; } }));
-  let streak = 0; const x = new Date(d); if (ratio(x) < 0.8) x.setDate(x.getDate() - 1);
-  while (ratio(x) >= 0.8 && streak < 3650) { streak++; x.setDate(x.getDate() - 1); }
-  let bestStreak = 0, run = 0; const dk = Object.keys(store.days).sort();
-  if (dk.length) { const c = keyToDate(dk[0]); let g = 0; while (dkey(c) <= today && g++ < 3650) { if (ratio(c) >= 0.8) { run++; bestStreak = Math.max(bestStreak, run); } else run = 0; c.setDate(c.getDate() + 1); } }
+  let streak = 0; const x = new Date(d); if (!dayOK(x)) x.setDate(x.getDate() - 1);
+  while (dayOK(x) && streak < 3650) { streak++; x.setDate(x.getDate() - 1); }
+  let bestStreak = 0, run = 0; const dk = [...Object.keys(store.days), ...Object.keys(store.rest)].sort();
+  if (dk.length) { const c = keyToDate(dk[0]); let g = 0; while (dkey(c) <= today && g++ < 3650) { if (dayOK(c)) { run++; bestStreak = Math.max(bestStreak, run); } else run = 0; c.setDate(c.getDate() + 1); } }
   const perWeek = Object.keys(WORKOUTS).length || 99;
   const L = levelOf(xp), tIds = itemsFor(d), tDone = store.days[today] || {}, tKeys = keyIds(d);
   return { xp, level: L.n, L, ticks, perfectDays, workouts, quests, prs: pr.total, prsToday: pr.byDay[today] || 0,
@@ -310,10 +314,18 @@ function renderQuests(S) {
     return `<div class="quest${won ? " won" : ""}"><div class="q-ico">${I[q.ico]}</div><div class="q-main"><div class="q-t">${q.t}</div><div class="bar${won ? " green" : ""}"><i style="width:${100*q.n/q.of}%"></i><b>${q.n} / ${q.of}</b></div></div><span class="q-rew">${won ? "Done" : q.rew ? "+" + q.rew : "Bonus"}</span></div>`; }).join("");
 }
 const OFFS = [0, 62, 90, 62, 0, -62, -90, -62];
+function pathTarget(d, mins, nodes) {
+  return nodes.find(n => inWindow(n, mins) && !nodeState(n, d).cleared) || nodes.find(n => !nodeState(n, d).cleared && n.kind !== "weekly") || null;
+}
+function renderContinue() {
+  const d = routineDate(), t = pathTarget(d, nowMins(), nodesFor(d)), b = $("continueBtn");
+  if (!t) { b.hidden = true; return; }
+  const st = nodeState(t, d); b.hidden = false; b.dataset.node = t.id;
+  b.innerHTML = `${st.n === 0 ? "Start" : "Continue"}: ${esc(t.title)} <span>${st.total - st.n} left</span>`;
+}
 function renderPath() {
   const d = routineDate(), mins = nowMins(), nodes = nodesFor(d);
-  const nowNode = nodes.find(n => inWindow(n, mins) && !nodeState(n, d).cleared);
-  const target = nowNode || nodes.find(n => !nodeState(n, d).cleared && n.kind !== "weekly");
+  const target = pathTarget(d, mins, nodes);
   $("path").innerHTML = nodes.map((n, i) => {
     const st = nodeState(n, d), isNow = inWindow(n, mins);
     const cls = st.cleared ? "done" : (isNow || st.n > 0 || n === target) ? "go" : "";
@@ -330,8 +342,64 @@ $("path").addEventListener("click", e => { const b = e.target.closest("[data-nod
 function renderStreak(S) {
   const d = routineDate(); let days = "";
   for (let k = 6; k >= 0; k--) { const x = new Date(d); x.setDate(x.getDate() - k); const r = ratio(x);
-    days += `<div class="day${k === 0 ? " today" : ""}${r >= .8 ? " full" : r > 0 ? " part" : ""}" title="${Math.round(r*100)}%"><i>${I.flame}</i><span>${x.toLocaleDateString(undefined, { weekday: "short" }).slice(0, 2)}</span></div>`; }
-  $("streakCard").innerHTML = `<div class="streak-top"><svg class="big-flame${S.streak ? "" : " off"}" viewBox="0 0 24 24"><path d="${I.flame.match(/d="([^"]+)"/)[1]}"/></svg><div><b>${S.streak} day streak</b><span>${S.streak ? "Hit 80% today to keep it alive" : "Hit 80% today to start a streak"} · best ${S.bestStreak}</span></div></div><div class="week">${days}</div>`;
+    const rst = isRest(x);
+    days += `<div class="day${k === 0 ? " today" : ""}${rst ? " rest" : r >= .8 ? " full" : r > 0 ? " part" : ""}" title="${rst ? "Rest day" : Math.round(r*100) + "%"}"><i>${rst ? I.moon : I.flame}</i><span>${x.toLocaleDateString(undefined, { weekday: "short" }).slice(0, 2)}</span></div>`; }
+  $("streakCard").innerHTML = `<div class="streak-top"><svg class="big-flame${S.streak ? "" : " off"}" viewBox="0 0 24 24"><path d="${I.flame.match(/d="([^"]+)"/)[1]}"/></svg><div><b>${S.streak} day streak</b><span>${S.streak ? "Hit 80% today to keep it alive" : "Hit 80% today to start a streak"} · best ${S.bestStreak}</span></div></div><div class="week">${days}</div>${restRow(d)}`;
+}
+function restRow(d) {
+  const left = REST_PER_MONTH - restsInMonth(d), on = isRest(d), key = dkey(d);
+  if (on) return `<div class="rest-row"><span>Rest day. Your streak is safe today.</span><button class="btn ghost small" type="button" data-restday="${key}" data-v="0">Undo</button></div>`;
+  return `<div class="rest-row"><span>Sick or very busy? A rest day keeps your streak. <b>${left} left</b> this month.</span>${left > 0 ? `<button class="btn ghost small" type="button" data-restday="${key}" data-v="1">Rest day</button>` : ""}</div>`;
+}
+function setRest(key, v) {
+  const d = keyToDate(key);
+  if (v && !store.rest[key] && restsInMonth(d) >= REST_PER_MONTH) { toast(`You've used both rest days for this month.`, "x"); return; }
+  if (v) store.rest[key] = true; else delete store.rest[key];
+  save(); if (v) { toast("Rest day saved. Streak protected.", "moon"); say("Rest well, recover strong.", "Your streak is safe.", "sleepy", 3000); }
+  refresh(true);
+}
+$("streakCard").addEventListener("click", e => { const b = e.target.closest("[data-restday]"); if (b) setRest(b.dataset.restday, b.dataset.v === "1"); });
+
+/* ================= History calendar ================= */
+let histMonth = (() => { const d = routineDate(); return new Date(d.getFullYear(), d.getMonth(), 1); })();
+function renderHistory() {
+  const today = dkey(routineDate()), y = histMonth.getFullYear(), m = histMonth.getMonth();
+  const first = new Date(y, m, 1), lead = (first.getDay() + 6) % 7, daysIn = new Date(y, m + 1, 0).getDate();
+  let cells = "";
+  for (let i = 0; i < lead; i++) cells += `<span class="hc empty"></span>`;
+  let full = 0, rests = 0;
+  for (let n = 1; n <= daysIn; n++) {
+    const dd = new Date(y, m, n), k = dkey(dd), future = k > today, r = future ? 0 : ratio(dd), rst = isRest(dd);
+    if (!future && r >= .8) full++; if (rst) rests++;
+    const cls = ["hc", k === today ? "today" : "", future ? "future" : "", rst ? "rest" : r >= 1 ? "perfect" : r >= .8 ? "full" : r > 0 ? "part" : ""].join(" ").trim();
+    cells += `<button class="${cls}" type="button" data-day="${k}" ${future ? "disabled" : ""} aria-label="${dd.toDateString()}${future ? "" : rst ? ", rest day" : `, ${Math.round(r*100)}%`}">${n}</button>`;
+  }
+  const thisMonth = new Date(routineDate().getFullYear(), routineDate().getMonth(), 1);
+  $("hist").innerHTML = `<div class="h-top"><button class="x" type="button" data-hnav="-1" aria-label="Previous month">‹</button><b>${histMonth.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</b><button class="x" type="button" data-hnav="1" aria-label="Next month" ${histMonth >= thisMonth ? "disabled" : ""}>›</button></div>
+    <div class="h-grid">${["Mo","Tu","We","Th","Fr","Sa","Su"].map(w => `<span class="hw">${w}</span>`).join("")}${cells}</div>
+    <div class="h-foot"><span><i class="lg perfect"></i>100%</span><span><i class="lg full"></i>80%+</span><span><i class="lg part"></i>started</span><span><i class="lg rest"></i>rest</span></div>
+    <p class="h-note">${full} streak days${rests ? `, ${rests} rest` : ""} this month. Tap a day to see it or fix a tick you forgot.</p>`;
+}
+$("hist").addEventListener("click", e => {
+  const nav = e.target.closest("[data-hnav]"); if (nav) { histMonth = new Date(histMonth.getFullYear(), histMonth.getMonth() + (+nav.dataset.hnav), 1); renderHistory(); return; }
+  const c = e.target.closest("[data-day]"); if (c && !c.disabled) openSheet("day:" + c.dataset.day);
+});
+function renderDaySheet(key, keep) {
+  const d = keyToDate(key), body = $("shBody"), top = keep ? body.scrollTop : 0, done = store.days[key] || {}, ids = itemsFor(d);
+  const st = { n: ids.filter(id => done[id]).length, total: ids.length }, isToday = key === dkey(routineDate());
+  $("shHead").innerHTML = sheetHead("cal", d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" }), isRest(d) ? "Rest day · streak protected" : `${st.n} of ${st.total} · ${Math.round(100*st.n/(st.total||1))}%${isToday ? " · today" : ""}`, st, st.n === st.total);
+  $("shHead").querySelector(".sh-ico").style.background = "var(--sky)";
+  $("shClose").onclick = closeSheet;
+  let h = `<div class="note">${isToday ? "This is today." : "Forgot to tick something? Fix it here. It counts toward your XP and streak."}</div>`;
+  h += `<div class="set-group">${restRow(d).replace('class="rest-row"', 'class="rest-row in-sheet"')}</div>`;
+  const W = WORKOUTS[d.getDay()];
+  BLOCKS.forEach(b => {
+    const items = b.items.filter(i => shown(i, d)); if (!items.length && !(W && W.after === b.id)) return;
+    h += `<h3 class="grp">${esc(b.title)}</h3>`;
+    items.forEach(i => { if (i.dyn) i = { ...i, ...FOCUS[d.getDay()] }; h += taskHTML(i, !!done[i.id], i.key ? `<span class="qtag">★</span>` : ""); });
+    if (W && W.after === b.id) h += taskHTML({ id: "wo-done", t: `Workout: ${W.name}`, n: "" }, !!done["wo-done"], `<span class="qtag">★</span>`);
+  });
+  body.innerHTML = h; if (keep) body.scrollTop = top;
 }
 function renderBadges(S) {
   const got = BADGES.filter(b => b.test(S)); $("badgeMeta").textContent = `${got.length}/${BADGES.length}`;
@@ -375,6 +443,7 @@ function sheetHead(icon, title, sub, st, gold) {
 function renderSheet(keep) {
   if (!sheetId) return;
   if (sheetId === "settings") return renderSettings(keep);
+  if (sheetId.startsWith("day:")) return renderDaySheet(sheetId.slice(4), keep);
   const d = routineDate(), today = dkey(d), node = nodesFor(d).find(n => n.id === sheetId); if (!node) { closeSheet(); return; }
   const st = nodeState(node, d), body = $("shBody"), top = keep ? body.scrollTop : 0;
   $("shHead").innerHTML = sheetHead(node.icon, esc(node.title), `${esc(node.range)}${node.range ? " · " : ""}${st.n} of ${st.total}`, st, st.cleared);
@@ -382,6 +451,8 @@ function renderSheet(keep) {
   const done = store.days[today] || {};
   let h = "";
   if (node.kind === "block") {
+    const left = node.b.items.filter(i => shown(i, d) && !done[i.id]).length;
+    if (left > 1) h += `<button class="btn small tickall" type="button" data-act="tickAll">Tick all ${left} left</button>`;
     node.b.items.forEach(i => {
       if (i.dyn) i = { ...i, ...FOCUS[d.getDay()] };
       if (i.alt && !isAltDay(d)) { h += `<div class="note">${esc(CFG.everyOtherDayNote || "Rest day for this one today.")}</div>`; return; }
@@ -420,11 +491,12 @@ function renderSheet(keep) {
   body.innerHTML = h; if (keep) body.scrollTop = top;
 }
 $("shBody").addEventListener("click", e => {
+  const rd = e.target.closest("[data-restday]"); if (rd) return setRest(rd.dataset.restday, rd.dataset.v === "1");
   const act = e.target.closest("[data-act]"); if (act) return settingsAction(act.dataset.act, act);
   const r = e.target.closest("[data-rest]"); if (r) { startRest(+r.dataset.rest, r.dataset.label); return; }
   const t = e.target.closest("[data-task]"); if (!t) return;
-  const id = t.dataset.task, d = routineDate(), today = dkey(d), v = t.getAttribute("aria-checked") !== "true";
-  if (sheetId === "weekly") (store.weeks[wkey(d)] ||= {})[id] = v; else (store.days[today] ||= {})[id] = v;
+  const id = t.dataset.task, dayKey = sheetId.startsWith("day:") ? sheetId.slice(4) : dkey(routineDate()), d = keyToDate(dayKey), v = t.getAttribute("aria-checked") !== "true";
+  if (sheetId === "weekly") (store.weeks[wkey(d)] ||= {})[id] = v; else (store.days[dayKey] ||= {})[id] = v;
   save();
   const rect = t.getBoundingClientRect();
   if (v) { const xp = sheetId === "weekly" ? XP.weekly : xpFor(id, d); sfx("ding"); buzz(); floatXP(rect.right - 90, rect.top + rect.height/2, `+${xp} XP`); say(pick(CHEERS), `+${xp} XP`, "happy", 2600); jump($("mascot")); }
@@ -442,6 +514,39 @@ $("shBody").addEventListener("input", e => {
 });
 
 /* ================= Settings ================= */
+/* ================= Reminders (calendar) ================= */
+const TZ = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch (e) { return "UTC"; } })();
+const DAYS2 = ["SU","MO","TU","WE","TH","FR","SA"];
+function reminderList() {
+  const out = [];
+  BLOCKS.forEach(b => { const m = b.remind != null ? b.remind : b.from; if (m != null) out.push({ id: b.id, title: b.title, mins: m % 1440, rule: "RRULE:FREQ=DAILY" }); });
+  Object.entries(WORKOUTS).forEach(([day, W]) => { if (W.remind != null) out.push({ id: "workout", title: W.name, mins: W.remind % 1440, rule: `RRULE:FREQ=WEEKLY;BYDAY=${DAYS2[+day]}`, weekday: +day }); });
+  return out;
+}
+function nextStart(r) {
+  const now = new Date(), s = new Date(now.getFullYear(), now.getMonth(), now.getDate(), Math.floor(r.mins / 60), r.mins % 60);
+  if (r.weekday != null) { while (s.getDay() !== r.weekday || s <= now) s.setDate(s.getDate() + 1); }
+  else if (s <= now) s.setDate(s.getDate() + 1);
+  return s;
+}
+const stamp = d => `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+const fmtClock = m => { const h = Math.floor(m / 60), mm = pad(m % 60); return `${(h % 12) || 12}:${mm} ${h < 12 ? "am" : "pm"}`; };
+const appLink = id => `${location.origin}${location.pathname}?open=${encodeURIComponent(id)}`;
+function gcalLink(r) {
+  const s = nextStart(r), e = new Date(s.getTime() + 15 * 60000);
+  const q = new URLSearchParams({ action: "TEMPLATE", text: `Tunas: ${r.title}`, details: `Time for ${r.title}. Open Tunas: ${appLink(r.id)}`, dates: `${stamp(s)}/${stamp(e)}`, ctz: TZ, recur: r.rule });
+  return `https://calendar.google.com/calendar/render?${q.toString()}`;
+}
+function buildICS() {
+  const now = new Date(), utc = now.toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z");
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Tunas Routine//EN", "CALSCALE:GREGORIAN"];
+  reminderList().forEach((r, i) => { const s = nextStart(r), e = new Date(s.getTime() + 15 * 60000);
+    lines.push("BEGIN:VEVENT", `UID:tunas-${r.id}-${i}@tunas-routine`, `DTSTAMP:${utc}`, `DTSTART;TZID=${TZ}:${stamp(s)}`, `DTEND;TZID=${TZ}:${stamp(e)}`, r.rule,
+      `SUMMARY:Tunas: ${r.title.replace(/[,;]/g, " ")}`, `DESCRIPTION:Open Tunas: ${appLink(r.id)}`, "BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:Tunas: ${r.title.replace(/[,;]/g, " ")}`, "TRIGGER:-PT0M", "END:VALARM", "END:VEVENT"); });
+  lines.push("END:VCALENDAR");
+  return lines.join("\r\n");
+}
+
 let settingsPane = "";
 function renderSettings(keep) {
   const body = $("shBody"), top = keep ? body.scrollTop : 0;
@@ -462,6 +567,10 @@ function renderSettings(keep) {
         ${isDefault ? "" : `<button class="btn ghost small" type="button" data-act="resetRoutine">Use starter routine</button>`}</div>
       ${settingsPane === "confirmReset" ? `<div class="confirm"><span>Switch to the starter routine? Your progress stays.</span><button class="btn small" type="button" data-act="resetRoutineYes">Switch</button><button class="btn ghost small" type="button" data-act="cancel">Keep mine</button></div>` : ""}
     </div>
+    <div class="set-group"><h3>Reminders</h3><p>Get a phone notification when each part of your day starts. Tap a button, then tap <b>Save</b> in Google Calendar.</p>
+      ${reminderList().map(r => `<div class="rem"><span><b>${esc(r.title)}</b>${fmtClock(r.mins)}${r.weekday != null ? " · " + ["Sundays","Mondays","Tuesdays","Wednesdays","Thursdays","Fridays","Saturdays"][r.weekday] : " · every day"}</span><a class="btn ghost small" href="${esc(gcalLink(r))}" target="_blank" rel="noopener">Add</a></div>`).join("")}
+      <div class="row"><button class="btn ghost small" type="button" data-act="ics">Download all (.ics)</button></div>
+      <p>Use the .ics file for Samsung Calendar, Outlook or iPhone. Tapping the reminder opens Tunas straight to that section.</p></div>
     <div class="set-group"><h3>Backup</h3><p>Save your XP, streak and workout logs to a file, in case you change phones or clear your browser.</p>
       <div class="row"><button class="btn small" type="button" data-act="backup">Download backup</button>
         <button class="btn ghost small" type="button" data-act="restore">Restore backup</button></div></div>
@@ -479,12 +588,22 @@ function loadRoutineText(text) {
   renderGuide(); refresh(true); toast(`Routine loaded: <b>${esc(r.label || "Custom routine")}</b>`, "check"); sfx("clear");
   return true;
 }
-function download(name, obj) {
-  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
+function download(name, obj) { downloadText(name, JSON.stringify(obj, null, 2), "application/json"); }
+function downloadText(name, text, type) {
+  const blob = new Blob([text], { type });
   const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
+function tickAll() {
+  const d = routineDate(), today = dkey(d), node = nodesFor(d).find(n => n.id === sheetId); if (!node || node.kind !== "block") return;
+  const done = (store.days[today] ||= {}); let xp = 0;
+  node.b.items.forEach(i => { if (shown(i, d) && !done[i.id]) { done[i.id] = true; xp += xpFor(i.id, d); } });
+  save(); sfx("ding"); buzz([15, 40, 15]); floatXP(innerWidth / 2 - 40, innerHeight / 2, `+${xp} XP`); jump($("mascot"));
+  refresh(true);
+}
 function settingsAction(act) {
+  if (act === "tickAll") return tickAll();
+  if (act === "ics") return downloadText("tunas-reminders.ics", buildICS(), "text/calendar");
   if (act === "importRoutine") return $("fileRoutine").click();
   if (act === "pasteToggle") { settingsPane = settingsPane === "paste" ? "" : "paste"; return renderSettings(true); }
   if (act === "pasteApply") return loadRoutineText($("pasteBox").value);
@@ -501,7 +620,7 @@ $("fileRoutine").addEventListener("change", e => readFile(e.target, loadRoutineT
 $("fileBackup").addEventListener("change", e => readFile(e.target, text => {
   let b; try { b = JSON.parse(text); } catch (err) { return toast("That isn't a backup file.", "x"); }
   if (!b || b.app !== "tunas" || !b.data || !b.data.days) return toast("That isn't a Tunas backup file.", "x");
-  store = b.data; store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; save();
+  store = b.data; store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; save();
   if (b.routine && !validateRoutine(b.routine)) { RAW = b.routine; saveRoutine(RAW); renderGuide(); }
   lastS = null; prevCleared = null; refresh(true); toast("Backup restored", "check");
 }));
@@ -525,7 +644,7 @@ function nextCele() {
 let prevCleared = null;
 function refresh(keepSheet) {
   const d = routineDate(), S = computeAll();
-  renderTop(S); renderQuests(S); renderPath(); renderStreak(S);
+  renderTop(S); renderQuests(S); renderPath(); renderContinue(); renderStreak(S); renderHistory();
   const got = renderBadges(S);
   $("tip").innerHTML = md(TIPS[dayNum(d) % TIPS.length]);
   if (sheetId && keepSheet !== false) renderSheet(true);
@@ -567,7 +686,19 @@ function resetIdle() { area.innerHTML = `<button class="btn ghost small" type="b
     $("noBtn").onclick = resetIdle; }; }
 resetIdle();
 
+$("continueBtn").onclick = () => { audio(); const id = $("continueBtn").dataset.node; if (id) openSheet(id); };
+
 renderGuide();
 refresh();
+(function openFromLink() {
+  const q = new URLSearchParams(location.search).get("open"); if (!q) return;
+  history.replaceState(null, "", location.pathname);
+  const d = routineDate(), nodes = nodesFor(d);
+  if (q === "settings") return openSheet("settings");
+  if (q === "history") return $("hist").scrollIntoView();
+  const id = q === "now" ? (pathTarget(d, nowMins(), nodes) || {}).id : q;
+  if (id && nodes.some(n => n.id === id)) return openSheet(id);
+  if (q === "workout") { toast("No workout today. Rest day for your muscles.", "star"); return; }
+})();
 setInterval(() => { const a = document.activeElement; if (!(a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA"))) refresh(); }, 60000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });

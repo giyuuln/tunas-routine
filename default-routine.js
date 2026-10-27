@@ -9,7 +9,7 @@ window.DEFAULT_ROUTINE = {
   label: "Starter routine",
   name: "Friend",
   blocks: [
-    { id: "morning", title: "Morning", icon: "sun", from: "05:00", to: "09:00", range: "6:30 – 8:00 am",
+    { id: "morning", remind: "06:30", title: "Morning", icon: "sun", from: "05:00", to: "09:00", range: "6:30 – 8:00 am",
       say: ["Jom! Morning routine first.", "Sunscreen before you head out."],
       items: [
         { id: "wake", title: "Wake up + glass of water", time: "6:30" },
@@ -19,7 +19,7 @@ window.DEFAULT_ROUTINE = {
         { id: "spf", title: "Sunscreen", note: "Last step. Two finger-lengths for face and neck.", time: "6:50", quest: true },
         { id: "bfast", title: "Breakfast with protein", note: "Eggs, yogurt or tofu so you don't crash at 10am", time: "7:00" }
       ] },
-    { id: "evening", title: "After work", icon: "walk", from: "17:00", to: "20:00", range: "5:30 – 8:00 pm",
+    { id: "evening", remind: "17:30", title: "After work", icon: "walk", from: "17:00", to: "20:00", range: "5:30 – 8:00 pm",
       say: ["Walk time. 30 minutes je.", "Go before it gets dark."],
       items: [
         { id: "pm-water", title: "Drink water when you get home", time: "5:30" },
@@ -27,14 +27,14 @@ window.DEFAULT_ROUTINE = {
         { id: "dinner", title: "Lighter dinner", note: "Less rice, add protein and veg", time: "7:30" },
         { id: "nosnack", title: "No sugary drinks or salty snacks" }
       ] },
-    { id: "focus", title: "Focus time", icon: "focus", from: "20:00", to: "22:00", range: "8:00 – 10:00 pm",
+    { id: "focus", remind: "20:00", title: "Focus time", icon: "focus", from: "20:00", to: "22:00", range: "8:00 – 10:00 pm",
       say: ["One focus hour.", "Phone face down, one thing only."],
       items: [
         { id: "focus-hour", useFocus: true, time: "8:15", quest: true },
         { id: "free", title: "Free time, no guilt", time: "9:15" },
         { id: "dim", title: "Turn screen brightness down", time: "9:30" }
       ] },
-    { id: "night", title: "Night", icon: "moon", from: "22:00", to: "05:00", range: "10:30 – 11:30 pm",
+    { id: "night", remind: "22:30", title: "Night", icon: "moon", from: "22:00", to: "05:00", range: "10:30 – 11:30 pm",
       say: ["Skincare, then sleep.", "Phone away by 11. You got this."],
       items: [
         { id: "nt-clean", title: "Gentle cleanser", note: "Washes off sunscreen and the day's oil", time: "10:30" },
@@ -55,7 +55,7 @@ window.DEFAULT_ROUTINE = {
     "6": { title: "1 hour: hobby", note: "Something just for fun" }
   },
   workouts: {
-    "3": { name: "Bodyweight Basics", when: "6:00 – 6:40 pm", from: "18:00", to: "19:15", after: "evening",
+    "3": { name: "Bodyweight Basics", when: "6:00 – 6:40 pm", remind: "18:00", from: "18:00", to: "19:15", after: "evening",
       say: ["Workout time! Let's go.", "Log every set to catch a new PR."],
       exercises: [
         { id: "pushup", name: "Push-ups", reps: "8–15", rest: "60s", cue: "Knees down is fine. Chest to the floor, body straight.", bodyweight: true },
@@ -63,7 +63,7 @@ window.DEFAULT_ROUTINE = {
         { id: "bridge", name: "Glute Bridge", reps: "12–20", rest: "45s", cue: "Squeeze at the top for 1 second.", bodyweight: true },
         { id: "plank", name: "Plank", reps: "30–45 sec", rest: "45s", cue: "Squeeze glutes, ribs down.", bodyweight: true, unit: "sec" }
       ] },
-    "6": { name: "Weekend Session", when: "Anytime today", after: "morning",
+    "6": { name: "Weekend Session", when: "Anytime today", remind: "09:00", after: "morning",
       say: ["Weekend workout! Do it before games.", "Log every set to catch a new PR."],
       exercises: [
         { id: "pushup", name: "Push-ups", reps: "8–15", rest: "60s", cue: "Knees down is fine. Chest to the floor.", bodyweight: true },

@@ -7,6 +7,11 @@ A cute, gamified daily routine tracker that you can install on your phone. Tunas
 - **Daily quests and 16 badges**
 - **Workout logger:** log kg × reps per set, get "NEW PR" when you beat your best, plus a rest timer that beeps and vibrates
 - **Celebration screens, sounds and haptics** when you clear a section or have a perfect day
+- **History calendar:** tap any past day to see it or fix a tick you forgot
+- **Phone reminders:** add each section to Google Calendar in one tap, or download an `.ics` file
+- **Tick all:** finish a whole section in one tap
+- **Rest days:** protect your streak when you're sick or busy (2 per month)
+- **Continue button and home-screen shortcuts:** long-press the app icon for Today, Workout, Night or History
 - **Works offline** and installs like a normal app
 - **Private:** no account, no server. Everything is saved on your phone only.
 
@@ -69,6 +74,7 @@ Start from [`default-routine.js`](default-routine.js) (it's the same structure a
 | `workouts` | Keyed by weekday. `after` is the section id it appears after on the path |
 | `bodyweight: true`, `unit: "sec"` | Exercise logs reps only (or seconds) |
 | `progression` | Per-exercise start weight and how much to add when you hit the top reps |
+| `remind` | Optional `"HH:MM"` on a section or workout, used for calendar reminders (defaults to `from`) |
 
 ## XP rules
 
@@ -82,7 +88,7 @@ Start from [`default-routine.js`](default-routine.js) (it's the same structure a
 | New personal record | +25 |
 | Weekly task | +15 |
 
-A day counts toward your streak at 80% or more. A new day starts at 4am, so late nights count for the day before.
+A day counts toward your streak at 80% or more, or when you mark it as a rest day. A new day starts at 4am, so late nights count for the day before.
 
 ## Develop
 
