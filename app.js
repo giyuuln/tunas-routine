@@ -145,7 +145,7 @@ const titleOf = n => { const t = T("titles"); return t[Math.min(n - 1, t.length 
 /* ================= Progress storage ================= */
 let store = { days:{}, weeks:{}, logs:{}, seen:{}, rest:{} };
 try { const s = JSON.parse(localStorage.getItem(DATA_KEY)); if (s && s.days) store = s; } catch (e) {}
-function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; }
+function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; }
 normStore();
 function save() { try { localStorage.setItem(DATA_KEY, JSON.stringify(store)); } catch (e) {} }
 let soundOn = true; try { soundOn = localStorage.getItem(SND_KEY) !== "off"; } catch (e) {}
@@ -514,6 +514,8 @@ function tickAll() {
 
 $("shBody").addEventListener("click", e => {
   if (sheetId === "editor") return editorClick(e);
+  const ra = e.target.closest("[data-remadd]"); if (ra) { store.rem[ra.dataset.remadd] = Date.now(); save(); setTimeout(() => { if (sheetId === "settings") renderSettings(true); }, 400); return; }
+  const ru = e.target.closest("[data-remundo]"); if (ru) { delete store.rem[ru.dataset.remundo]; save(); renderSettings(true); return; }
   const rd = e.target.closest("[data-restday]"); if (rd) return setRest(rd.dataset.restday, rd.dataset.v === "1");
   const act = e.target.closest("[data-act]"); if (act) return settingsAction(act.dataset.act, act);
   const r = e.target.closest("[data-rest]"); if (r) { startRest(+r.dataset.rest, r.dataset.label); return; }
@@ -572,6 +574,14 @@ function appCalLink(r) {
     `S.browser_fallback_url=${enc(gcalLink(r))};end`;
 }
 const remLink = r => IS_ANDROID ? appCalLink(r) : gcalLink(r);
+// A reminder counts as "added" for its exact title, time and repeat. Changing any of these shows Add again.
+const remSig = r => `${r.id}|${r.title}|${r.mins}|${r.rule}`;
+function remRow(r) {
+  const sig = remSig(r), added = !!store.rem[sig];
+  return `<div class="rem${added ? " is-added" : ""}"><span><b>${esc(r.title)}</b>${fmtClock(r.mins)} · ${r.weekday != null ? T("onDays")[r.weekday] : T("everyDay")}</span>` +
+    (added ? `<span class="rem-done"><span class="added-pill">${I.check}${T("added")}</span><button class="linkish" type="button" data-remundo="${esc(sig)}">${T("undo")}</button></span>`
+           : `<a class="btn ghost small" href="${esc(remLink(r))}" ${IS_ANDROID ? "" : 'target="_blank" rel="noopener"'} data-remadd="${esc(sig)}">${T("add")}</a>`) + `</div>`;
+}
 function buildICS() {
   const utc = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z"), clean = s => String(s).replace(/[,;\\]/g, " ");
   const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Tunas Routine//EN", "CALSCALE:GREGORIAN"];
@@ -615,7 +625,8 @@ function renderSettings(keep) {
       ${settingsPane === "paste" ? `<textarea class="field" id="pasteBox" placeholder="${T("pastePh")}"></textarea><div class="row"><button class="btn small" type="button" data-act="pasteApply">${T("useThis")}</button></div>` : ""}
     </div>
     <div class="set-group"><h3>${T("reminders")}</h3><p>${T("remHelp")}</p>
-      ${reminderList().map(r => `<div class="rem"><span><b>${esc(r.title)}</b>${fmtClock(r.mins)} · ${r.weekday != null ? T("onDays")[r.weekday] : T("everyDay")}</span><a class="btn ghost small" href="${esc(remLink(r))}" ${IS_ANDROID ? "" : 'target="_blank" rel="noopener"'}>${T("add")}</a></div>`).join("")}
+      ${(() => { const L = reminderList(), n = L.filter(r => store.rem[remSig(r)]).length; return (n ? `<p class="rem-count">${T("remCount", n, L.length)}</p>` : "") + L.map(remRow).join(""); })()}
+      <p class="rem-note">${T("remNote")}</p>
       <div class="row"><button class="btn ghost small" type="button" data-act="ics">${T("icsAll")}</button></div>
       <p>${T("icsHelp")}</p></div>
     <div class="set-group"><h3>${T("share")}</h3><p>${T("shareHelp")}</p><div class="row"><button class="btn small" type="button" data-act="share">${T("shareBtn")}</button></div></div>
