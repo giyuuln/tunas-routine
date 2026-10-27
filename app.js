@@ -296,6 +296,13 @@ function contextSay() {
   if (now) {
     const st = nodeState(now, d);
     if (st.cleared) { const c = T("sayCleared", esc(now.title)); return say(c[0], c[1], "happy"); }
+    // Once something in this section is ticked, talk about the next unticked habit instead of the section intro.
+    if (now.kind === "block" && st.n > 0) {
+      const done = store.days[dkey(d)] || {};
+      let next = now.b.items.find(i => shown(i, d) && !done[i.id]);
+      if (next) { if (next.dyn) next = { ...next, ...FOCUS[d.getDay()] };
+        return say(T("sayNext", esc(next.t)), `${T("of", st.n, st.total)}${next.time ? " · " + esc(next.time) : ""}`, "happy"); }
+    }
     let msg = now.say || [T("letsGo"), ""];
     if (now.kind === "block" && now.b.items.some(i => i.dyn) && !now.say) msg = [FOCUS[d.getDay()].t + ".", T("sayFocus")];
     return say(esc(msg[0]), `${T("of", st.n, st.total)}${msg[1] ? " · " + esc(msg[1]) : ""}`, "idle");
