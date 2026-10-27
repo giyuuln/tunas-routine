@@ -41,6 +41,8 @@ const MASCOT = `<svg viewBox="0 0 120 120">
     <path d="M60 25V13" stroke="var(--m-leaf)" stroke-width="4" stroke-linecap="round"/>
     <path d="M60 15C51 3 39 6 41 15c8 3 14 3 19 0z" fill="var(--m-leaf)"/>
     <path d="M60 15c9-12 21-9 19 0-8 3-14 3-19 0z" fill="var(--m-leaf2)"/>
+    <g class="cloud"><ellipse cx="97" cy="22" rx="10" ry="6.5" fill="#fff" stroke="#b9e3f7" stroke-width="1.5"/><ellipse cx="89" cy="25" rx="7" ry="5" fill="#fff" stroke="#b9e3f7" stroke-width="1.5"/><ellipse cx="104" cy="25.5" rx="6" ry="4.5" fill="#fff" stroke="#b9e3f7" stroke-width="1.5"/><rect x="86" y="23" width="22" height="6" fill="#fff"/></g>
+    <g class="shades"><path d="M38 37h18a2 2 0 0 1 2 2v2a6 6 0 0 1-6 6h-6a8 8 0 0 1-8-8 2 2 0 0 1 2-2zM64 37h18a2 2 0 0 1 2 2 8 8 0 0 1-8 8h-6a6 6 0 0 1-6-6v-2a2 2 0 0 1 2-2z" fill="#2a2440"/><path d="M58 40h4" stroke="#2a2440" stroke-width="3"/><path d="M42 39l4 0" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".7"/><path d="M68 39l4 0" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".7"/></g>
     <g class="flower"><circle cx="60" cy="4" r="4.2" fill="#ff8fbf"/><circle cx="65.5" cy="8" r="4.2" fill="#ff8fbf"/><circle cx="63.4" cy="14.2" r="4.2" fill="#ff8fbf"/><circle cx="56.6" cy="14.2" r="4.2" fill="#ff8fbf"/><circle cx="54.5" cy="8" r="4.2" fill="#ff8fbf"/><circle cx="60" cy="9.6" r="3" fill="#ffd34d"/></g>
     <g class="e-open">
       <ellipse cx="46" cy="58" rx="10" ry="11" fill="#fff"/><ellipse cx="74" cy="58" rx="10" ry="11" fill="#fff"/>
@@ -81,7 +83,12 @@ const LANG_KEY = "tunas-lang";
 let LANG = "en";
 try { LANG = localStorage.getItem(LANG_KEY) || ((navigator.language || "").toLowerCase().startsWith("ms") ? "ms" : "en"); } catch (e) {}
 if (!window.TUNAS_I18N[LANG]) LANG = "en";
-function T(key, ...a) { const v = (window.TUNAS_I18N[LANG] || {})[key] ?? window.TUNAS_I18N.en[key]; return typeof v === "function" ? v(...a) : v; }
+// Each colour theme has its own Tunas personality: persona lines override the normal text.
+function T(key, ...a) {
+  const L = window.TUNAS_I18N[LANG] || {}, p = ((L.persona || {})[window.TUNAS_THEME] || {});
+  const v = key in p ? p[key] : (L[key] ?? window.TUNAS_I18N.en[key]);
+  return typeof v === "function" ? v(...a) : v;
+}
 const locale = () => T("locale");
 function applyStatic() {
   document.documentElement.lang = LANG === "ms" ? "ms" : "en";
@@ -94,14 +101,14 @@ const THEME_KEY = "tunas-theme";
 const THEMES = [ { id: "pandan", c: "#4fc21b", bar: "#4fc21b" }, { id: "sakura", c: "#ff6fa8", bar: "#ff6fa8" }, { id: "langit", c: "#1cb0f6", bar: "#1cb0f6" }, { id: "ungu", c: "#a46cf0", bar: "#a46cf0" } ];
 let THEME = "pandan"; try { THEME = localStorage.getItem(THEME_KEY) || "pandan"; } catch (e) {}
 function applyTheme(id, persist) {
-  const t = THEMES.find(x => x.id === id) || THEMES[0]; THEME = t.id;
+  const t = THEMES.find(x => x.id === id) || THEMES[0]; THEME = t.id; window.TUNAS_THEME = t.id;
   if (t.id === "pandan") delete document.documentElement.dataset.accent; else document.documentElement.dataset.accent = t.id;
   const m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", t.bar);
   if (persist) { try { localStorage.setItem(THEME_KEY, t.id); } catch (e) {} }
 }
 applyTheme(THEME, false);
-const themePicker = () => `<div class="swatches" role="group" aria-label="${T("theme")}">${THEMES.map(t => `<button type="button" class="swatch" data-theme-pick="${t.id}" aria-pressed="${THEME === t.id}" style="--sw:${t.c}"><i></i><span>${T("themeNames")[t.id]}</span></button>`).join("")}</div>`;
-function pickTheme(id) { applyTheme(id, true); sfx("ding"); jump($("mascot")); if (THEME === "sakura") say(T("sakuraSay"), "", "happy", 2500); }
+const themePicker = () => `<div class="swatches" role="group" aria-label="${T("theme")}">${THEMES.map(t => `<button type="button" class="swatch" data-theme-pick="${t.id}" aria-pressed="${THEME === t.id}" style="--sw:${t.c}"><i></i><span>${T("themeNames")[t.id]}</span><small>${T("themeTags")[t.id]}</small></button>`).join("")}</div>`;
+function pickTheme(id) { applyTheme(id, true); sfx("ding"); jump($("mascot")); say(T("themeHello"), T("themeTagLine", T("themeTags")[THEME]), "cheer", 3500); }
 
 /* ================= Routine config ================= */
 const CFG_KEY = "tunas-config", DATA_KEY = "tunas-data-v1", SND_KEY = "tunas-sound";
@@ -279,7 +286,7 @@ function sfx(kind) {
   } catch (e) {}
 }
 function buzz(p) { try { navigator.vibrate && navigator.vibrate(p || 12); } catch (e) {} }
-function floatXP(x, y, text) { if (reduced()) return; const f = document.createElement("div"); f.className = "fx"; f.textContent = (THEME === "sakura" ? "♥ " : "") + text;
+function floatXP(x, y, text) { if (reduced()) return; const f = document.createElement("div"); f.className = "fx"; f.textContent = (THEME === "sakura" ? "♥ " : THEME === "ungu" ? "⚡ " : THEME === "langit" ? "~ " : "") + text;
   f.style.left = Math.max(8, Math.min(innerWidth - 90, x)) + "px"; f.style.top = (y - 14) + "px"; document.body.appendChild(f); setTimeout(() => f.remove(), 950); }
 function toast(html, icon, ms) { const t = document.createElement("div"); t.className = "toast"; t.innerHTML = `<i>${I[icon || "star"]}</i><span>${html}</span>`;
   $("toasts").appendChild(t); setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 320); }, ms || 2800); }
