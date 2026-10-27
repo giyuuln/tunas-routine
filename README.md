@@ -12,6 +12,10 @@ A cute, gamified daily routine tracker that you can install on your phone. Tunas
 - **Tick all:** finish a whole section in one tap
 - **Rest days:** protect your streak when you're sick or busy (2 per month)
 - **Continue button and home-screen shortcuts:** long-press the app icon for Today, Workout, Night or History
+- **Routine editor:** add, rename, reorder and delete sections, habits, workouts and weekly tasks right in the app
+- **Welcome screen and 4 templates:** Student, Worker, Fitness and Simple, so new users start in seconds
+- **English and Bahasa Melayu:** switch anytime in Settings
+- **Share button:** send the app to friends from the phone's share sheet
 - **Works offline** and installs like a normal app
 - **Private:** no account, no server. Everything is saved on your phone only.
 
@@ -22,12 +26,13 @@ Open the app link (GitHub Pages) on your phone, then:
 - **Android (Chrome):** tap the **⋮** menu → **Install app** (or **Add to Home screen**)
 - **iPhone (Safari):** tap **Share** → **Add to Home Screen**
 
-## Use your own routine
+## Make it yours
 
-The app ships with a generic starter routine. Your personal routine lives in a `.json` file that you keep yourself, not in this repo.
+On first open, Tunas asks your name and language, then lets you pick a template. After that:
 
-1. Open the app → tap the **gear** icon → **Import routine file**
-2. Pick your routine `.json` file (or tap **Paste instead** and paste its contents)
+- **Gear → Edit routine** to change any section, habit, time, workout or weekly task
+- **Gear → Start from a template** to switch templates (your XP and streak stay)
+- **Gear → Import routine file** if someone gave you a routine `.json` (or tap **Paste**)
 
 The routine is saved in the app on your phone. **Download my routine** saves a copy, and **Download backup** saves your XP, streak and workout logs.
 
@@ -35,7 +40,7 @@ The routine is saved in the app on your phone. **Download my routine** saves a c
 
 ## Routine file format
 
-Start from [`default-routine.js`](default-routine.js) (it's the same structure as the JSON file, without the `window.DEFAULT_ROUTINE =` part).
+The easiest way to get a routine file is **Gear → Download my routine** after editing in the app. The templates in [`templates.js`](templates.js) use the same structure, with `{ "en": …, "ms": … }` pairs for both languages.
 
 ```json
 {
@@ -89,6 +94,10 @@ Start from [`default-routine.js`](default-routine.js) (it's the same structure a
 | Weekly task | +15 |
 
 A day counts toward your streak at 80% or more, or when you mark it as a rest day. A new day starts at 4am, so late nights count for the day before.
+
+## Translations
+
+All interface text is in [`i18n.js`](i18n.js). To add a language, copy the `en` block, translate it, and add a button for it in `segLang()` in `app.js`.
 
 ## Develop
 

@@ -42,7 +42,7 @@
     <div class="bar"><i id="lvFill"></i><b id="lvBar">0 / 250</b></div>
   </div>
 
-  <h2 class="sec-title">Daily quests</h2>
+  <h2 class="sec-title" data-i18n="dailyQuests">Daily quests</h2>
   <div class="card quests" id="quests"></div>
 
   <h2 class="sec-title" id="pathTitle">Today's path</h2>
@@ -50,20 +50,24 @@
 
   <div class="card streak-card" id="streakCard"></div>
 
-  <h2 class="sec-title">History</h2>
+  <h2 class="sec-title" data-i18n="history">History</h2>
   <div class="card hist" id="hist"></div>
 
-  <h2 class="sec-title">Badges <span id="badgeMeta" style="font-size:15px;color:var(--muted)"></span></h2>
+  <h2 class="sec-title"><span data-i18n="badges">Badges</span> <span id="badgeMeta" style="font-size:15px;color:var(--muted)"></span></h2>
   <div class="card"><div class="bgrid" id="bgrid"></div></div>
 
   <div class="card tip"><div class="ti"><svg viewBox="0 0 24 24"><path d="M9 21h6v-1H9zm3-19a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2z"/></svg></div><p id="tip"></p></div>
+
+  <div class="card share-card"><div class="share-ico"><svg viewBox="0 0 24 24"><path d="M18 16a3 3 0 0 0-2.4 1.2l-6.7-3.4a3 3 0 0 0 0-1.6l6.7-3.4A3 3 0 1 0 15 7l-6.7 3.4a3 3 0 1 0 0 3.2L15 17a3 3 0 1 0 3-1z"/></svg></div>
+    <div class="share-txt"><b data-i18n="share">Share Tunas</b><span data-i18n="shareHelp">Send Tunas to a friend.</span></div>
+    <button class="btn small" type="button" id="shareBtn" data-i18n="shareBtn">Share the app</button></div>
 
   <h2 class="sec-title" id="guideTitle">Guide</h2>
   <div class="card guide" id="guide"></div>
 
   <div class="foot">
     <div id="resetArea"></div>
-    <div>Everything saves on this phone only. A new day starts at 4am.</div>
+    <div data-i18n="foot">Everything saves on this phone only. A new day starts at 4am.</div>
   </div>
 </div>
 
@@ -74,20 +78,22 @@
 </div>
 
 <div class="cele" id="cele" hidden></div>
+<div class="cele welcome" id="welcome" role="dialog" aria-modal="true" hidden></div>
 
 <div class="restbar" id="restbar" hidden>
   <div class="in">
     <div class="rt" id="restTime">1:30</div>
-    <div class="rl"><b id="restLabel">Rest</b>Breathe. Next set at zero.<div class="bar"><i id="restFill"></i></div></div>
+    <div class="rl"><b id="restLabel">Rest</b><span data-i18n="restbar">Breathe. Next set at zero.</span><div class="bar"><i id="restFill"></i></div></div>
     <button class="btn ghost small" type="button" id="restPlus">+15s</button>
-    <button class="btn ghost small" type="button" id="restSkip">Skip</button>
+    <button class="btn ghost small" type="button" id="restSkip" data-i18n="skip">Skip</button>
   </div>
 </div>
 
 <input type="file" id="fileRoutine" accept=".json,application/json" class="vis-hidden" tabindex="-1" aria-hidden="true">
 <input type="file" id="fileBackup" accept=".json,application/json" class="vis-hidden" tabindex="-1" aria-hidden="true">
 
-<script src="default-routine.js"></script>
+<script src="i18n.js"></script>
+<script src="templates.js"></script>
 <script src="app.js"></script>
 <script>
   if ("serviceWorker" in navigator) {
