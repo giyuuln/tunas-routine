@@ -787,6 +787,37 @@ async function shareApp() {
   catch (e) { toast(`${T("copyFail")} <b>${esc(url)}</b>`, "share", 6000); }
 }
 
+/* ================= Backups: gentle nudge + persistent storage ================= */
+// Browsers can clear site data when the phone is low on space. Ask to keep ours, and nudge for a backup file every 2 weeks.
+const BACKUP_EVERY = 14, NUDGE_SNOOZE = 7;
+const daysAgo = t => Math.max(0, Math.floor((Date.now() - t) / 864e5));
+const backupAge = () => (store.lastBackup ? daysAgo(store.lastBackup) : null);
+function firstUseTime() { const k = Object.keys(store.days).filter(k => Object.values(store.days[k] || {}).some(Boolean)).sort()[0]; return k ? keyToDate(k).getTime() : null; }
+function needsBackup() {
+  if (store.backupSnooze && daysAgo(store.backupSnooze) < NUDGE_SNOOZE) return false;
+  const since = store.lastBackup || firstUseTime(); return since != null && daysAgo(since) >= BACKUP_EVERY;
+}
+let nudgeHTML = "";
+function renderNudge() {
+  const el = $("nudge");
+  if (!needsBackup()) { el.hidden = true; el.innerHTML = nudgeHTML = ""; return; }
+  const html = `<div class="nd-top"><div class="nd-ico">${I.shield}</div><div><b id="nudgeT">${T("nudgeTitle")}</b><span>${T("nudgeSub", backupAge())}</span></div></div>
+    <div class="row"><button class="btn small" type="button" data-nudge="save">${T("downloadBackup")}</button><button class="btn ghost small" type="button" data-nudge="later">${T("nudgeLater")}</button></div>`;
+  if (nudgeHTML !== html) el.innerHTML = nudgeHTML = html; // don't redraw (and lose focus) on the minute refresh
+  el.hidden = false;
+}
+function askPersist() { try { const s = navigator.storage; if (s && s.persist) s.persisted().then(p => p || s.persist()).catch(() => {}); } catch (e) {} }
+function saveBackup() {
+  const ok = download(`tunas-backup-${dkey(new Date())}.json`, { app: "tunas", type: "backup", savedAt: new Date().toISOString(), data: store, routine: RAW_IS_DEFAULT ? null : RAW });
+  if (!ok) return false;
+  delete store.backupSnooze; save(); askPersist(); renderNudge(); toast(T("backupSaved"), "check", 3500); return true;
+}
+$("nudge").addEventListener("click", e => {
+  const b = e.target.closest("[data-nudge]"); if (!b) return;
+  if (b.dataset.nudge === "save") return void saveBackup();
+  store.backupSnooze = Date.now(); save(); sfx("undo"); renderNudge();
+});
+
 /* ================= Settings ================= */
 let settingsPane = "";
 function segLang(id) {
@@ -820,7 +851,7 @@ function renderSettings(keep) {
       <div class="row"><button class="btn ghost small" type="button" data-act="ics">${T("icsAll")}</button></div>
       <p>${T("icsHelp")}</p></div>
     <div class="set-group"><h3>${T("share")}</h3><p>${T("shareHelp")}</p><div class="row"><button class="btn small" type="button" data-act="share">${T("shareBtn")}</button></div></div>
-    <div class="set-group"><h3>${T("backup")}</h3><p>${T("backupHelp")}</p>
+    <div class="set-group"><h3>${T("backup")}</h3><p>${T("backupHelp")}</p><p class="bk-last">${T("lastBackup", backupAge())}</p>
       <div class="row"><button class="btn small" type="button" data-act="backup">${T("downloadBackup")}</button>
         <button class="btn ghost small warn" type="button" data-act="restore">${T("restoreBackup")}</button></div></div>
     <div class="set-group"><h3>${T("sound")}</h3><div class="row"><button class="btn ghost small" type="button" data-act="sound">${soundOn ? T("soundOff") : T("soundOn")}</button></div></div>
@@ -853,7 +884,8 @@ function downloadText(name, text, type) {
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
     if (name.startsWith("tunas-backup")) { store.lastBackup = Date.now(); save(); }
-  } catch (e) { reportError("download", e, "errDownload"); }
+    return true;
+  } catch (e) { reportError("download", e, "errDownload"); return false; }
 }
 const download = (name, obj) => downloadText(name, JSON.stringify(obj, null, 2), "application/json");
 function setLang(l) {
@@ -875,7 +907,7 @@ function settingsAction(act) {
   if (act === "exportRoutine") return download(`${slug(CFG.label || "routine")}.json`, RAW);
   if (act === "ics") return downloadText("tunas-reminders.ics", buildICS(), "text/calendar");
   if (act === "share") return shareApp();
-  if (act === "backup") return download(`tunas-backup-${dkey(new Date())}.json`, { app: "tunas", type: "backup", savedAt: new Date().toISOString(), data: store, routine: RAW_IS_DEFAULT ? null : RAW });
+  if (act === "backup") { saveBackup(); return renderSettings(true); }
   if (act === "restore") return $("fileBackup").click();
   if (act === "sound") { toggleSound(); return renderSettings(true); }
 }
@@ -1171,7 +1203,7 @@ function finishWelcome() {
   r.name = String(WEL.name || "").trim().slice(0, 30) || (LANG === "ms" ? "Kawan" : "Friend");
   if (!saveRoutine(r)) return;
   store.welcomed = true; save(); lastS = null; prevCleared = null;
-  closeWelcome(); renderGuide(); refresh(); confetti(); sfx("clear");
+  closeWelcome(); renderGuide(); refresh(); confetti(); sfx("clear"); askPersist();
   say(T("wWelcome", firstName()), "", "cheer", 5000); jump($("mascot"));
 }
 
@@ -1193,7 +1225,7 @@ function nextCele() {
 let prevCleared = null;
 function refresh(keepSheet) {
   const d = routineDate(), S = computeAll();
-  renderTop(S); renderQuests(S); renderPath(); renderContinue(); renderStreak(S); renderHistory();
+  renderTop(S); renderQuests(S); renderPath(); renderContinue(); renderNudge(); renderStreak(S); renderHistory();
   const got = renderBadges(S);
   $("tip").innerHTML = md(TIPS[dayNum(d) % TIPS.length]);
   if (sheetId && sheetId !== "editor" && keepSheet !== false) renderSheet(true);
@@ -1263,6 +1295,7 @@ if ($("welcome").hidden) { const h = new Date().getHours(), S0 = lastS || comput
   const q = new URLSearchParams(location.search).get("open");
   let hasLocalConfig = false; try { hasLocalConfig = !!localStorage.getItem(CFG_KEY); } catch (e) {}
   if (!hasLocalConfig && !Object.keys(store.days).length && !store.welcomed) { openWelcome(1); return; }
+  askPersist();
   if (!q) return;
   history.replaceState(null, "", location.pathname);
   const d = routineDate(), nodes = nodesFor(d);
