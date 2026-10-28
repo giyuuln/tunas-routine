@@ -352,6 +352,10 @@ function toast(html, icon, ms, action) { const t = document.createElement("div")
   if (action) { const b = document.createElement("button"); b.type = "button"; b.className = "toast-act"; b.textContent = action.label;
     b.onclick = () => { t.remove(); action.fn(); }; t.appendChild(b); t.classList.add("has-act"); }
   $("toasts").appendChild(t); setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 320); }, ms || 2800); return t; }
+// One Undo toast at a time: a new tick replaces the old offer instead of stacking toasts.
+let undoToast = null;
+function dropUndo() { if (undoToast) { undoToast.remove(); undoToast = null; } }
+function offerUndo(html, fn) { dropUndo(); const t = toast(html, "check", 5000, { label: T("undo"), fn: () => { undoToast = null; fn(); } }); undoToast = t; }
 function confetti() {
   if (reduced()) return;
   const cv = $("confetti"), ctx = cv.getContext("2d"), dpr = devicePixelRatio || 1; cv.width = innerWidth*dpr; cv.height = innerHeight*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -691,8 +695,8 @@ function tickAll() {
   save(); sfx("ding"); buzz([15, 40, 15]); floatXP(innerWidth / 2 - 40, innerHeight / 2, `+${xp} XP`); jump($("mascot"));
   refresh(true);
   // One mis-tap shouldn't tick a whole section for good: offer Undo for a few seconds.
-  toast(T("tickedAll", ticked.length), "check", 6000, { label: T("undo"), fn: () => {
-    const day = store.days[today]; if (!day) return; ticked.forEach(id => { delete day[id]; }); save(); lastS = null; prevCleared = null; refresh(true); } });
+  offerUndo(T("tickedAll", ticked.length), () => {
+    const day = store.days[today]; if (!day) return; ticked.forEach(id => { delete day[id]; }); save(); sfx("undo"); lastS = null; prevCleared = null; refresh(true); });
 }
 
 $("shBody").addEventListener("click", e => {
@@ -704,14 +708,16 @@ $("shBody").addEventListener("click", e => {
   const r = e.target.closest("[data-rest]"); if (r) { startRest(+r.dataset.rest, r.dataset.label); return; }
   const t = e.target.closest("[data-task]"); if (!t) return;
   const id = t.dataset.task, dayKey = sheetId.startsWith("day:") ? sheetId.slice(4) : dkey(routineDate()), d = keyToDate(dayKey), v = t.getAttribute("aria-checked") !== "true";
-  if (sheetId === "weekly") (store.weeks[wkey(d)] ||= {})[id] = v; else (store.days[dayKey] ||= {})[id] = v;
-  save();
+  const box = sheetId === "weekly" ? (store.weeks[wkey(d)] ||= {}) : (store.days[dayKey] ||= {}), was = box[id];
+  box[id] = v; save();
   const rect = t.getBoundingClientRect();
   if (v) { const xp = sheetId === "weekly" ? XP.weekly : xpFor(id, d); sfx("ding"); buzz(); floatXP(rect.right - 90, rect.top + rect.height/2, `+${xp} XP`);
     const it = id === "wo-done" ? { t: T("woDone") } : sheetId === "weekly" ? WEEKLY.find(w => w.id === id) : BLOCKS.flatMap(b => b.items).find(i => i.id === id);
     const node = nodesFor(d).find(n => n.id === sheetId), nx = node && !sheetId.startsWith("day:") ? nextOpen(node, d) : null;
-    say(`${pick(T("cheers"))} ${esc(it ? itemTitle(it, d) : "")} ✓`, nx ? T("sayThen", esc(nx.name || itemTitle(nx, d))) + ` · +${xp} XP` : `+${xp} XP`, "happy", 3200); jump($("mascot")); }
-  else sfx("undo");
+    say(`${pick(T("cheers"))} ${esc(it ? itemTitle(it, d) : "")} ✓`, nx ? T("sayThen", esc(nx.name || itemTitle(nx, d))) + ` · +${xp} XP` : `+${xp} XP`, "happy", 3200); jump($("mascot"));
+    // A mis-tap is easy on a phone: offer Undo for 5 seconds, putting back exactly what was there before.
+    offerUndo(T("tickedOne", esc(it ? itemTitle(it, d) : "")), () => { if (was === undefined) delete box[id]; else box[id] = was; save(); sfx("undo"); lastS = null; prevCleared = null; refresh(true); }); }
+  else { sfx("undo"); dropUndo(); }
   refresh(true);
   const again = document.querySelector(`[data-task="${id}"]`); again && again.focus({ preventScroll: true });
 });
