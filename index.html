@@ -37,32 +37,29 @@
     <div class="mascot" id="mascot" aria-hidden="true"></div>
     <div class="bubble" id="bubble">Jom start!</div>
   </div>
-  <button class="btn continue" id="continueBtn" type="button" hidden></button>
 
-  <div class="card level">
-    <div class="lv-row"><div class="lv-name" id="lvName">Level 1</div><div class="lv-xp" id="lvXP">0 XP</div></div>
-    <div class="bar"><i id="lvFill"></i><b id="lvBar">0 / 250</b></div>
-  </div>
-
-  <h2 class="sec-title" data-i18n="dailyQuests">Daily quests</h2>
-  <div class="card quests" id="quests"></div>
-
-  <h2 class="sec-title" id="pathTitle">Today's path</h2>
-  <div class="path" id="path"></div>
+  <section class="card levels" aria-labelledby="pathTitle">
+    <h2 class="lv-title" id="pathTitle">Today</h2>
+    <div class="lv-strip" id="path"></div>
+    <div class="lv-detail" id="levelDetail"></div>
+  </section>
 
   <div class="card nudge" id="nudge" role="region" aria-labelledby="nudgeT" hidden></div>
-  <div class="card streak-card" id="streakCard"></div>
 
-  <h2 class="sec-title" data-i18n="history">History</h2>
-  <div class="card hist" id="hist"></div>
+  <button class="card prog" id="progressCard" type="button">
+    <span class="prog-fl" id="progStreak"></span>
+    <span class="prog-lv"><span class="prog-top"><b id="lvName">Level 1</b><span id="lvBar">0 / 250 XP</span></span><span class="bar"><i id="lvFill"></i></span></span>
+  </button>
 
-  <h2 class="sec-title"><span data-i18n="badges">Badges</span> <span id="badgeMeta" style="font-size:15px;color:var(--muted)"></span></h2>
-  <div class="card badges-card"><div class="bgrid" id="bgrid"></div><button class="btn ghost small badge-more" id="badgeMore" type="button" aria-controls="bgrid"></button></div>
+  <details class="card qfold" id="questFold">
+    <summary><span class="ri" aria-hidden="true" id="questIco"></span><b data-i18n="dailyQuests">Daily quests</b><span class="pips" id="questPips" aria-hidden="true"></span><small id="questCount"></small><span class="chev" aria-hidden="true"></span></summary>
+    <div class="quests" id="quests"></div>
+  </details>
 
-  <div class="card tip"><div class="ti"><svg viewBox="0 0 24 24"><path d="M9 21h6v-1H9zm3-19a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2z"/></svg></div><p id="tip"></p></div>
-
-  <h2 class="sec-title" id="guideTitle">Guide</h2>
-  <div class="card guide" id="guide"></div>
+  <div class="foot-links">
+    <button class="row-link" type="button" id="openHistory"><span class="ri" aria-hidden="true" id="histIco"></span><b data-i18n="history">History</b><span class="chev" aria-hidden="true"></span></button>
+    <button class="row-link" type="button" id="openBadges"><span class="ri" aria-hidden="true" id="badgeIco"></span><b data-i18n="badges">Badges</b><small id="badgeMeta"></small></button>
+  </div>
 
   <div class="foot">
     <div id="resetArea"></div>

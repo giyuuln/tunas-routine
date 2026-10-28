@@ -2,7 +2,7 @@
 
 A cute, gamified daily routine tracker that you can install on your phone. Tunas the sprout cheers you on while you tick off your day.
 
-- **Today's path:** your day as a winding path of round buttons (Morning, After work, Workout, Focus, Night, This week)
+- **Today as game levels:** each part of your day (Morning, After work, Workout, Focus, Night, This week) is a level that earns up to 3 stars. Tunas stands on the level to play next.
 - **XP, levels and streaks:** every tick earns XP; hit 80% of your day to keep your streak
 - **Daily quests and 16 badges**
 - **Workout logger:** log kg × reps per set, get "NEW PR" when you beat your best, plus a rest timer that beeps and vibrates
@@ -76,7 +76,7 @@ The easiest way to get a routine file is **Gear → Download my routine** after 
 | `everyOtherDay: true` | Shows only every second day |
 | `hideOnDays: [3]` | Hide on these weekdays (0 = Sunday … 6 = Saturday) |
 | `useFocus: true` | Title comes from the `focus` entry for today's weekday |
-| `workouts` | Keyed by weekday. `after` is the section id it appears after on the path |
+| `workouts` | Keyed by weekday. `after` is the section id it appears after in Today's levels |
 | `bodyweight: true`, `unit: "sec"` | Exercise logs reps only (or seconds) |
 | `progression` | Per-exercise start weight and how much to add when you hit the top reps |
 | `remind` | Optional `"HH:MM"` on a section or workout, used for calendar reminders (defaults to `from`) |

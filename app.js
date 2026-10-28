@@ -81,7 +81,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.10.28";
+const APP_VERSION = "2026.10.29";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -370,6 +370,7 @@ function confetti() {
 
 /* ================= Mascot ================= */
 $("mascot").innerHTML = MASCOT;
+$("questIco").innerHTML = I.star; $("histIco").innerHTML = I.cal; $("badgeIco").innerHTML = I.trophy;
 let mascotTimer = null;
 function setMood(el, mood) { el.classList.remove("happy","cheer","sleepy","think"); if (mood && mood !== "idle") el.classList.add(mood); }
 function jump(el) { if (!el || reduced()) return; el.classList.remove("jump"); void el.offsetWidth; el.classList.add("jump"); setTimeout(() => el.classList.remove("jump"), 600); }
@@ -488,38 +489,62 @@ function renderTop(S) {
   $("stSnd").innerHTML = soundOn ? I.sndOn : I.sndOff; $("stSnd").setAttribute("aria-label", T("sound"));
   $("stCog").innerHTML = I.cog;
   $("lvName").innerHTML = `${T("level", S.L.n)} · <span>${titleOf(S.L.n)}</span>`;
-  $("lvXP").textContent = T("xpTotal", S.xp);
   $("lvFill").style.width = (100 * S.L.cur / S.L.span) + "%"; $("lvBar").textContent = T("xpOf", S.L.cur, S.L.span);
+  $("progStreak").className = "prog-fl" + (S.streak ? "" : " off"); $("progStreak").innerHTML = `${I.flame}<b>${T("streakShort", S.streak)}</b>`;
+  $("progressCard").setAttribute("aria-label", `${T("streakDays", S.streak)}. ${T("level", S.L.n)}, ${T("xpOf", S.L.cur, S.L.span)}. ${T("history")}`);
 }
 function renderQuests(S) {
   const d = routineDate(), W = WORKOUTS[d.getDay()], done = store.days[dkey(d)] || {};
   const Q = [{ ico:"star", t:T("qStar"), n:S.questDone, of:S.questTotal, rew:XP.quest }, { ico:"trophy", t:T("qDay"), n:S.doneToday, of:S.totalToday, rew:XP.perfect }];
   if (W) Q.splice(1, 0, { ico:"bolt", t:T("qWorkout", esc(W.name)), n: done["wo-done"] ? 1 : 0, of: 1, rew: XP.workout });
   else Q.splice(1, 0, { ico:"flame", t:T("qXP"), n: Math.min(S.todayXP, 150), of: 150, rew: 0 });
-  $("quests").innerHTML = Q.filter(q => q.of > 0).map(q => { const won = q.n >= q.of;
+  const QS = Q.filter(q => q.of > 0), wonN = QS.filter(q => q.n >= q.of).length;
+  $("questPips").innerHTML = QS.map(q => `<i class="${q.n >= q.of ? "on" : ""}"></i>`).join("");
+  $("questCount").textContent = T("of", wonN, QS.length);
+  $("quests").innerHTML = QS.map(q => { const won = q.n >= q.of;
     return `<div class="quest${won ? " won" : ""}"><div class="q-ico">${I[q.ico]}</div><div class="q-main"><div class="q-t">${q.t}</div><div class="bar${won ? " green" : ""}"><i style="width:${100*q.n/q.of}%"></i><b>${q.n} / ${q.of}</b></div></div><span class="q-rew">${won ? T("done") : q.rew ? "+" + q.rew : T("bonus")}</span></div>`; }).join("");
 }
-function renderContinue() {
-  const d = routineDate(), t = pathTarget(d, nowMins(), nodesFor(d)), b = $("continueBtn");
-  if (!t) { b.hidden = true; return; }
-  const st = nodeState(t, d); b.hidden = false; b.dataset.node = t.id;
-  b.innerHTML = `${st.n === 0 ? T("start") : T("cont")}: ${esc(t.title)} <span>${T("left", st.total - st.n)}</span>`;
-}
-const OFFS = [0, 62, 90, 62, 0, -62, -90, -62];
-function renderPath() {
+/* ================= Today: game-level strip ================= */
+// Each section is a level. Stars show progress in thirds; the little Tunas stands on the level to play next.
+const starsFor = st => (st.cleared ? 3 : st.n === 0 || !st.total ? 0 : Math.max(1, Math.floor(3 * st.n / st.total)));
+const starRow = (k, cls) => `<span class="stars${cls ? " " + cls : ""}" aria-hidden="true">${[0, 1, 2].map(i => `<i class="${i < k ? "on" : ""}">${I.star}</i>`).join("")}</span>`;
+function nextTitle(node, d) { const x = nextOpen(node, d); if (!x) return ""; return node.kind === "workout" ? x.name : node.kind === "block" ? itemTitle(x, d) : x.t; }
+function renderPath(S) {
   const d = routineDate(), mins = nowMins(), nodes = nodesFor(d), target = pathTarget(d, mins, nodes);
-  $("path").innerHTML = nodes.map((n, i) => {
-    const st = nodeState(n, d), isNow = inWindow(n, mins);
-    const cls = st.cleared ? "done" : (isNow || st.n > 0 || n === target) ? "go" : "";
-    const C = 2 * Math.PI * 45, ring = !st.cleared && st.n > 0 ? `<svg class="ringp" viewBox="0 0 96 96"><circle class="tr" cx="48" cy="48" r="45"/><circle class="pr" cx="48" cy="48" r="45" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-st.n/st.total)}"/></svg>` : "";
-    const call = n === target ? `<div class="callout">${st.n === 0 ? (isNow ? T("startNow") : T("start")) : T("left", st.total - st.n)}</div>` : "";
-    return `<div class="node-wrap" style="transform:translateX(${OFFS[i % OFFS.length]}px)">${call}
-      <button class="node ${cls}${n === target && !reduced() ? " now-pulse" : ""}" type="button" data-node="${n.id}" aria-label="${esc(n.title)}, ${T("of", st.n, st.total)}">${ring}${I[n.icon] || I.star}${st.cleared ? `<span class="tick">${I.check}</span>` : ""}</button>
-      <div class="node-label"><b>${esc(n.title)}</b><span>${st.n}/${st.total}${n.range ? " · " + esc(n.range) : ""}</span></div></div>`;
+  const strip = $("path"), keepX = strip.scrollLeft;
+  strip.innerHTML = nodes.map(n => {
+    const st = nodeState(n, d), isT = n === target, k = starsFor(st);
+    const cls = st.cleared ? "done" : isT ? "go" : st.n > 0 ? "started" : "";
+    return `<div class="lvl${st.cleared ? " cleared" : ""}${isT ? " is-target" : ""}">
+      ${isT ? `<span class="lvl-me mascot happy" aria-hidden="true">${MASCOT}</span>` : ""}
+      <button class="lvl-node ${cls}" type="button" data-node="${n.id}" aria-label="${esc(n.title)}, ${T("of", st.n, st.total)}${isT ? ", " + T("upNext") : ""}">${st.cleared ? I.check : I[n.icon] || I.star}</button>
+      ${starRow(k)}<span class="lvl-name">${esc(n.title)}</span></div>`;
   }).join("");
-  $("pathTitle").textContent = T("todaysPath", d.toLocaleDateString(locale(), { weekday: "long" }));
+  $("pathTitle").textContent = T("todayIs", d.toLocaleDateString(locale(), { weekday: "long" }));
+  renderLevelDetail(d, mins, target, S || lastS || computeAll());
+  // Centre the level to play whenever it changes; otherwise keep where the person scrolled to.
+  const t = strip.querySelector(".is-target"), tid = target ? target.id : "";
+  if (t && strip.dataset.placed !== tid) { strip.dataset.placed = tid;
+    const sr = strip.getBoundingClientRect(), tr = t.getBoundingClientRect();
+    strip.scrollLeft = Math.max(0, keepX + (tr.left - sr.left) - (sr.width - tr.width) / 2); }
+  else strip.scrollLeft = keepX;
+}
+function renderLevelDetail(d, mins, target, S) {
+  const el = $("levelDetail");
+  if (!target) {
+    el.className = "lv-detail all";
+    el.innerHTML = `<div class="ld-h"><b>${T("allClear")}</b>${starRow(3, "big")}</div><p>${T("allClearSub", S.todayXP)}</p>`;
+    return;
+  }
+  const st = nodeState(target, d), nx = nextTitle(target, d), live = inWindow(target, mins);
+  const when = target.kind === "weekly" ? esc(target.range) : live && target.to != null ? T("until", fmtClock(target.to)) : target.from != null ? T("startsAt", fmtClock(target.from)) : esc(target.range || "");
+  el.className = "lv-detail";
+  el.innerHTML = `<div class="ld-h"><b>${esc(target.title)}</b><span>${T("of", st.n, st.total)}${when ? " · " + when : ""}</span></div>
+    ${nx ? `<p>${T("nextIs", esc(nx))}</p>` : ""}
+    <button class="btn ld-go" type="button" data-node="${target.id}">${st.n === 0 ? T("start") : T("cont")}</button>`;
 }
 $("path").addEventListener("click", e => { const b = e.target.closest("[data-node]"); if (b) { audio(); openSheet(b.dataset.node); } });
+$("levelDetail").addEventListener("click", e => { const b = e.target.closest("[data-node]"); if (b) { audio(); openSheet(b.dataset.node); } });
 
 function restRow(d) {
   const left = REST_PER_MONTH - restsInMonth(d), on = isRest(d), key = dkey(d);
@@ -537,12 +562,14 @@ function renderStreak(S) {
   const d = routineDate(); let days = "";
   for (let k = 6; k >= 0; k--) { const x = new Date(d); x.setDate(x.getDate() - k); const r = ratio(x), rst = isRest(x);
     days += `<div class="day${k === 0 ? " today" : ""}${rst ? " rest" : r >= .8 ? " full" : r > 0 ? " part" : ""}" title="${rst ? T("lgRest") : Math.round(r*100) + "%"}"><i>${rst ? I.moon : I.flame}</i><span>${x.toLocaleDateString(locale(), { weekday: "short" }).slice(0, 2)}</span></div>`; }
-  $("streakCard").innerHTML = `<div class="streak-top"><svg class="big-flame${S.streak ? "" : " off"}" viewBox="0 0 24 24"><path d="${I.flame.match(/d="([^"]+)"/)[1]}"/></svg><div><b>${T("streakDays", S.streak)}</b><span>${S.streak ? T("streakKeep") : T("streakStart")} · ${T("best", S.bestStreak)}</span></div></div><div class="week">${days}</div>${restRow(d)}`;
+  const el = $("streakCard"); if (!el) return;
+  el.innerHTML = `<div class="streak-top"><svg class="big-flame${S.streak ? "" : " off"}" viewBox="0 0 24 24"><path d="${I.flame.match(/d="([^"]+)"/)[1]}"/></svg><div><b>${T("streakDays", S.streak)}</b><span>${S.streak ? T("streakKeep") : T("streakStart")} · ${T("best", S.bestStreak)}</span></div></div><div class="week">${days}</div>${restRow(d)}`;
 }
-$("streakCard").addEventListener("click", e => { const b = e.target.closest("[data-restday]"); if (b) setRest(b.dataset.restday, b.dataset.v === "1"); });
+$("shBody").addEventListener("click", e => { if (!e.target.closest("#streakCard")) return; const b = e.target.closest("[data-restday]"); if (b) setRest(b.dataset.restday, b.dataset.v === "1"); });
 
 let histMonth = (() => { const d = routineDate(); return new Date(d.getFullYear(), d.getMonth(), 1); })();
 function renderHistory() {
+  if (!$("hist")) return;
   const today = dkey(routineDate()), y = histMonth.getFullYear(), m = histMonth.getMonth();
   const first = new Date(y, m, 1), lead = (first.getDay() + 6) % 7, daysIn = new Date(y, m + 1, 0).getDate();
   let cells = "", full = 0, rests = 0;
@@ -559,43 +586,63 @@ function renderHistory() {
     <div class="h-foot"><span><i class="lg perfect"></i>${T("lgFull")}</span><span><i class="lg full"></i>${T("lgGood")}</span><span><i class="lg part"></i>${T("lgPart")}</span><span><i class="lg rest"></i>${T("lgRest")}</span></div>
     <p class="h-note">${T("histNote", full, rests)}</p>`;
 }
-$("hist").addEventListener("click", e => {
+$("shBody").addEventListener("click", e => {
+  if (!e.target.closest("#hist")) return;
   const nav = e.target.closest("[data-hnav]"); if (nav) { histMonth = new Date(histMonth.getFullYear(), histMonth.getMonth() + (+nav.dataset.hnav), 1); renderHistory(); return; }
   const c = e.target.closest("[data-day]"); if (c && !c.disabled) openSheet("day:" + c.dataset.day);
 });
-// Home shows earned badges first and only two rows; "See all" opens the rest.
-let badgesOpen = false;
 function renderBadges(S) {
   const got = BADGES.filter(b => b.test(S)); $("badgeMeta").textContent = `${got.length}/${BADGES.length}`;
+  const grid = $("bgrid"); if (!grid) return got;
   const list = BADGES.map((b, i) => ({ b, i, ok: b.test(S) })).sort((x, y) => (y.ok - x.ok) || (x.i - y.i));
-  const SHOW = 6, shown = badgesOpen ? list : list.slice(0, SHOW);
-  $("bgrid").innerHTML = shown.map(({ b, i, ok }) => { const c = COLORS[i % COLORS.length];
+  grid.innerHTML = list.map(({ b, i, ok }) => { const c = COLORS[i % COLORS.length];
     return `<div class="badge${ok ? "" : " locked"}" style="--c:var(${c[0]});--cd:var(${c[1]})"><div class="medal"><span>${I[b.ic] || I.star}${b.n ? `<small>${b.n}</small>` : ""}</span></div><div class="bn">${badgeName(b.id)}</div><div class="bh">${badgeHow(b.id)}</div></div>`; }).join("");
-  const more = $("badgeMore"); more.hidden = list.length <= SHOW;
-  more.textContent = badgesOpen ? T("badgesLess") : T("badgesAll", list.length); more.setAttribute("aria-expanded", badgesOpen);
   return got;
 }
-$("badgeMore").onclick = () => { badgesOpen = !badgesOpen; renderBadges(lastS || computeAll()); };
-function renderGuide() {
-  const g = CFG.guide;
-  $("guideTitle").hidden = !g; $("guide").hidden = !g;
-  if (!g) return;
-  $("guideTitle").textContent = g.title || T("guide");
-  $("guide").innerHTML = (g.sections || []).map((s, i) => `<details${i === 0 ? " open" : ""}><summary>${esc(s.title)}</summary><div class="g">${(s.lines || []).map(l => `<p>${md(l)}</p>`).join("")}</div></details>`).join("");
+// The routine's guide and daily tip live in Settings now; refresh it if it's open.
+function renderGuide() { if (sheetId === "settings") renderSettings(true); }
+function guideHTML() {
+  const g = CFG.guide, tip = TIPS[dayNum(routineDate()) % TIPS.length];
+  return `<div class="set-group"><h3>${esc((g && g.title) || T("guide"))}</h3><div class="tip"><div class="ti">${I.star}</div><p>${md(tip)}</p></div>
+    ${g ? `<div class="guide">${(g.sections || []).map(s => `<details><summary>${esc(s.title)}</summary><div class="g">${(s.lines || []).map(l => `<p>${md(l)}</p>`).join("")}</div></details>`).join("")}</div>` : ""}</div>`;
 }
+function renderProgressSheet(kind, keep) {
+  const body = $("shBody"), top = keep ? body.scrollTop : 0, S = lastS || computeAll();
+  if (kind === "history") {
+    $("shHead").innerHTML = sheetHead("cal", T("history"), T("histSub"), null, "--sky");
+    body.innerHTML = `<div class="card streak-card" id="streakCard"></div><div class="card hist" id="hist"></div>`;
+    renderStreak(S); renderHistory();
+  } else {
+    const n = BADGES.filter(b => b.test(S)).length;
+    $("shHead").innerHTML = sheetHead("trophy", T("badges"), T("badgesSub", n, BADGES.length), null, "--gold");
+    body.innerHTML = `<div class="bgrid" id="bgrid"></div>`; renderBadges(S);
+  }
+  $("shClose").onclick = closeSheet;
+  if (keep) body.scrollTop = top;
+}
+$("openHistory").onclick = () => { audio(); openSheet("history"); };
+$("progressCard").onclick = () => { audio(); openSheet("history"); };
+$("openBadges").onclick = () => { audio(); openSheet("badges"); };
 
 /* ================= Bottom sheet ================= */
 let sheetId = null, lastFocus = null;
 function openSheet(id) {
   // Phone back button closes the sheet instead of leaving the app.
   if (!sheetId && !(history.state && history.state.tunasSheet)) { try { history.pushState({ tunasSheet: 1 }, ""); } catch (e) {} }
-  sheetId = id; lastFocus = document.activeElement;
+  // A day opened from History goes back to History when closed.
+  parentSheet = sheetId === "history" && id.startsWith("day:") ? "history" : null;
+  if (!parentSheet) lastFocus = document.activeElement;
+  sheetId = id;
   $("scrim").hidden = false; $("sheet").hidden = false; document.body.classList.add("locked");
   renderSheet(false);
   requestAnimationFrame(() => { $("scrim").classList.add("show"); $("sheet").classList.add("show"); const x = $("shClose"); x && x.focus({ preventScroll: true }); });
 }
+let parentSheet = null;
 function closeSheet(fromBack) {
-  if (!sheetId) return; sheetId = null; ED = null;
+  if (!sheetId) return;
+  if (parentSheet) { const p = parentSheet; parentSheet = null;
+    if (fromBack) { try { history.pushState({ tunasSheet: 1 }, ""); } catch (e) {} }
+    sheetId = p; renderSheet(false); const x = $("shClose"); x && x.focus({ preventScroll: true }); return; } sheetId = null; ED = null;
   if (!fromBack && history.state && history.state.tunasSheet) { try { history.back(); } catch (e) {} }
   $("scrim").classList.remove("show"); $("sheet").classList.remove("show"); document.body.classList.remove("locked");
   setTimeout(() => { if (!sheetId) { $("scrim").hidden = true; $("sheet").hidden = true; } }, 320);
@@ -625,6 +672,7 @@ function renderSheet(keep) {
   if (sheetId === "settings") return renderSettings(keep);
   if (sheetId === "editor") return renderEditor(keep);
   if (sheetId.startsWith("day:")) return renderDaySheet(sheetId.slice(4), keep);
+  if (sheetId === "history" || sheetId === "badges") return renderProgressSheet(sheetId, keep);
   const d = routineDate(), today = dkey(d), node = nodesFor(d).find(n => n.id === sheetId); if (!node) { closeSheet(); return; }
   const st = nodeState(node, d), body = $("shBody"), top = keep ? body.scrollTop : 0;
   $("shHead").innerHTML = sheetHead(node.icon, esc(node.title), `${esc(node.range)}${node.range ? " · " : ""}${T("of", st.n, st.total)}`, st, st.cleared ? "--gold" : "--green");
@@ -851,6 +899,7 @@ function renderSettings(keep) {
         <button class="btn ghost small" type="button" data-act="exportRoutine">${T("downloadRoutine")}</button></div>
       ${settingsPane === "paste" ? `<textarea class="field" id="pasteBox" placeholder="${T("pastePh")}"></textarea><div class="row"><button class="btn small" type="button" data-act="pasteApply">${T("useThis")}</button></div>` : ""}
     </div>
+    ${guideHTML()}
     <div class="set-group"><h3>${T("reminders")}</h3><p>${T("remShort")}</p><details class="more-help"><summary>${T("remHow")}</summary><p>${T("remHelp")}</p></details>
       ${(() => { const L = reminderList(), n = L.filter(r => store.rem[remSig(r)]).length; return (n ? `<p class="rem-count">${T("remCount", n, L.length)}</p>` : "") + L.map(remRow).join(""); })()}
       <p class="rem-note">${T("remNote")}</p>
@@ -1231,9 +1280,8 @@ function nextCele() {
 let prevCleared = null;
 function refresh(keepSheet) {
   const d = routineDate(), S = computeAll();
-  renderTop(S); renderQuests(S); renderPath(); renderContinue(); renderNudge(); renderStreak(S); renderHistory();
+  renderTop(S); renderQuests(S); renderPath(S); renderNudge(); renderStreak(S); renderHistory();
   const got = renderBadges(S);
-  $("tip").innerHTML = md(TIPS[dayNum(d) % TIPS.length]);
   if (sheetId && sheetId !== "editor" && keepSheet !== false) renderSheet(true);
   else if (sheetId && keepSheet === false && !["settings", "editor"].includes(sheetId) && !sheetId.startsWith("day:")) {
     const node = nodesFor(d).find(n => n.id === sheetId); if (node) { const st = nodeState(node, d), bar = $("shHead").querySelector(".bar"); if (bar) { bar.querySelector("i").style.width = (100*st.n/st.total) + "%"; bar.querySelector("b").textContent = `${st.n} / ${st.total}`; } }
@@ -1275,7 +1323,7 @@ function resetIdle() { area.innerHTML = `<button class="btn ghost small" type="b
   $("resetBtn").onclick = () => { area.innerHTML = `<div class="confirm"><span>${T("clearConfirm")}</span><button class="btn small" id="yesBtn" type="button">${T("clear")}</button><button class="btn ghost small" id="noBtn" type="button">${T("keep")}</button></div>`;
     $("yesBtn").onclick = () => { delete store.days[dkey(routineDate())]; save(); lastS = null; prevCleared = null; refresh(); resetIdle(); };
     $("noBtn").onclick = resetIdle; }; }
-$("continueBtn").onclick = () => { audio(); const id = $("continueBtn").dataset.node; if (id) openSheet(id); };
+
 
 function showRescue() {
   const el = $("cele"); el.hidden = false;
@@ -1306,7 +1354,7 @@ if ($("welcome").hidden) { const h = new Date().getHours(), S0 = lastS || comput
   history.replaceState(null, "", location.pathname);
   const d = routineDate(), nodes = nodesFor(d);
   if (q === "settings") return openSheet("settings");
-  if (q === "history") return $("hist").scrollIntoView();
+  if (q === "history" || q === "badges") return openSheet(q);
   const id = q === "now" ? (pathTarget(d, nowMins(), nodes) || {}).id : q;
   if (id && nodes.some(n => n.id === id)) return openSheet(id);
   if (q === "workout") toast(T("noWorkout"), "star");
