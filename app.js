@@ -593,6 +593,8 @@ window.addEventListener("popstate", () => {
   if (sheetId === "editor" && ED && ED.dirty) { try { history.pushState({ tunasSheet: 1 }, ""); } catch (e) {} requestCloseEditor(); return; }
   closeSheet(true);
 });
+// Tapping anywhere on a switch row flips its switch, so the target isn't just the small pill.
+document.addEventListener("click", e => { const row = e.target.closest(".sw-row"); if (!row || e.target.closest(".toggle, button, a, input, select, textarea")) return; const t = row.querySelector(".toggle"); if (t) t.click(); });
 window.addEventListener("beforeunload", e => { if (ED && ED.dirty) { e.preventDefault(); e.returnValue = ""; } });
 
 function taskHTML(i, checked, tag) {
