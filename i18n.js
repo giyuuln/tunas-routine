@@ -58,6 +58,9 @@ window.TUNAS_I18N = {
     badgeOne: n => `Badge unlocked: <b>${n}</b>`, badgeMany: n => `<b>${n} badges</b> unlocked`,
     questDone: xp => `Quest complete! <b>+${xp} XP</b>`, prToast: xp => `New personal record! <b>+${xp} XP</b>`, prSay: "NEW PR! Power lah!",
     updTitle: "New version ready!", updSub: "Refresh to get the latest Tunas. Your ticks stay safe.", updBtn: "Refresh", updLater: "Later",
+    nudgeTitle: "Keep your progress safe", nudgeSub: n => n == null ? "You haven't saved a backup yet. One tap keeps your XP and streak safe if you change phones." : `Last backup was ${n} days ago. Save a fresh one in case you change phones.`,
+    nudgeLater: "Not now", backupSaved: "Backup saved. Keep the file somewhere safe!",
+    lastBackup: n => n == null ? "No backup yet." : n === 0 ? "Last backup: today." : n === 1 ? "Last backup: yesterday." : `Last backup: ${n} days ago.`,
     titles: ["Rookie","Starter","Consistent","Grinder","Disciplined","Glow-up","Locked in","Machine","Elite","Legend"],
     badge: {
       first:["First step","Tick your first habit"], quest:["Quest done","Finish every ★ habit in a day"], perfect:["Perfect day","Finish every habit in one day"],
@@ -232,6 +235,9 @@ window.TUNAS_I18N = {
     badgeOne: n => `Lencana dibuka: <b>${n}</b>`, badgeMany: n => `<b>${n} lencana</b> dibuka`,
     questDone: xp => `Misi siap! <b>+${xp} XP</b>`, prToast: xp => `Rekod peribadi baru! <b>+${xp} XP</b>`, prSay: "REKOD BARU! Power lah!",
     updTitle: "Versi baru dah sampai!", updSub: "Refresh untuk dapat Tunas terbaru. Tick kau semua selamat.", updBtn: "Refresh", updLater: "Nanti",
+    nudgeTitle: "Jaga progress kau", nudgeSub: n => n == null ? "Kau belum simpan sandaran lagi. Satu tekan je, XP dan streak kau selamat kalau tukar telefon." : `Sandaran terakhir ${n} hari lepas. Simpan yang baru, manalah tahu tukar telefon nanti.`,
+    nudgeLater: "Nanti dulu", backupSaved: "Sandaran disimpan. Simpan fail tu elok-elok!",
+    lastBackup: n => n == null ? "Belum ada sandaran." : n === 0 ? "Sandaran terakhir: hari ini." : n === 1 ? "Sandaran terakhir: semalam." : `Sandaran terakhir: ${n} hari lepas.`,
     titles: ["Baru Mula","Pemula","Konsisten","Pejuang","Berdisiplin","Glow-up","Fokus Penuh","Mesin","Elit","Legenda"],
     badge: {
       first:["Langkah pertama","Tanda tabiat pertama"], quest:["Misi siap","Siapkan semua tabiat ★ dalam sehari"], perfect:["Hari sempurna","Siapkan semua tabiat dalam sehari"],

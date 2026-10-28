@@ -128,6 +128,14 @@ button:focus-visible,summary:focus-visible,input:focus-visible{outline:3px solid
 
 /* Week streak strip */
 .streak-card{padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.nudge{padding:14px 16px;display:flex;flex-direction:column;gap:12px;background:var(--gold-soft);border-color:var(--gold)}
+.nd-top{display:flex;gap:12px;align-items:flex-start}
+.nd-ico{flex:none;width:40px;height:40px;border-radius:12px;background:var(--gold);display:grid;place-items:center;box-shadow:0 3px 0 var(--gold-d)}
+.nd-ico svg{width:22px;height:22px;fill:var(--on-gold)}
+.nd-top b{display:block;font-size:16px;font-weight:900}
+.nd-top span{display:block;font-size:14px;color:var(--ink);margin-top:2px}
+.nudge .row{display:flex;flex-wrap:wrap;gap:10px}
+.bk-last{font-size:13px;color:var(--muted)}
 .streak-top{display:flex;align-items:center;gap:12px}
 .big-flame{width:46px;height:46px;flex:none;fill:var(--orange)}
 .big-flame.off{fill:var(--line)}
