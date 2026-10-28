@@ -185,7 +185,7 @@ button:focus-visible,summary:focus-visible,input:focus-visible{outline:3px solid
 .task .ck svg{width:18px;height:18px;fill:#fff;opacity:0}
 .task .tt{flex:1;min-width:0}
 .task .tt b{display:block;font-weight:900;font-size:15.5px}
-.task .tt span{display:block;font-size:13.5px;color:var(--muted);font-weight:700;margin-top:1px}
+.task .tt > span{display:block;font-size:13.5px;color:var(--muted);font-weight:700;margin-top:1px}
 .task .tm{flex:none;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;font-weight:800}
 .task[aria-checked="true"]{background:var(--green-soft);border-color:var(--green);box-shadow:0 4px 0 var(--green)}
 .task[aria-checked="true"] .ck{background:var(--green);border-color:var(--green);animation:ckpop .35s cubic-bezier(.2,1.6,.4,1)}
