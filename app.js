@@ -219,11 +219,11 @@ function saveRoutine(r) {
 const XP = { item: 10, key: 20, workout: 50, perfect: 50, quest: 40, pr: 25, weekly: 15 };
 const COLORS = [["--gold","--gold-d"],["--sky","--sky-d"],["--green","--green-d"],["--orange","--orange-d"],["--pink","--pink-d"]];
 const BADGES = [
-  { id:"first", g:"1", test:S=>S.ticks>=1 }, { id:"quest", g:"★", test:S=>S.quests>=1 }, { id:"perfect", g:"100", test:S=>S.perfectDays>=1 },
-  { id:"streak3", g:"3d", test:S=>S.bestStreak>=3 }, { id:"streak7", g:"7d", test:S=>S.bestStreak>=7 }, { id:"streak30", g:"30d", test:S=>S.bestStreak>=30 },
-  { id:"iron", g:"Fe", test:S=>S.workouts>=1 }, { id:"fullweek", g:"All", test:S=>S.fullWeeks>=1 }, { id:"w12", g:"12", test:S=>S.workouts>=12 },
-  { id:"pr1", g:"PR", test:S=>S.prs>=1 }, { id:"pr10", g:"10", test:S=>S.prs>=10 }, { id:"habit14", g:"14", test:S=>S.topQuestCount>=14 },
-  { id:"perfect7", g:"7×", test:S=>S.perfectDays>=7 }, { id:"ticks500", g:"500", test:S=>S.ticks>=500 }, { id:"lv5", g:"Lv5", test:S=>S.level>=5 }, { id:"lv10", g:"Lv10", test:S=>S.level>=10 },
+  { id:"first", ic:"check", n:"1", test:S=>S.ticks>=1 }, { id:"quest", ic:"star", n:"", test:S=>S.quests>=1 }, { id:"perfect", ic:"trophy", n:"", test:S=>S.perfectDays>=1 },
+  { id:"streak3", ic:"flame", n:"3", test:S=>S.bestStreak>=3 }, { id:"streak7", ic:"flame", n:"7", test:S=>S.bestStreak>=7 }, { id:"streak30", ic:"flame", n:"30", test:S=>S.bestStreak>=30 },
+  { id:"iron", ic:"dumb", n:"", test:S=>S.workouts>=1 }, { id:"fullweek", ic:"cal", n:"", test:S=>S.fullWeeks>=1 }, { id:"w12", ic:"dumb", n:"12", test:S=>S.workouts>=12 },
+  { id:"pr1", ic:"bolt", n:"", test:S=>S.prs>=1 }, { id:"pr10", ic:"bolt", n:"10", test:S=>S.prs>=10 }, { id:"habit14", ic:"star", n:"14", test:S=>S.topQuestCount>=14 },
+  { id:"perfect7", ic:"trophy", n:"7", test:S=>S.perfectDays>=7 }, { id:"ticks500", ic:"check", n:"500", test:S=>S.ticks>=500 }, { id:"lv5", ic:"shield", n:"5", test:S=>S.level>=5 }, { id:"lv10", ic:"shield", n:"10", test:S=>S.level>=10 },
 ];
 const badgeName = id => (T("badge")[id] || [id, ""])[0], badgeHow = id => (T("badge")[id] || ["", ""])[1];
 const titleOf = n => { const t = T("titles"); return t[Math.min(n - 1, t.length - 1)]; };
@@ -559,12 +559,19 @@ $("hist").addEventListener("click", e => {
   const nav = e.target.closest("[data-hnav]"); if (nav) { histMonth = new Date(histMonth.getFullYear(), histMonth.getMonth() + (+nav.dataset.hnav), 1); renderHistory(); return; }
   const c = e.target.closest("[data-day]"); if (c && !c.disabled) openSheet("day:" + c.dataset.day);
 });
+// Home shows earned badges first and only two rows; "See all" opens the rest.
+let badgesOpen = false;
 function renderBadges(S) {
   const got = BADGES.filter(b => b.test(S)); $("badgeMeta").textContent = `${got.length}/${BADGES.length}`;
-  $("bgrid").innerHTML = BADGES.map((b, i) => { const ok = b.test(S), c = COLORS[i % COLORS.length];
-    return `<div class="badge${ok ? "" : " locked"}" style="--c:var(${c[0]});--cd:var(${c[1]})"><div class="medal"><span>${b.g}</span></div><div class="bn">${badgeName(b.id)}</div><div class="bh">${badgeHow(b.id)}</div></div>`; }).join("");
+  const list = BADGES.map((b, i) => ({ b, i, ok: b.test(S) })).sort((x, y) => (y.ok - x.ok) || (x.i - y.i));
+  const SHOW = 6, shown = badgesOpen ? list : list.slice(0, SHOW);
+  $("bgrid").innerHTML = shown.map(({ b, i, ok }) => { const c = COLORS[i % COLORS.length];
+    return `<div class="badge${ok ? "" : " locked"}" style="--c:var(${c[0]});--cd:var(${c[1]})"><div class="medal"><span>${I[b.ic] || I.star}${b.n ? `<small>${b.n}</small>` : ""}</span></div><div class="bn">${badgeName(b.id)}</div><div class="bh">${badgeHow(b.id)}</div></div>`; }).join("");
+  const more = $("badgeMore"); more.hidden = list.length <= SHOW;
+  more.textContent = badgesOpen ? T("badgesLess") : T("badgesAll", list.length); more.setAttribute("aria-expanded", badgesOpen);
   return got;
 }
+$("badgeMore").onclick = () => { badgesOpen = !badgesOpen; renderBadges(lastS || computeAll()); };
 function renderGuide() {
   const g = CFG.guide;
   $("guideTitle").hidden = !g; $("guide").hidden = !g;
@@ -719,6 +726,7 @@ $("shBody").addEventListener("input", e => {
   refresh(false);
 });
 $("shBody").addEventListener("change", e => { if (sheetId === "editor") editorInput(e); });
+$("shBody").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.classList && e.target.classList.contains("ed-name")) e.preventDefault(); });
 
 /* ================= Reminders (calendar) ================= */
 const TZ = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch (e) { return "UTC"; } })();
@@ -799,14 +807,14 @@ function renderSettings(keep) {
     <div class="set-group"><h3>${T("routine")}</h3>
       <p>${T("using")} <span class="pill-ok">${esc(CFG.label || T("custom"))}</span> · ${T("sections", BLOCKS.length, Object.keys(WORKOUTS).length)}</p>
       <div class="row"><button class="btn small" type="button" data-act="edit">${T("editRoutine")}</button>
-        <button class="btn ghost small" type="button" data-act="template">${T("newTemplate")}</button></div>
+        <button class="btn ghost small warn" type="button" data-act="template">${T("newTemplate")}</button></div>
       <p>${T("routineLocal")}</p>
       <div class="row"><button class="btn ghost small" type="button" data-act="importRoutine">${T("importFile")}</button>
         <button class="btn ghost small" type="button" data-act="pasteToggle">${T("pasteInstead")}</button>
         <button class="btn ghost small" type="button" data-act="exportRoutine">${T("downloadRoutine")}</button></div>
       ${settingsPane === "paste" ? `<textarea class="field" id="pasteBox" placeholder="${T("pastePh")}"></textarea><div class="row"><button class="btn small" type="button" data-act="pasteApply">${T("useThis")}</button></div>` : ""}
     </div>
-    <div class="set-group"><h3>${T("reminders")}</h3><p>${T("remHelp")}</p>
+    <div class="set-group"><h3>${T("reminders")}</h3><p>${T("remShort")}</p><details class="more-help"><summary>${T("remHow")}</summary><p>${T("remHelp")}</p></details>
       ${(() => { const L = reminderList(), n = L.filter(r => store.rem[remSig(r)]).length; return (n ? `<p class="rem-count">${T("remCount", n, L.length)}</p>` : "") + L.map(remRow).join(""); })()}
       <p class="rem-note">${T("remNote")}</p>
       <div class="row"><button class="btn ghost small" type="button" data-act="ics">${T("icsAll")}</button></div>
@@ -814,7 +822,7 @@ function renderSettings(keep) {
     <div class="set-group"><h3>${T("share")}</h3><p>${T("shareHelp")}</p><div class="row"><button class="btn small" type="button" data-act="share">${T("shareBtn")}</button></div></div>
     <div class="set-group"><h3>${T("backup")}</h3><p>${T("backupHelp")}</p>
       <div class="row"><button class="btn small" type="button" data-act="backup">${T("downloadBackup")}</button>
-        <button class="btn ghost small" type="button" data-act="restore">${T("restoreBackup")}</button></div></div>
+        <button class="btn ghost small warn" type="button" data-act="restore">${T("restoreBackup")}</button></div></div>
     <div class="set-group"><h3>${T("sound")}</h3><div class="row"><button class="btn ghost small" type="button" data-act="sound">${soundOn ? T("soundOff") : T("soundOn")}</button></div></div>
     <div class="set-group"><h3>${T("errLog")}</h3><p>${T("errLogHelp")}</p>${errLogHTML()}</div>
     <div class="set-group"><h3>${T("about")}</h3><p>${T("aboutText")}</p><p class="ver">v${APP_VERSION}</p></div>`;
@@ -956,7 +964,7 @@ function renderEditor(keep) {
         const mk = `${bi}.${ii}`, open = ED.more.has(mk), p = `blocks.${bi}.items.${ii}`;
         h += `<div class="ed-item"><div class="ed-row">
             <button class="ed-star${it.quest ? " on" : ""}" type="button" data-ed="star" data-bi="${bi}" data-ii="${ii}" aria-pressed="${!!it.quest}" aria-label="${T("edStar")}" title="${T("edStar")}">★</button>
-            ${it.useFocus ? `<div class="ed-focus-t">${esc(T("edFocus"))}</div>` : `<input class="field" data-path="${p}.title" value="${esc(it.title)}" placeholder="${T("edHabitPh")}" ${ED.focusTo === p + ".title" ? "data-autofocus" : ""}>`}
+            ${it.useFocus ? `<div class="ed-focus-t">${esc(T("edFocus"))}</div>` : `<textarea class="field ed-name" rows="1" data-path="${p}.title" placeholder="${T("edHabitPh")}" ${ED.focusTo === p + ".title" ? "data-autofocus" : ""}>${esc(it.title)}</textarea>`}
             <input class="field ed-time" data-path="${p}.time" value="${esc(it.time || "")}" placeholder="${T("edTimeAny")}" aria-label="${T("edTimePh")}">
             ${edBtn("more", `data-bi="${bi}" data-ii="${ii}" aria-expanded="${open}"`, I.dots, T("edMore"))}</div>
           ${open ? `<div class="ed-more">
@@ -999,12 +1007,15 @@ function renderEditor(keep) {
     ? `<div class="ed-foot ask" role="alertdialog" aria-labelledby="edAskT"><div class="ed-ask-t"><b id="edAskT">${T("edDiscardQ")}</b><span>${T("edDiscardSub")}</span></div>
         <div class="ed-ask-row"><button class="btn ghost" type="button" data-ed="keep" id="edKeepBtn">${T("edKeep")}</button><button class="btn danger-btn" type="button" data-ed="discard">${T("edDiscard")}</button><button class="btn" type="button" data-ed="save">${T("save")}</button></div></div>`
     : `<div class="ed-foot"><button class="btn ghost" type="button" data-ed="cancel">${T("cancel")}</button><button class="btn" type="button" data-ed="save">${T("save")}</button></div>`;
-  body.innerHTML = h; if (keep) body.scrollTop = top;
+  body.innerHTML = h; body.querySelectorAll("textarea.ed-name").forEach(fitName); if (keep) body.scrollTop = top;
   const af = body.querySelector("[data-autofocus]"); if (af) { af.focus(); af.scrollIntoView({ block: "center" }); } ED.focusTo = null;
 }
 function swap(arr, i, j) { if (j < 0 || j >= arr.length) return; [arr[i], arr[j]] = [arr[j], arr[i]]; }
+// Habit names wrap onto a second line instead of being cut off; they stay single-line text.
+function fitName(t) { if (!t.offsetParent) return; t.style.height = "auto"; t.style.height = t.scrollHeight + 4 + "px"; }
 function editorInput(e) {
   const t = e.target, path = t.dataset && t.dataset.path; if (!path || !ED) return;
+  if (t.tagName === "TEXTAREA" && t.classList.contains("ed-name")) { if (/[\r\n]/.test(t.value)) t.value = t.value.replace(/[\r\n]+/g, " "); fitName(t); }
   setPath(ED.draft, path, String(t.value).slice(0, LIMITS.text));
   let m = /^blocks\.(\d+)\.(from|to)$/.exec(path); if (m) ED.draft.blocks[+m[1]]._rangeDirty = true;
   m = /^workouts\.(\d+)\.from$/.exec(path); if (m) ED.draft.workouts[m[1]]._timeDirty = true;
@@ -1227,7 +1238,6 @@ function resetIdle() { area.innerHTML = `<button class="btn ghost small" type="b
     $("yesBtn").onclick = () => { delete store.days[dkey(routineDate())]; save(); lastS = null; prevCleared = null; refresh(); resetIdle(); };
     $("noBtn").onclick = resetIdle; }; }
 $("continueBtn").onclick = () => { audio(); const id = $("continueBtn").dataset.node; if (id) openSheet(id); };
-$("shareBtn").onclick = shareApp;
 
 function showRescue() {
   const el = $("cele"); el.hidden = false;
