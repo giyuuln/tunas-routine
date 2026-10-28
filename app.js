@@ -137,7 +137,7 @@ function applyStatic() {
 
 /* ================= Colour themes ================= */
 const THEME_KEY = "tunas-theme";
-const THEMES = [ { id: "pandan", c: "#4fc21b", bar: "#4fc21b" }, { id: "sakura", c: "#ff6fa8", bar: "#ff6fa8" }, { id: "langit", c: "#1cb0f6", bar: "#1cb0f6" }, { id: "ungu", c: "#a46cf0", bar: "#a46cf0" } ];
+const THEMES = [ { id: "pandan", c: "#4aa85c", bar: "#4aa85c" }, { id: "sakura", c: "#ff6fa8", bar: "#ff6fa8" }, { id: "langit", c: "#1cb0f6", bar: "#1cb0f6" }, { id: "ungu", c: "#a46cf0", bar: "#a46cf0" } ];
 let THEME = "pandan"; try { THEME = localStorage.getItem(THEME_KEY) || "pandan"; } catch (e) {}
 function applyTheme(id, persist) {
   const t = THEMES.find(x => x.id === id) || THEMES[0]; THEME = t.id; window.TUNAS_THEME = t.id;
@@ -609,7 +609,7 @@ function guideHTML() {
 function renderProgressSheet(kind, keep) {
   const body = $("shBody"), top = keep ? body.scrollTop : 0, S = lastS || computeAll();
   if (kind === "history") {
-    $("shHead").innerHTML = sheetHead("cal", T("history"), T("histSub"), null, "--sky");
+    $("shHead").innerHTML = sheetHead("cal", T("history"), T("histSub"), null, "--green");
     body.innerHTML = `<div class="card streak-card" id="streakCard"></div><div class="card hist" id="hist"></div>`;
     renderStreak(S); renderHistory();
   } else {
@@ -723,7 +723,7 @@ function renderDaySheet(key, keep) {
   const d = keyToDate(key), body = $("shBody"), top = keep ? body.scrollTop : 0, done = store.days[key] || {}, ids = itemsFor(d);
   const st = { n: ids.filter(id => done[id]).length, total: ids.length }, isToday = key === dkey(routineDate());
   $("shHead").innerHTML = sheetHead("cal", d.toLocaleDateString(locale(), { weekday: "long", day: "numeric", month: "long" }),
-    isRest(d) ? T("restSub") : `${T("of", st.n, st.total)} · ${Math.round(100*st.n/(st.total||1))}%${isToday ? " · " + T("todayTag") : ""}`, st, "--sky");
+    isRest(d) ? T("restSub") : `${T("of", st.n, st.total)} · ${Math.round(100*st.n/(st.total||1))}%${isToday ? " · " + T("todayTag") : ""}`, st, "--green");
   $("shClose").onclick = closeSheet;
   let h = `<div class="note">${isToday ? T("dayToday") : T("dayFix")}</div><div class="set-group">${restRow(d).replace('class="rest-row"', 'class="rest-row in-sheet"')}</div>`;
   const W = WORKOUTS[d.getDay()];
@@ -879,7 +879,7 @@ function segLang(id) {
 }
 function renderSettings(keep) {
   const body = $("shBody"), top = keep ? body.scrollTop : 0;
-  $("shHead").innerHTML = sheetHead("cog", T("settings"), T("setSub"), null, "--sky");
+  $("shHead").innerHTML = sheetHead("cog", T("settings"), T("setSub"), null, "--green");
   $("shHead").querySelector(".sh-ico").innerHTML = I.cog;
   $("shClose").onclick = closeSheet;
   body.innerHTML = `
@@ -1028,7 +1028,7 @@ function delBtn(key, attrs) {
 }
 function renderEditor(keep) {
   const body = $("shBody"), top = keep ? body.scrollTop : 0, D = ED.draft;
-  $("shHead").innerHTML = sheetHead("cog", T("edTitle"), `${T("edSub")} <span class="ed-dirty" id="edDirty" ${ED.dirty ? "" : "hidden"}>● ${T("edUnsaved")}</span>`, null, "--sky");
+  $("shHead").innerHTML = sheetHead("cog", T("edTitle"), `${T("edSub")} <span class="ed-dirty" id="edDirty" ${ED.dirty ? "" : "hidden"}>● ${T("edUnsaved")}</span>`, null, "--green");
   $("shHead").querySelector(".sh-ico").innerHTML = I.pencil;
   $("shClose").onclick = requestCloseEditor;
   const tabs = ["sections", "workouts", "weekly"].map(t => `<button type="button" data-ed="tab" data-tab="${t}" aria-pressed="${ED.tab === t}">${T(t === "sections" ? "edSections" : t === "workouts" ? "edWorkouts" : "edWeekly")}</button>`).join("");
