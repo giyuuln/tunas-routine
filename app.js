@@ -77,6 +77,8 @@ function tm(s, fallback) {
 }
 const hhmm = m => `${pad(Math.floor((m % 1440) / 60))}:${pad(m % 60)}`;
 const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m / 60), mm = pad(m % 60); return `${(h % 12) || 12}:${mm} ${h < 12 ? "am" : "pm"}`; };
+// "5:00 – 9:00 am", or "10:00 pm – 5:00 am" when the meridiem changes.
+const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
 const APP_VERSION = "2026.10.27";
@@ -130,7 +132,7 @@ const locale = () => T("locale");
 function applyStatic() {
   document.documentElement.lang = LANG === "ms" ? "ms" : "en";
   document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = T(el.dataset.i18n); });
-  $("stStreak").title = T("streakTip"); $("stXP").title = T("xpToday"); $("stLv").title = T("levelTip"); $("stCog").setAttribute("aria-label", T("settings"));
+  $("stStreak").setAttribute("aria-label", T("streakTip")); $("stXP").setAttribute("aria-label", T("xpToday")); $("stLv").setAttribute("aria-label", T("levelTip")); $("stCog").setAttribute("aria-label", T("settings"));
 }
 
 /* ================= Colour themes ================= */
@@ -177,7 +179,7 @@ function applyRoutine(r) {
   CFG = r;
   BLOCKS = r.blocks.map(b => {
     const from = tm(b.from, 0); let to = tm(b.to, from + 120); if (to <= from) to += 1440;
-    return { id: slug(b.id || b.title), title: b.title || "Section", icon: I[b.icon] ? b.icon : "star", range: b.range || "", from, to, remind: b.remind ? tm(b.remind, null) : null,
+    return { id: slug(b.id || b.title), title: b.title || "Section", icon: I[b.icon] ? b.icon : "star", range: b.from && b.to ? fmtRange(from, to) : (b.range || ""), from, to, remind: b.remind ? tm(b.remind, null) : null,
       say: Array.isArray(b.say) ? b.say : null,
       items: (b.items || []).map(i => ({ id: slug(i.id || i.title), t: i.title || "", n: i.note || "", time: i.time || "",
         key: !!i.quest, alt: !!i.everyOtherDay, hide: Array.isArray(i.hideOnDays) && i.hideOnDays.length ? i.hideOnDays.map(Number) : null, dyn: !!i.useFocus })) };
@@ -346,8 +348,10 @@ function sfx(kind) {
 function buzz(p) { try { navigator.vibrate && navigator.vibrate(p || 12); } catch (e) {} }
 function floatXP(x, y, text) { if (reduced()) return; const f = document.createElement("div"); f.className = "fx"; f.textContent = (THEME === "sakura" ? "♥ " : THEME === "ungu" ? "⚡ " : THEME === "langit" ? "~ " : "") + text;
   f.style.left = Math.max(8, Math.min(innerWidth - 90, x)) + "px"; f.style.top = (y - 14) + "px"; document.body.appendChild(f); setTimeout(() => f.remove(), 950); }
-function toast(html, icon, ms) { const t = document.createElement("div"); t.className = "toast"; t.innerHTML = `<i>${I[icon || "star"]}</i><span>${html}</span>`;
-  $("toasts").appendChild(t); setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 320); }, ms || 2800); }
+function toast(html, icon, ms, action) { const t = document.createElement("div"); t.className = "toast"; t.innerHTML = `<i>${I[icon || "star"]}</i><span>${html}</span>`;
+  if (action) { const b = document.createElement("button"); b.type = "button"; b.className = "toast-act"; b.textContent = action.label;
+    b.onclick = () => { t.remove(); action.fn(); }; t.appendChild(b); t.classList.add("has-act"); }
+  $("toasts").appendChild(t); setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 320); }, ms || 2800); return t; }
 function confetti() {
   if (reduced()) return;
   const cv = $("confetti"), ctx = cv.getContext("2d"), dpr = devicePixelRatio || 1; cv.width = innerWidth*dpr; cv.height = innerHeight*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -675,9 +679,13 @@ function renderDaySheet(key, keep) {
 function tickAll() {
   const d = routineDate(), today = dkey(d), node = nodesFor(d).find(n => n.id === sheetId); if (!node || node.kind !== "block") return;
   const done = (store.days[today] ||= {}); let xp = 0;
-  node.b.items.forEach(i => { if (shown(i, d) && !done[i.id]) { done[i.id] = true; xp += xpFor(i.id, d); } });
+  const ticked = [];
+  node.b.items.forEach(i => { if (shown(i, d) && !done[i.id]) { done[i.id] = true; ticked.push(i.id); xp += xpFor(i.id, d); } });
   save(); sfx("ding"); buzz([15, 40, 15]); floatXP(innerWidth / 2 - 40, innerHeight / 2, `+${xp} XP`); jump($("mascot"));
   refresh(true);
+  // One mis-tap shouldn't tick a whole section for good: offer Undo for a few seconds.
+  toast(T("tickedAll", ticked.length), "check", 6000, { label: T("undo"), fn: () => {
+    const day = store.days[today]; if (!day) return; ticked.forEach(id => { delete day[id]; }); save(); lastS = null; prevCleared = null; refresh(true); } });
 }
 
 $("shBody").addEventListener("click", e => {
@@ -934,6 +942,7 @@ function renderEditor(keep) {
   h += `<div class="seg" role="group">${tabs}</div>`;
   if (ED.tab === "sections") {
     const woDays = Object.keys(D.workouts || {}).length;
+    h += `<p class="ed-help">${T("edStarHelp")}</p>`;
     D.blocks.forEach((b, bi) => {
       h += `<div class="ed-sec">
         <div class="ed-row"><button class="ed-ico" type="button" data-ed="iconMenu" data-bi="${bi}" aria-label="${T("edIcon")}">${I[b.icon] || I.star}</button>
@@ -948,7 +957,7 @@ function renderEditor(keep) {
         h += `<div class="ed-item"><div class="ed-row">
             <button class="ed-star${it.quest ? " on" : ""}" type="button" data-ed="star" data-bi="${bi}" data-ii="${ii}" aria-pressed="${!!it.quest}" aria-label="${T("edStar")}" title="${T("edStar")}">★</button>
             ${it.useFocus ? `<div class="ed-focus-t">${esc(T("edFocus"))}</div>` : `<input class="field" data-path="${p}.title" value="${esc(it.title)}" placeholder="${T("edHabitPh")}" ${ED.focusTo === p + ".title" ? "data-autofocus" : ""}>`}
-            <input class="field ed-time" data-path="${p}.time" value="${esc(it.time || "")}" placeholder="${T("edTimePh")}" aria-label="${T("edTimePh")}">
+            <input class="field ed-time" data-path="${p}.time" value="${esc(it.time || "")}" placeholder="${T("edTimeAny")}" aria-label="${T("edTimePh")}">
             ${edBtn("more", `data-bi="${bi}" data-ii="${ii}" aria-expanded="${open}"`, I.dots, T("edMore"))}</div>
           ${open ? `<div class="ed-more">
             ${it.useFocus ? `<p>${T("edFocusEdit")}</p>${[1,2,3,4,5,6,0].map(k => `<label class="ed-flabel">${weekdayName(k, "short")}<input class="field" data-path="focus.${k}.title" value="${esc(((D.focus || {})[k] || {}).title || "")}" placeholder="${T("edFocusPh")}"></label>`).join("")}`
@@ -1062,7 +1071,7 @@ function saveEditor() {
   r.blocks = (r.blocks || []).map(b => {
     b.title = String(b.title || "").trim() || T("edNewSection"); b.id = b.id || uid();
     b.items = (b.items || []).filter(i => i.useFocus || String(i.title || "").trim()).map(i => { i.id = i.id || uid(); i.title = String(i.title || "").trim(); if (!i.note) delete i.note; return i; });
-    if (b._rangeDirty) b.range = `${fmtClock(tm(b.from, 0))} – ${fmtClock(tm(b.to, 0))}`;
+    if (b._rangeDirty) b.range = fmtRange(tm(b.from, 0), tm(b.to, 0));
     delete b._rangeDirty; return b;
   }).filter(b => b.items.length);
   if (!r.blocks.length) { toast(T("needSection"), "x"); return; }
@@ -1208,6 +1217,10 @@ function refresh(keepSheet) {
 /* ================= Sound toggle + reset + start ================= */
 function toggleSound() { soundOn = !soundOn; try { localStorage.setItem(SND_KEY, soundOn ? "on" : "off"); } catch (e) {} if (soundOn) { audio(); sfx("ding"); } renderTop(lastS || computeAll()); }
 $("stSnd").onclick = toggleSound;
+// The top-bar numbers explain themselves on tap (title tooltips never show on phones).
+$("stStreak").onclick = () => { const S = lastS || computeAll(); toast(T("statStreak", S.streak), "flame", 3500); };
+$("stXP").onclick = () => { const S = lastS || computeAll(); toast(T("statXP", S.todayXP, S.xp), "bolt", 3500); };
+$("stLv").onclick = () => { const S = lastS || computeAll(); toast(T("statLv", S.L.n, esc(titleOf(S.L.n)), S.L.span - S.L.cur), "shield", 3500); };
 const area = $("resetArea");
 function resetIdle() { area.innerHTML = `<button class="btn ghost small" type="button" id="resetBtn">${T("clearToday")}</button>`;
   $("resetBtn").onclick = () => { area.innerHTML = `<div class="confirm"><span>${T("clearConfirm")}</span><button class="btn small" id="yesBtn" type="button">${T("clear")}</button><button class="btn ghost small" id="noBtn" type="button">${T("keep")}</button></div>`;

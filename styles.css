@@ -476,3 +476,7 @@ a.btn{text-decoration:none;display:inline-block}
 
 /* Section rows: keep Delete apart from the move buttons */
 .ed-sec > .ed-row:first-child .ed-mini.danger{margin-left:8px}
+/* Toast with an action (Undo) */
+.toast.has-act{pointer-events:auto;padding-right:6px}
+.toast-act{flex:none;min-height:44px;padding:0 14px;margin-left:4px;border:0;border-radius:12px;background:var(--soft);color:var(--sky-d);font-weight:900;font-size:14px}
+.stat:active{transform:scale(.94)}
