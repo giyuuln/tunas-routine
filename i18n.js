@@ -176,7 +176,10 @@ window.TUNAS_I18N = {
     tickedAll: n => `Ticked ${n} habits`, tickedOne: t => `Ticked <b>${t}</b>`,
     edStarHelp: "Tap ★ to make a habit a quest habit. Quest habits give bonus XP.", edTimeAny: "--:--",
     remShort: "Tap <b>Add</b> to put each reminder in your calendar app.", remHow: "How it works",
-    badgesAll: n => `See all ${n} badges`, badgesLess: "Show fewer",
+    streakShort: n => `${n} day${n === 1 ? "" : "s"}`, upNext: "up next", todayIs: d => `Today · ${d}`,
+    allClear: "All levels cleared!", allClearSub: n => `You earned ${n} XP today. See you tomorrow.`,
+    until: t => `until ${t}`, startsAt: t => `starts ${t}`, nextIs: t => `Next: <b>${t}</b>`,
+    histSub: "Your streak and every day so far", badgesSub: (n, t) => `${n} of ${t} earned`,
   },
   ms: {
     locale: "ms-MY",
@@ -350,6 +353,9 @@ window.TUNAS_I18N = {
     tickedAll: n => `${n} tabiat ditanda`, tickedOne: t => `<b>${t}</b> ditanda`,
     edStarHelp: "Tekan ★ untuk jadikan tabiat misi. Tabiat misi beri XP bonus.", edTimeAny: "--:--",
     remShort: "Tekan <b>Tambah</b> untuk masukkan setiap peringatan ke aplikasi kalendar.", remHow: "Cara ia berfungsi",
-    badgesAll: n => `Lihat semua ${n} lencana`, badgesLess: "Tunjuk sikit",
+    streakShort: n => `${n} hari`, upNext: "seterusnya", todayIs: d => `Hari ini · ${d}`,
+    allClear: "Semua tahap selesai!", allClearSub: n => `Kau dapat ${n} XP hari ini. Jumpa esok.`,
+    until: t => `sampai ${t}`, startsAt: t => `mula ${t}`, nextIs: t => `Seterusnya: <b>${t}</b>`,
+    histSub: "Streak kau dan setiap hari setakat ini", badgesSub: (n, t) => `${n} daripada ${t} dapat`,
   }
 };
