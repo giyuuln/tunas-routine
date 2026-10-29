@@ -18,6 +18,8 @@ const I = {
   shield:'<svg viewBox="0 0 24 24"><path d="M12 1.5 3.5 5v6.2c0 5.3 3.6 9.9 8.5 11.3 4.9-1.4 8.5-6 8.5-11.3V5z"/></svg>',
   trophy:'<svg viewBox="0 0 24 24"><path d="M7 3h10v2h4v3a4 4 0 0 1-4 4h-.4A5 5 0 0 1 13 14.9V18h3v3H8v-3h3v-3.1A5 5 0 0 1 7.4 12H7a4 4 0 0 1-4-4V5h4zm10 4v3a2 2 0 0 0 2-2V7zM5 7v1a2 2 0 0 0 2 2V7z"/></svg>',
   x:'<svg viewBox="0 0 24 24"><path d="M6.4 5 12 10.6 17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4z"/></svg>',
+  warn:'<svg class="ico" viewBox="0 0 24 24"><path d="M12 2 1 21h22L12 2zm1 15h-2v-2h2v2zm0-4h-2V9h2v4z"/></svg>',
+  chest:'<svg class="ico" viewBox="0 0 24 24"><path d="M4 9a5 5 0 0 1 5-5h6a5 5 0 0 1 5 5v1H4V9zm0 3h7v2h2v-2h7v8H4v-8z"/></svg>',
   cog:'<svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M10.3 2h3.4l.5 2.6a8 8 0 0 1 1.9 1.1l2.5-.9 1.7 3-2 1.7a8 8 0 0 1 0 2.2l2 1.7-1.7 3-2.5-.9a8 8 0 0 1-1.9 1.1l-.5 2.6h-3.4l-.5-2.6a8 8 0 0 1-1.9-1.1l-2.5.9-1.7-3 2-1.7a8 8 0 0 1 0-2.2l-2-1.7 1.7-3 2.5.9a8 8 0 0 1 1.9-1.1zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg>',
   share:'<svg viewBox="0 0 24 24"><path d="M18 16a3 3 0 0 0-2.4 1.2l-6.7-3.4a3 3 0 0 0 0-1.6l6.7-3.4A3 3 0 1 0 15 7l-6.7 3.4a3 3 0 1 0 0 3.2L15 17a3 3 0 1 0 3-1z"/></svg>',
   pencil:'<svg viewBox="0 0 24 24"><path d="M3 17.3V21h3.7L17.8 9.9l-3.7-3.7zM20.7 7a1 1 0 0 0 0-1.4l-2.3-2.3a1 1 0 0 0-1.4 0l-1.8 1.8 3.7 3.7z"/></svg>',
@@ -81,7 +83,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.10.29b";
+const APP_VERSION = "2026.10.29c";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -225,6 +227,10 @@ const BADGES = [
   { id:"pr1", ic:"bolt", n:"", test:S=>S.prs>=1 }, { id:"pr10", ic:"bolt", n:"10", test:S=>S.prs>=10 }, { id:"habit14", ic:"star", n:"14", test:S=>S.topQuestCount>=14 },
   { id:"perfect7", ic:"trophy", n:"7", test:S=>S.perfectDays>=7 }, { id:"ticks500", ic:"check", n:"500", test:S=>S.ticks>=500 }, { id:"lv5", ic:"shield", n:"5", test:S=>S.level>=5 }, { id:"lv10", ic:"shield", n:"10", test:S=>S.level>=10 },
 ];
+// Progress toward each badge: [have, need]. Locked badges show it so there is always a next goal.
+const BADGE_GOAL = { first: S => [S.ticks, 1], quest: S => [S.quests, 1], perfect: S => [S.perfectDays, 1], streak3: S => [S.bestStreak, 3], streak7: S => [S.bestStreak, 7],
+  streak30: S => [S.bestStreak, 30], iron: S => [S.workouts, 1], fullweek: S => [S.fullWeeks, 1], w12: S => [S.workouts, 12], pr1: S => [S.prs, 1], pr10: S => [S.prs, 10],
+  habit14: S => [S.topQuestCount, 14], perfect7: S => [S.perfectDays, 7], ticks500: S => [S.ticks, 500], lv5: S => [S.level, 5], lv10: S => [S.level, 10] };
 const badgeName = id => (T("badge")[id] || [id, ""])[0], badgeHow = id => (T("badge")[id] || ["", ""])[1];
 const titleOf = n => { const t = T("titles"); return t[Math.min(n - 1, t.length - 1)]; };
 
@@ -362,7 +368,7 @@ function flyXP(from) {
 }
 function floatXP(x, y, text) { if (reduced()) return; const f = document.createElement("div"); f.className = "fx"; f.textContent = (THEME === "sakura" ? "♥ " : THEME === "ungu" ? "⚡ " : THEME === "langit" ? "~ " : "") + text;
   f.style.left = Math.max(8, Math.min(innerWidth - 90, x)) + "px"; f.style.top = (y - 14) + "px"; document.body.appendChild(f); setTimeout(() => f.remove(), 950); }
-function toast(html, icon, ms, action) { const t = document.createElement("div"); t.className = "toast"; t.innerHTML = `<i>${I[icon || "star"]}</i><span>${html}</span>`;
+function toast(html, icon, ms, action) { const t = document.createElement("div"); t.className = "toast" + (icon === "x" ? " err" : ""); t.innerHTML = `<i>${I[icon || "star"]}</i><span>${html}</span>`;
   if (action) { const b = document.createElement("button"); b.type = "button"; b.className = "toast-act"; b.textContent = action.label;
     b.onclick = () => { t.remove(); action.fn(); }; t.appendChild(b); t.classList.add("has-act"); }
   $("toasts").appendChild(t); setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 320); }, ms || 2800); return t; }
@@ -524,14 +530,14 @@ function renderQuests(S) {
   const Q = [{ ico:"star", t:T("qStar"), n:S.questDone, of:S.questTotal, rew:XP.quest }, { ico:"trophy", t:T("qDay"), n:S.doneToday, of:S.totalToday, rew:XP.perfect }];
   if (W) Q.splice(1, 0, { ico:"bolt", t:T("qWorkout", esc(W.name)), n: done["wo-done"] ? 1 : 0, of: 1, rew: XP.workout });
   else Q.splice(1, 0, { ico:"flame", t:T("qXP"), n: Math.min(S.todayXP, 150), of: 150, rew: 0 });
-  const QS = Q.filter(q => q.of > 0), wonN = QS.filter(q => q.n >= q.of).length;
+  const QS = Q.filter(q => q.of > 0), wonN = QS.filter(q => q.n >= q.of).length; renderQuests.allWon = QS.length > 0 && wonN === QS.length;
   // A pip pops when its quest was finished while home was out of view.
   const prevOn = renderQuests.on, liveQ = homeVisible() && prevOn && !reduced();
   $("questPips").innerHTML = QS.map((q, i) => { const on = q.n >= q.of; return `<i class="${on ? "on" : ""}${liveQ && on && !prevOn[i] ? " pop" : ""}"></i>`; }).join("");
   if (homeVisible() || !prevOn) renderQuests.on = QS.map(q => q.n >= q.of);
   $("questCount").textContent = T("of", wonN, QS.length);
   $("quests").innerHTML = QS.map(q => { const won = q.n >= q.of;
-    return `<div class="quest${won ? " won" : ""}"><div class="q-ico">${I[q.ico]}</div><div class="q-main"><div class="q-t">${q.t}</div><div class="bar${won ? " green" : ""}"><i style="width:${100*q.n/q.of}%"></i><b>${q.n} / ${q.of}</b></div></div><span class="q-rew">${won ? T("done") : q.rew ? "+" + q.rew : T("bonus")}</span></div>`; }).join("");
+    return `<div class="quest${won ? " won" : ""}"><div class="q-ico">${I[q.ico]}</div><div class="q-main"><div class="q-t">${q.t}</div><div class="bar${won ? " green" : ""}"><i style="width:${100*q.n/q.of}%"></i><b>${q.n} / ${q.of}</b></div></div><span class="q-rew${!won && !q.rew ? " chest" : ""}">${won ? T("done") : q.rew ? "+" + q.rew : I.chest + T("chestTag")}</span></div>`; }).join("");
 }
 /* ================= Today: game-level strip ================= */
 // Each section is a level. Stars show progress in thirds; the little Tunas stands on the level to play next.
@@ -584,11 +590,32 @@ function renderLevelDetail(d, mins, target, S) {
     return;
   }
   const st = nodeState(target, d), nx = nextTitle(target, d), live = inWindow(target, mins);
-  const when = target.kind === "weekly" ? esc(target.range) : live && target.to != null ? T("until", fmtClock(target.to)) : target.from != null ? T("startsAt", fmtClock(target.from)) : esc(target.range || "");
+  // Past its window the level still counts, so say so instead of showing a start time that already went by.
+  const ended = !live && target.kind !== "weekly" && target.to != null && mins >= target.to;
+  const when = target.kind === "weekly" ? esc(target.range) : live && target.to != null ? T("until", fmtClock(target.to)) : ended ? T("endedAt", fmtClock(target.to)) : target.from != null ? T("startsAt", fmtClock(target.from)) : esc(target.range || "");
   el.className = "lv-detail";
-  el.innerHTML = `<div class="ld-h"><b>${esc(target.title)}</b><span>${T("of", st.n, st.total)}${when ? " · " + when : ""}</span></div>
+  el.innerHTML = `<div class="ld-h"><b>${esc(target.title)}</b><span${ended ? ' class="ended"' : ""}>${T("of", st.n, st.total)}${when ? " · " + when : ""}</span></div>
     ${nx ? `<p>${T("nextIs", esc(nx))}</p>` : ""}
     <button class="btn ld-go" type="button" data-node="${target.id}">${st.n === 0 ? T("start") : T("cont")}</button>`;
+}
+/* ================= First-time tips ================= */
+// One short tip at a time, shown in place under what it explains. "Got it" hides it for good.
+const TIPS_ORDER = [
+  { id: "levels", where: () => !sheetId && $("path"), place: el => el.closest(".levels").querySelector(".lv-detail") , before: true },
+  { id: "sheet", where: () => sheetId && nodesFor(routineDate()).some(n => n.id === sheetId) && $("shHead").querySelector(".starbar"), place: el => el, after: true },
+  { id: "quests", where: () => !sheetId && $("questFold"), place: el => el, after: true }];
+function coach() {
+  document.querySelectorAll(".coach").forEach(c => { if (!c.isConnected || c.dataset.stale) c.remove(); });
+  if (!$("welcome").hidden || !$("cele").hidden) return;
+  store.tips ||= {};
+  const tip = TIPS_ORDER.find(t => !store.tips[t.id]); if (!tip) return;
+  const anchor = tip.where(); if (!anchor) return;
+  if (document.querySelector(`.coach[data-tip="${tip.id}"]`)) return;
+  document.querySelectorAll(".coach").forEach(c => c.remove());
+  const box = document.createElement("div"); box.className = "coach"; box.dataset.tip = tip.id; box.setAttribute("role", "note");
+  box.innerHTML = `<i aria-hidden="true">${I.star}</i><p>${T("tip_" + tip.id)}</p><button class="btn small" type="button">${T("gotIt")}</button>`;
+  box.querySelector("button").onclick = () => { store.tips[tip.id] = 1; save(); box.remove(); coach(); };
+  const at = tip.place(anchor); if (tip.before) at.before(box); else at.after(box);
 }
 function playHome() { if (homeVisible()) { const S = lastS || computeAll(); renderPath(S); renderQuests(S); } }
 $("path").addEventListener("click", e => { const b = e.target.closest("[data-node]"); if (b) { audio(); openSheet(b.dataset.node); } });
@@ -642,9 +669,12 @@ $("shBody").addEventListener("click", e => {
 function renderBadges(S) {
   const got = BADGES.filter(b => b.test(S)); $("badgeMeta").textContent = `${got.length}/${BADGES.length}`;
   const grid = $("bgrid"); if (!grid) return got;
-  const list = BADGES.map((b, i) => ({ b, i, ok: b.test(S) })).sort((x, y) => (y.ok - x.ok) || (x.i - y.i));
+  const near = b => { const [h, n] = (BADGE_GOAL[b.id] || (() => [0, 1]))(S); return Math.min(1, h / n); };
+  const list = BADGES.map((b, i) => ({ b, i, ok: b.test(S), p: near(b) })).sort((x, y) => (y.ok - x.ok) || (y.p - x.p) || (x.i - y.i));
   grid.innerHTML = list.map(({ b, i, ok }) => { const c = COLORS[i % COLORS.length];
-    return `<div class="badge${ok ? "" : " locked"}" style="--c:var(${c[0]});--cd:var(${c[1]})"><div class="medal"><span>${I[b.ic] || I.star}${b.n ? `<small>${b.n}</small>` : ""}</span></div><div class="bn">${badgeName(b.id)}</div><div class="bh">${badgeHow(b.id)}</div></div>`; }).join("");
+    const [have, need] = (BADGE_GOAL[b.id] || (() => [0, 1]))(S), pct = Math.min(100, 100 * have / need);
+    const prog = ok ? `<div class="bp done">${I.check}${T("earned")}</div>` : `<div class="bp"><span class="bar"><i style="width:${pct}%"></i></span><b>${Math.min(have, need)} / ${need}</b></div>`;
+    return `<div class="badge${ok ? "" : " locked"}" style="--c:var(${c[0]});--cd:var(${c[1]})"><div class="medal"><span>${I[b.ic] || I.star}${b.n ? `<small>${b.n}</small>` : ""}</span></div><div class="bn">${badgeName(b.id)}</div><div class="bh">${badgeHow(b.id)}</div>${prog}</div>`; }).join("");
   return got;
 }
 // The routine's guide and daily tip live in Settings now; refresh it if it's open.
@@ -695,7 +725,7 @@ function closeSheet(fromBack) {
   $("scrim").classList.remove("show"); $("sheet").classList.remove("show"); document.body.classList.remove("locked");
   setTimeout(() => { if (!sheetId) { $("scrim").hidden = true; $("sheet").hidden = true; } }, 320);
   if (lastFocus && lastFocus.focus) lastFocus.focus({ preventScroll: true });
-  setTimeout(playHome, 200);
+  setTimeout(() => { playHome(); coach(); }, 200);
 }
 $("scrim").onclick = () => { if (sheetId === "editor") requestCloseEditor(); else closeSheet(); };
 document.addEventListener("keydown", e => { if (e.key === "Escape") { if (!$("cele").hidden) return nextCele(); if (sheetId === "editor") requestCloseEditor(); else closeSheet(); } });
@@ -726,9 +756,11 @@ function starMeter(id, st) {
   const bar = $("shHead").querySelector(".bar"); if (!bar || !st.total) return;
   const k = starsFor(st), prev = sheetStars[id]; sheetStars[id] = k;
   const wrap = document.createElement("div"); wrap.className = "starbar"; bar.replaceWith(wrap); wrap.appendChild(bar);
-  const at = starAt(st.total), seen = {};
-  wrap.insertAdjacentHTML("beforeend", at.map((n, i) => { const pct = 100 * n / st.total, dup = seen[pct] = (seen[pct] || 0) + 1, on = i < k, pop = on && prev != null && i >= prev;
-    return `<i class="sm${on ? " on" : ""}${pop ? " pop" : ""}" style="left:${pct}%;--dup:${dup - 1};--d:${pop ? (i - prev) * 140 : 0}ms" aria-hidden="true">${I.star}</i>`; }).join(""));
+  // Stars earned on the same tick share one marker (×2, ×3), so short levels don't stack markers.
+  const at = starAt(st.total), groups = [];
+  at.forEach((n, i) => { const g = groups.find(x => x.n === n); if (g) g.stars.push(i); else groups.push({ n, stars: [i] }); });
+  wrap.insertAdjacentHTML("beforeend", groups.map(g => { const last = g.stars[g.stars.length - 1], on = last < k, pop = on && prev != null && last >= prev;
+    return `<i class="sm${on ? " on" : ""}${pop ? " pop" : ""}${g.n === st.total ? " end" : ""}" style="left:${100 * g.n / st.total}%;--d:${pop ? Math.max(0, g.stars[0] - prev) * 140 : 0}ms" aria-hidden="true">${I.star}${g.stars.length > 1 ? `<em>×${g.stars.length}</em>` : ""}</i>`; }).join(""));
   wrap.setAttribute("aria-label", T("starsOf", k));
   if (prev != null && k > prev) for (let i = prev; i < k; i++) setTimeout(() => { sfx("star" + (i + 1)); buzz(10); }, (i - prev) * 140 + 60);
 }
@@ -741,7 +773,7 @@ function renderSheet(keep) {
   const d = routineDate(), today = dkey(d), node = nodesFor(d).find(n => n.id === sheetId); if (!node) { closeSheet(); return; }
   const st = nodeState(node, d), body = $("shBody"), top = keep ? body.scrollTop : 0;
   $("shHead").innerHTML = sheetHead(node.icon, esc(node.title), `${esc(node.range)}${node.range ? " · " : ""}${T("of", st.n, st.total)}`, st, st.cleared ? "--gold" : "--green");
-  starMeter(node.id, st);
+  starMeter(node.id, st); setTimeout(coach, 0);
   $("shClose").onclick = closeSheet;
   const done = store.days[today] || {};
   let h = "";
@@ -922,7 +954,7 @@ let nudgeHTML = "";
 function renderNudge() {
   const el = $("nudge");
   if (!needsBackup()) { el.hidden = true; el.innerHTML = nudgeHTML = ""; return; }
-  const html = `<div class="nd-top"><div class="nd-ico">${I.shield}</div><div><b id="nudgeT">${T("nudgeTitle")}</b><span>${T("nudgeSub", backupAge())}</span></div></div>
+  const html = `<div class="nd-top"><div class="nd-ico">${I.warn}</div><div><b id="nudgeT">${T("nudgeTitle")}</b><span>${T("nudgeSub", backupAge())}</span></div></div>
     <div class="row"><button class="btn small" type="button" data-nudge="save">${T("downloadBackup")}</button><button class="btn ghost small" type="button" data-nudge="later">${T("nudgeLater")}</button></div>`;
   if (nudgeHTML !== html) el.innerHTML = nudgeHTML = html; // don't redraw (and lose focus) on the minute refresh
   el.hidden = false;
@@ -959,12 +991,12 @@ function renderSettings(keep) {
     <div class="set-group"><h3>${T("routine")}</h3>
       <p>${T("using")} <span class="pill-ok">${esc(CFG.label || T("custom"))}</span> · ${T("sections", BLOCKS.length, Object.keys(WORKOUTS).length)}</p>
       <div class="row"><button class="btn small" type="button" data-act="edit">${T("editRoutine")}</button>
-        <button class="btn ghost small warn" type="button" data-act="template">${T("newTemplate")}</button></div>
+        <button class="btn ghost small danger-ghost" type="button" data-act="template">${T("newTemplate")}</button></div>
       <p>${T("routineLocal")}</p>
-      <div class="row"><button class="btn ghost small" type="button" data-act="importRoutine">${T("importFile")}</button>
-        <button class="btn ghost small" type="button" data-act="pasteToggle">${T("pasteInstead")}</button>
+      <div class="row"><button class="btn ghost small danger-ghost" type="button" data-act="importRoutine">${T("importFile")}</button>
+        <button class="btn ghost small danger-ghost" type="button" data-act="pasteToggle">${T("pasteInstead")}</button>
         <button class="btn ghost small" type="button" data-act="exportRoutine">${T("downloadRoutine")}</button></div>
-      ${settingsPane === "paste" ? `<textarea class="field" id="pasteBox" placeholder="${T("pastePh")}"></textarea><div class="row"><button class="btn small" type="button" data-act="pasteApply">${T("useThis")}</button></div>` : ""}
+      ${settingsPane === "paste" ? `<textarea class="field" id="pasteBox" placeholder="${T("pastePh")}"></textarea><div class="row"><button class="btn small danger" type="button" data-act="pasteApply">${T("useThis")}</button></div>` : ""}
     </div>
     ${guideHTML()}
     <div class="set-group"><h3>${T("reminders")}</h3><p>${T("remShort")}</p><details class="more-help"><summary>${T("remHow")}</summary><p>${T("remHelp")}</p></details>
@@ -975,19 +1007,32 @@ function renderSettings(keep) {
     <div class="set-group"><h3>${T("share")}</h3><p>${T("shareHelp")}</p><div class="row"><button class="btn small" type="button" data-act="share">${T("shareBtn")}</button></div></div>
     <div class="set-group"><h3>${T("backup")}</h3><p>${T("backupHelp")}</p><p class="bk-last">${T("lastBackup", backupAge())}</p>
       <div class="row"><button class="btn small" type="button" data-act="backup">${T("downloadBackup")}</button>
-        <button class="btn ghost small warn" type="button" data-act="restore">${T("restoreBackup")}</button></div></div>
+        <button class="btn ghost small danger-ghost" type="button" data-act="restore">${T("restoreBackup")}</button></div></div>
     <div class="set-group"><h3>${T("sound")}</h3><div class="row"><button class="btn ghost small" type="button" data-act="sound">${soundOn ? T("soundOff") : T("soundOn")}</button></div></div>
     <div class="set-group"><h3>${T("errLog")}</h3><p>${T("errLogHelp")}</p>${errLogHTML()}</div>
     <div class="set-group"><h3>${T("about")}</h3><p>${T("aboutText")}</p><p class="ver">v${APP_VERSION}</p></div>`;
   $("setName").addEventListener("change", e => { const v = e.target.value.trim().slice(0, 30); const r = { ...RAW, name: v || (LANG === "ms" ? "Kawan" : "Friend") }; if (saveRoutine(r)) { toast(T("nameSaved"), "check"); contextSay(); } });
+  foldSettings(body);
   if (keep) body.scrollTop = top;
   if (settingsPane === "paste") $("pasteBox").focus();
+}
+// Settings groups fold into one tappable row each; the open ones stay open across re-renders.
+const setOpen = new Set();
+function foldSettings(body) {
+  body.querySelectorAll(":scope > .set-group").forEach(g => {
+    const h = g.querySelector(":scope > h3"); if (!h) return;
+    const key = h.textContent, d = document.createElement("details"); d.className = g.className + " fold";
+    if (setOpen.has(key) || (key === T("routine") && settingsPane === "paste")) d.open = true;
+    const sm = document.createElement("summary"); sm.appendChild(h); sm.insertAdjacentHTML("beforeend", '<span class="chev" aria-hidden="true"></span>');
+    d.appendChild(sm); while (g.firstChild) d.appendChild(g.firstChild); g.replaceWith(d);
+    d.addEventListener("toggle", () => { if (d.open) setOpen.add(key); else setOpen.delete(key); });
+  });
 }
 function errLogHTML() {
   let list = []; try { list = JSON.parse(storeGet(ERR_KEY) || "[]"); } catch (e) {}
   if (!list.length) return `<p class="pill-ok">${T("errLogEmpty")}</p>`;
   return `<ul class="errlog">${list.slice(0, 5).map(x => `<li><b>${esc(new Date(x.t).toLocaleString(locale()))}</b> · ${esc(x.where)}<br>${esc(x.msg)}</li>`).join("")}</ul>
-    <div class="row"><button class="btn ghost small" type="button" data-act="copyLog">${T("copyLog")}</button><button class="btn ghost small" type="button" data-act="clearLog">${T("clearLog")}</button></div>`;
+    <div class="row"><button class="btn ghost small" type="button" data-act="copyLog">${T("copyLog")}</button><button class="btn ghost small danger-ghost" type="button" data-act="clearLog">${T("clearLog")}</button></div>`;
 }
 function loadRoutineText(text) {
   if (String(text || "").length > LIMITS.routineBytes) { toast(T("errFileTooBig", LIMITS.routineBytes / 1e6), "x"); return false; }
@@ -1100,7 +1145,7 @@ function renderEditor(keep) {
   $("shClose").onclick = requestCloseEditor;
   const tabs = ["sections", "workouts", "weekly"].map(t => `<button type="button" data-ed="tab" data-tab="${t}" aria-pressed="${ED.tab === t}">${T(t === "sections" ? "edSections" : t === "workouts" ? "edWorkouts" : "edWeekly")}</button>`).join("");
   let h = ED.offer ? `<div class="ed-restore" role="status"><div><b>${T("edRestoreQ", esc(new Date(ED.offer.at).toLocaleString(locale(), { weekday: "short", hour: "numeric", minute: "2-digit" })))}</b></div>
-    <div class="row"><button class="btn small" type="button" data-ed="restoreDraft">${T("edRestore")}</button><button class="btn ghost small" type="button" data-ed="dropDraft">${T("edDiscard")}</button></div></div>` : "";
+    <div class="row"><button class="btn small" type="button" data-ed="restoreDraft">${T("edRestore")}</button><button class="btn ghost small danger-ghost" type="button" data-ed="dropDraft">${T("edDiscard")}</button></div></div>` : "";
   h += `<div class="seg" role="group">${tabs}</div>`;
   if (ED.tab === "sections") {
     const woDays = Object.keys(D.workouts || {}).length;
@@ -1148,7 +1193,7 @@ function renderEditor(keep) {
             ${edBtn("exUp", `data-k="${k}" data-ei="${ei}"`, I.up, T("edUp"))}${edBtn("exDown", `data-k="${k}" data-ei="${ei}"`, I.down, T("edDown"))}</div></div>`;
       });
       h += `<button class="btn ghost small ed-add" type="button" data-ed="addEx" data-k="${k}">${I.plus}${T("edAddEx")}</button>
-        <div class="ed-row">${ED.confirm === `wo.${k}` ? `<button class="btn small danger-btn" type="button" data-ed="del" data-key="wo.${k}" data-k="${k}">${T("edSure")}</button>` : `<button class="btn ghost small" type="button" data-ed="del" data-key="wo.${k}" data-k="${k}">${T("edRemoveWo")}</button>`}</div></div>`;
+        <div class="ed-row">${ED.confirm === `wo.${k}` ? `<button class="btn small danger-btn" type="button" data-ed="del" data-key="wo.${k}" data-k="${k}">${T("edSure")}</button>` : `<button class="btn ghost small danger-ghost" type="button" data-ed="del" data-key="wo.${k}" data-k="${k}">${T("edRemoveWo")}</button>`}</div></div>`;
     }
   } else {
     h += `<p class="ed-help">${T("edWeeklyHelp")}</p>`;
@@ -1336,12 +1381,40 @@ function nextCele() {
   const c = celeQ.shift(); if (!c) { $("cele").hidden = true; contextSay(); setTimeout(playHome, 150); return; }
   if (sheetId && sheetId !== "settings" && sheetId !== "editor" && !sheetId.startsWith("day:")) closeSheet();
   const el = $("cele"); el.hidden = false;
-  el.innerHTML = `<div class="mascot cheer" id="celeMascot">${MASCOT}</div><h2 class="${c.color || ""}">${c.title}</h2><p>${c.sub}</p>
-    <div class="tiles">${c.tiles.map(t => `<div class="tile" style="--c:var(${t.c})"><small>${t.k}</small><b>${t.i ? I[t.i] : ""}${t.v}</b></div>`).join("")}</div>
-    <button class="btn" type="button" id="celeGo">${T("cont")}</button>`;
+  el.innerHTML = `${c.art || `<div class="mascot cheer" id="celeMascot">${MASCOT}</div>`}<h2 class="${c.color || ""}">${c.title}</h2><p>${c.sub}</p>
+    ${c.tiles.length ? `<div class="tiles">${c.tiles.map(t => `<div class="tile" style="--c:var(${t.c})"><small>${t.k}</small><b>${t.i ? I[t.i] : ""}${t.v}</b></div>`).join("")}</div>` : ""}
+    <button class="btn" type="button" id="celeGo">${c.btn || T("cont")}</button>`;
   $("celeGo").onclick = nextCele; $("celeGo").focus({ preventScroll: true });
-  jump($("celeMascot")); sfx(c.sound || "clear"); buzz([30,60,30]); confetti();
+  if ($("celeMascot")) jump($("celeMascot")); sfx(c.sound || "clear"); buzz([30,60,30]); confetti();
 }
+
+/* ================= Morning recap ================= */
+// First open of a new day shows how yesterday went. Shown once per day; skipped on someone's very first day.
+function checkRecap() {
+  if (!homeVisible() || celeQ.length) return;
+  const d = routineDate(), today = dkey(d); if (store.recap === today) return;
+  const y = new Date(d); y.setDate(y.getDate() - 1); const yk = dkey(y);
+  const hadBefore = Object.keys(store.days).some(k => k < today && Object.values(store.days[k] || {}).some(Boolean));
+  store.recap = today; save(); if (!hadBefore) return;
+  const ids = itemsFor(y), done = store.days[yk] || {}, n = ids.filter(id => done[id]).length, pct = ids.length ? Math.round(100 * n / ids.length) : 0;
+  const stars = nodesFor(y).reduce((s2, nd) => s2 + starsFor(nodeState(nd, y)), 0), S = lastS || computeAll();
+  const xp = dayXP(yk, computePRs().byDay), rest = isRest(y);
+  queueCele({ title: T(rest ? "recapRestTitle" : n ? "recapTitle" : "recapQuietTitle", firstName()), sub: T(rest ? "recapRestSub" : pct >= 80 ? "recapGoodSub" : n ? "recapOkSub" : "recapQuietSub"), color: "sky", sound: "ding",
+    tiles: [{ k: T("tDone"), v: `${pct}%`, i: "", c: "--green" }, { k: T("tStars"), v: stars, i: "star", c: "--gold" }, { k: T("tXP"), v: `+${xp}`, i: "bolt", c: "--gold" }, { k: T("tStreak"), v: S.streak, i: "flame", c: "--orange" }] });
+}
+
+/* ================= Daily chest ================= */
+// Finishing all daily quests opens today's chest: a celebration only, it adds no XP.
+function checkChest() {
+  const today = dkey(routineDate()); store.chest ||= {};
+  if (!renderQuests.allWon || store.chest[today]) return;
+  store.chest[today] = 1; Object.keys(store.chest).forEach(k => { if (k < dkey(new Date(Date.now() - 40 * 864e5))) delete store.chest[k]; }); save();
+  queueCele({ title: T("chestTitle"), sub: pick(T("chestLines")), color: "green", sound: "level", art: CHEST, btn: T("chestBtn"), tiles: [] });
+}
+const CHEST = `<div class="chest-art" aria-hidden="true"><svg viewBox="0 0 120 100"><g class="glow"><circle cx="60" cy="40" r="34"/></g>
+  <rect class="ch-body" x="18" y="46" width="84" height="44" rx="8"/><rect class="ch-band" x="18" y="58" width="84" height="8"/>
+  <g class="ch-lid"><path d="M18 46v-8a22 22 0 0 1 22-22h40a22 22 0 0 1 22 22v8z"/><rect class="ch-band" x="18" y="38" width="84" height="8"/></g>
+  <rect class="ch-lock" x="53" y="52" width="14" height="18" rx="3"/></svg></div>`;
 
 /* ================= Refresh + comparisons ================= */
 let prevCleared = null;
@@ -1375,6 +1448,7 @@ function refresh(keepSheet) {
     if (S.prsToday > lastS.prsToday) { toast(T("prToast", XP.pr), "trophy"); sfx("pr"); buzz([20,40,20]); say(T("prSay"), "+" + XP.pr + " XP", "cheer", 3000); }
   }
   prevCleared = states; lastS = S;
+  checkChest(); checkRecap(); coach();
   if (!mascotTimer) contextSay();
 }
 
@@ -1386,8 +1460,8 @@ $("stStreak").onclick = () => { const S = lastS || computeAll(); toast(T("statSt
 $("stXP").onclick = () => { const S = lastS || computeAll(); toast(T("statXP", S.todayXP, S.xp), "bolt", 3500); };
 $("stLv").onclick = () => { const S = lastS || computeAll(); toast(T("statLv", S.L.n, esc(titleOf(S.L.n)), S.L.span - S.L.cur), "shield", 3500); };
 const area = $("resetArea");
-function resetIdle() { area.innerHTML = `<button class="btn ghost small" type="button" id="resetBtn">${T("clearToday")}</button>`;
-  $("resetBtn").onclick = () => { area.innerHTML = `<div class="confirm"><span>${T("clearConfirm")}</span><button class="btn small" id="yesBtn" type="button">${T("clear")}</button><button class="btn ghost small" id="noBtn" type="button">${T("keep")}</button></div>`;
+function resetIdle() { area.innerHTML = `<button class="btn ghost small danger-ghost" type="button" id="resetBtn">${T("clearToday")}</button>`;
+  $("resetBtn").onclick = () => { area.innerHTML = `<div class="confirm"><span>${T("clearConfirm")}</span><button class="btn small danger" id="yesBtn" type="button">${T("clear")}</button><button class="btn ghost small" id="noBtn" type="button">${T("keep")}</button></div>`;
     $("yesBtn").onclick = () => { delete store.days[dkey(routineDate())]; save(); lastS = null; prevCleared = null; refresh(); resetIdle(); };
     $("noBtn").onclick = resetIdle; }; }
 

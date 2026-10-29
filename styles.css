@@ -7,19 +7,25 @@
   --bg:#f4f9f2; --card:#ffffff; --soft:#e9f3e6; --line:#d6e7d1; --ink:#20352a; --muted:#526b5c; --control:#7a9483; --green:#4aa85c; --green-d:#33833f; --green-soft:#e1f1df; --green-ink:#2b7a3c; --on-color:#0d2a14; --sky-d:#13709f;
   --gold:#ffc21a; --gold-d:#d99c00; --gold-soft:#fff4cf;
   --orange:#ff8a1f; --orange-d:#d26a00; --sky:#25aaf0; --sky-soft:#ddf2fd;
-  --pink:#ff6fa8; --pink-d:#d94f88; --red:#ff5a5a; --red-strong:#d63a3a;
+  --pink:#ff6fa8; --pink-d:#d94f88;
+  /* State colours, shared by every theme. See STATE COLOURS below for what each one means. */
+  --danger:#d63a3a; --danger-d:#a82828; --danger-ink:#b42323; --danger-soft:#fdecec;
+  --warn:#c47a00; --warn-ink:#8a4b00; --warn-soft:#fff1d6;
+  --info:#25aaf0; --info-ink:#13709f; --info-soft:#ddf2fd;
   /* Text-safe game colours (4.5:1 or better on every theme's surfaces) */
-  --gold-ink:#8a5f00; --orange-ink:#a04b00; --red-ink:#c22f2f; --on-gold:#4a3600; --on-bright:#1d2a33;
+  --gold-ink:#8a5f00; --orange-ink:#a04b00; --on-gold:#4a3600; --on-bright:#1d2a33;
   --m-body:#64bb6e; --m-belly:#d5efd2; --m-leaf:#2e7d3e; --m-leaf2:#64bb6e; --m-limb:#3a8f48; --m-ink:#2a3340;
   --display:"Fredoka", "Nunito", system-ui, sans-serif;
   --body:"Nunito", system-ui, -apple-system, sans-serif;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0f1913; --card:#16241b; --soft:#1c2e22; --line:#2b4433; --ink:#e9f5ec; --muted:#a1bba9; --control:#5f7d69; --green:#4aa85c; --green-d:#33833f; --green-soft:#1d3a25; --green-ink:#86d394; --on-color:#0d2a14; --sky-d:#6ccbf8;
-  --gold-soft:#3a3115; --sky-soft:#14344a; --gold-ink:#ffcf4d; --orange-ink:#ffa14d; --red-ink:#ff8a8a; color-scheme:dark}}
+  --gold-soft:#3a3115; --sky-soft:#14344a; --gold-ink:#ffcf4d; --orange-ink:#ffa14d;
+  --danger-ink:#ff8f8f; --danger-soft:#3d1b1e; --warn:#e8930c; --warn-ink:#ffc266; --warn-soft:#3a2a10; --info-ink:#6ccbf8; --info-soft:#14344a; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0f1913; --card:#16241b; --soft:#1c2e22; --line:#2b4433; --ink:#e9f5ec; --muted:#a1bba9; --control:#5f7d69; --green:#4aa85c; --green-d:#33833f; --green-soft:#1d3a25; --green-ink:#86d394; --on-color:#0d2a14; --sky-d:#6ccbf8;
-  --gold-soft:#3a3115; --sky-soft:#14344a; --gold-ink:#ffcf4d; --orange-ink:#ffa14d; --red-ink:#ff8a8a; color-scheme:dark}
+  --gold-soft:#3a3115; --sky-soft:#14344a; --gold-ink:#ffcf4d; --orange-ink:#ffa14d;
+  --danger-ink:#ff8f8f; --danger-soft:#3d1b1e; --warn:#e8930c; --warn-ink:#ffc266; --warn-soft:#3a2a10; --info-ink:#6ccbf8; --info-soft:#14344a; color-scheme:dark}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html{-webkit-text-size-adjust:100%}
@@ -90,7 +96,8 @@ button:focus-visible,summary:focus-visible,input:focus-visible{outline:3px solid
 .q-ico svg{width:24px;height:24px;fill:currentColor}
 .q-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
 .q-t{font-weight:800;font-size:15px}
-.q-rew{flex:none;font-size:13px;font-weight:900;color:var(--gold-ink);background:var(--gold-soft);padding:4px 9px;border-radius:99px}
+.q-rew{flex:none;display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:900;color:var(--gold-ink);background:var(--gold-soft);padding:4px 9px;border-radius:99px}
+.q-rew svg{width:14px;height:14px;fill:currentColor}
 .quest.won .q-rew{background:var(--green);color:var(--on-color)}
 
 
@@ -98,8 +105,8 @@ button:focus-visible,summary:focus-visible,input:focus-visible{outline:3px solid
 .streak-card{padding:14px 16px;display:flex;flex-direction:column;gap:12px}
 .nudge{padding:14px 16px;display:flex;flex-direction:column;gap:12px;background:var(--gold-soft);border-color:var(--gold)}
 .nd-top{display:flex;gap:12px;align-items:flex-start}
-.nd-ico{flex:none;width:40px;height:40px;border-radius:12px;background:var(--gold);display:grid;place-items:center;box-shadow:0 3px 0 var(--gold-d)}
-.nd-ico svg{width:22px;height:22px;fill:var(--on-gold)}
+.nd-ico{flex:none;width:40px;height:40px;border-radius:12px;background:var(--card);border:2px solid var(--warn);display:grid;place-items:center}
+.nd-ico svg{width:22px;height:22px;fill:var(--warn-ink)}
 .nd-top b{display:block;font-size:16px;font-weight:900}
 .nd-top span{display:block;font-size:14px;color:var(--ink);margin-top:2px}
 .nudge .row{display:flex;flex-wrap:wrap;gap:10px}
@@ -302,9 +309,9 @@ a.btn{text-decoration:none;display:inline-block}
 .icon-pick .ed-ico.sel{background:var(--gold);color:var(--on-gold);border-color:var(--gold-d)}
 .ed-mini{flex:none;width:42px;height:42px;border-radius:10px;border:2px solid var(--line);background:var(--card);display:grid;place-items:center;padding:0;color:var(--muted)}
 .ed-mini svg{width:18px;height:18px;fill:currentColor}
-.ed-mini.danger{color:var(--red-ink)}
-.ed-mini.sure{width:auto;padding:0 10px;background:var(--red-strong);border-color:var(--red-strong);color:#fff;font-size:12.5px;font-weight:900}
-.danger-btn{background:var(--red-strong)!important;color:#fff!important;box-shadow:0 4px 0 #a82828!important}
+.ed-mini.danger{color:var(--danger-ink)}
+.ed-mini.sure{width:auto;padding:0 10px;background:var(--danger);border-color:var(--danger);color:#fff;font-size:12.5px;font-weight:900}
+.danger-btn{background:var(--danger)!important;color:#fff!important;box-shadow:0 4px 0 var(--danger-d)!important}
 .ed-times{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .ed-times.two{grid-template-columns:repeat(2,minmax(0,1fr))}
 .ed-times label,.ed-flabel{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted);font-weight:800;min-width:0}
@@ -436,7 +443,7 @@ a.btn{text-decoration:none;display:inline-block}
 .ed-dirty{display:inline-block;margin-left:6px;font-size:12.5px;font-weight:900;color:var(--orange-ink)}
 .ed-restore{display:flex;flex-direction:column;gap:10px;padding:12px 14px;margin-bottom:12px;border-radius:16px;background:var(--green-soft);border:2px solid var(--green)}
 .ed-restore .row{display:flex;gap:8px;flex-wrap:wrap}
-.ed-foot.ask{flex-direction:column;align-items:stretch;gap:10px;border-top:3px solid var(--red,#ff4b4b);animation:askpop .25s ease-out}
+.ed-foot.ask{flex-direction:column;align-items:stretch;gap:10px;border-top:3px solid var(--danger);animation:askpop .25s ease-out}
 .ed-ask-t{display:flex;flex-direction:column;gap:2px}
 .ed-ask-t span{font-size:13px;color:var(--muted)}
 .ed-ask-row{display:flex;gap:8px;flex-wrap:wrap}
@@ -460,7 +467,7 @@ a.btn{text-decoration:none;display:inline-block}
 /* Secondary buttons in sentence case: easier to read, shorter in Malay */
 .btn.small{text-transform:none;letter-spacing:.01em}
 /* Buttons that replace data get a warning colour */
-.btn.ghost.warn{color:var(--red-ink);border-color:color-mix(in srgb,var(--red-ink) 40%,var(--line));box-shadow:0 4px 0 color-mix(in srgb,var(--red-ink) 40%,var(--line))}
+.btn.ghost.warn{color:var(--danger-ink);border-color:color-mix(in srgb,var(--danger-ink) 40%,var(--line));box-shadow:0 4px 0 color-mix(in srgb,var(--danger-ink) 40%,var(--line))}
 /* "How it works" fold-outs */
 .more-help summary{cursor:pointer;min-height:44px;display:flex;align-items:center;gap:6px;font-size:14px;font-weight:900;color:var(--green-ink);list-style:none}
 .more-help summary::-webkit-details-marker{display:none}
@@ -562,11 +569,12 @@ a.btn{text-decoration:none;display:inline-block}
 /* Star meter on the level sheet's progress bar */
 .starbar{position:relative;margin-top:12px}
 .sh-head .starbar .bar{margin-top:0}
-.starbar .sm{position:absolute;top:50%;width:26px;height:26px;margin-left:calc(-13px - var(--dup) * 16px);transform:translateY(-50%);display:grid;place-items:center;border-radius:50%;background:var(--card);border:2px solid var(--line);pointer-events:none}
+.starbar .sm{position:absolute;top:50%;width:26px;height:26px;margin-left:-13px;transform:translateY(-50%);display:grid;place-items:center;border-radius:50%;background:var(--card);border:2px solid var(--line);pointer-events:none}
 .starbar .sm svg{width:15px;height:15px;fill:var(--control)}
 .starbar .sm.on{border-color:var(--gold-d);background:var(--gold)}
 .starbar .sm.on svg{fill:var(--on-gold)}
-.starbar .sm:last-child{margin-left:calc(-24px - var(--dup) * 16px)}
+.starbar .sm.end{margin-left:-24px}
+.starbar .sm em{position:absolute;right:-8px;top:-8px;font-style:normal;font-size:10px;font-weight:900;line-height:1;padding:2px 4px;border-radius:99px;background:var(--gold);color:var(--on-gold)}
 .sm.pop{animation:starpop .5s cubic-bezier(.2,1.8,.4,1) var(--d) both}
 @keyframes starpop{0%{transform:translateY(-50%) scale(.2) rotate(-60deg)}60%{transform:translateY(-50%) scale(1.35) rotate(8deg)}100%{transform:translateY(-50%) scale(1) rotate(0)}}
 /* Stars on the home strip */
@@ -586,3 +594,64 @@ a.btn{text-decoration:none;display:inline-block}
 /* Quest pip */
 .pips i.pop{animation:pippop .5s cubic-bezier(.2,1.8,.4,1) .2s both}
 @keyframes pippop{0%{transform:scale(0)}60%{transform:scale(1.8)}100%{transform:scale(1)}}
+
+/* ===== STATE COLOURS =====
+   Each state has one colour and one meaning, used everywhere, so a colour always tells you what will happen.
+   Colour is never the only signal: every state also has an icon, a label or a shape change.
+   success  · theme accent (--green*)  Done, ticked, the main action, the level to play now. Reason: it is "your" colour, so progress feels like yours.
+   reward   · gold                     XP, stars, cleared levels, perfect days, badges. Reason: gold reads as earned, never as an instruction.
+   streak   · orange                   The fire streak and days that kept it. Reason: fire = keep it going; separate from rewards so streak risk stands out.
+   info     · sky                      Rest days, neutral hints, "still counts". Reason: calm and non-urgent; nothing is wrong.
+   warning  · amber + ⚠ shape          Needs your attention but loses nothing yet: backup due, unsaved edits. Reason: asks you to act without alarm.
+   danger   · red                      Deletes or replaces data, and errors: Clear ticks, Restore backup, Start from template, Delete, Discard, failed actions. Reason: red = stop and check; it never appears on anything safe.
+   locked / disabled · control grey + 45% opacity   Not available yet (future days, locked badges, disabled buttons). Reason: visible but clearly inactive.
+   selected · accent border + soft fill   Chosen option (theme, language, tab, template). Reason: shows the choice without shouting.
+   current  · accent fill + pulse ring     The level to play next. Reason: motion draws the eye to the one next step.
+   focus    · 3 px accent-ink ring         Keyboard focus on any control. Reason: always visible, never removed. */
+/* danger */
+.btn.danger,.danger-btn{background:var(--danger);color:#fff;box-shadow:0 4px 0 var(--danger-d)}
+.btn.danger:active{box-shadow:0 0 0 var(--danger-d)}
+.btn.ghost.warn,.btn.ghost.danger-ghost{color:var(--danger-ink);border-color:color-mix(in srgb,var(--danger) 45%,var(--line));box-shadow:0 4px 0 color-mix(in srgb,var(--danger) 45%,var(--line))}
+.toast.err{border-color:color-mix(in srgb,var(--danger) 45%,var(--line));box-shadow:0 4px 0 color-mix(in srgb,var(--danger) 45%,var(--line))}
+.toast.err i{background:var(--danger)} .toast.err i svg{fill:#fff}
+.errlog li{background:var(--danger-soft);color:var(--ink)} .errlog li b{color:var(--danger-ink)}
+/* warning */
+.nudge{background:var(--warn-soft);border-color:var(--warn)}
+.ed-dirty{color:var(--warn-ink)}
+/* info */
+.lv-detail .ld-h span.ended{color:var(--info-ink)}
+/* locked / disabled */
+button:disabled,.btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;transform:none}
+.hc.future,.h-top .x:disabled{opacity:.45}
+/* reward: daily chest (all quests won) */
+.q-rew.chest{color:var(--gold-ink);background:var(--gold-soft)}
+.chest-art{width:150px;height:130px;display:grid;place-items:center}
+.chest-art svg{width:150px;height:125px;overflow:visible}
+.chest-art .glow circle{fill:var(--gold-soft);transform-origin:60px 40px;animation:chGlow 1.6s ease-out .35s both}
+.chest-art .ch-body,.chest-art .ch-lid path{fill:var(--gold);stroke:var(--gold-ink);stroke-width:3}
+.chest-art .ch-band{fill:var(--gold-ink)}
+.chest-art .ch-lock{fill:var(--card);stroke:var(--gold-ink);stroke-width:3}
+.chest-art .ch-lid{transform-origin:22px 46px;animation:chLid .7s cubic-bezier(.3,1.6,.5,1) .3s both}
+@keyframes chLid{from{transform:rotate(0)}to{transform:rotate(-24deg) translateY(-4px)}}
+@keyframes chGlow{from{transform:scale(.2);opacity:0}to{transform:scale(1);opacity:1}}
+@media (prefers-reduced-motion: reduce){.chest-art .ch-lid{transform:rotate(-24deg) translateY(-4px)}.chest-art .glow circle{opacity:1}}
+/* reward progress on locked badges */
+.badge .bp{display:flex;align-items:center;gap:6px;width:100%;max-width:120px;font-size:12px;font-weight:900;color:var(--muted)}
+.badge .bp .bar{flex:1;height:7px;border-radius:99px;background:var(--line);overflow:hidden}
+.badge .bp .bar i{display:block;height:100%;background:var(--gold);border-radius:99px}
+.badge .bp.done{justify-content:center;color:var(--gold-ink)}
+/* info: first-time tips (one at a time, dismissed for good) */
+.coach{position:relative;display:flex;align-items:center;gap:10px;margin:10px 0;padding:10px 10px 10px 12px;border:2px solid var(--info);border-radius:14px;background:var(--info-soft);color:var(--ink)}
+.coach::before{content:"";position:absolute;top:-8px;left:28px;width:12px;height:12px;background:var(--info-soft);border-left:2px solid var(--info);border-top:2px solid var(--info);transform:rotate(45deg)}
+.coach i{flex:none;width:22px;height:22px;display:grid;place-items:center} .coach i svg{width:20px;height:20px;fill:var(--info-ink)}
+.coach p{flex:1;margin:0;font-size:13.5px;font-weight:800;line-height:1.35}
+.coach .btn{flex:none;min-height:44px;background:var(--info-ink);color:#fff;box-shadow:none}
+/* settings: each group folds to one 44 px row */
+details.set-group.fold{gap:0;padding:0}
+details.set-group.fold > summary{display:flex;align-items:center;justify-content:space-between;min-height:52px;padding:4px 14px;cursor:pointer;list-style:none}
+details.set-group.fold > summary::-webkit-details-marker{display:none}
+details.set-group.fold > summary .chev{width:10px;height:10px;border-right:3px solid var(--muted);border-bottom:3px solid var(--muted);transform:rotate(45deg);transition:transform .2s}
+details.set-group.fold[open] > summary .chev{transform:rotate(225deg)}
+details.set-group.fold[open]{gap:10px;padding:0 14px 14px}
+details.set-group.fold[open] > summary{padding:4px 0}
+.tiles:has(> .tile:nth-child(4)){display:grid;grid-template-columns:repeat(2,minmax(130px,1fr))}
