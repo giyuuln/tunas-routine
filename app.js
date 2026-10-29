@@ -19,6 +19,7 @@ const I = {
   trophy:'<svg viewBox="0 0 24 24"><path d="M7 3h10v2h4v3a4 4 0 0 1-4 4h-.4A5 5 0 0 1 13 14.9V18h3v3H8v-3h3v-3.1A5 5 0 0 1 7.4 12H7a4 4 0 0 1-4-4V5h4zm10 4v3a2 2 0 0 0 2-2V7zM5 7v1a2 2 0 0 0 2 2V7z"/></svg>',
   x:'<svg viewBox="0 0 24 24"><path d="M6.4 5 12 10.6 17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4z"/></svg>',
   warn:'<svg class="ico" viewBox="0 0 24 24"><path d="M12 2 1 21h22L12 2zm1 15h-2v-2h2v2zm0-4h-2V9h2v4z"/></svg>',
+  chest:'<svg class="ico" viewBox="0 0 24 24"><path d="M4 9a5 5 0 0 1 5-5h6a5 5 0 0 1 5 5v1H4V9zm0 3h7v2h2v-2h7v8H4v-8z"/></svg>',
   cog:'<svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M10.3 2h3.4l.5 2.6a8 8 0 0 1 1.9 1.1l2.5-.9 1.7 3-2 1.7a8 8 0 0 1 0 2.2l2 1.7-1.7 3-2.5-.9a8 8 0 0 1-1.9 1.1l-.5 2.6h-3.4l-.5-2.6a8 8 0 0 1-1.9-1.1l-2.5.9-1.7-3 2-1.7a8 8 0 0 1 0-2.2l-2-1.7 1.7-3 2.5.9a8 8 0 0 1 1.9-1.1zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg>',
   share:'<svg viewBox="0 0 24 24"><path d="M18 16a3 3 0 0 0-2.4 1.2l-6.7-3.4a3 3 0 0 0 0-1.6l6.7-3.4A3 3 0 1 0 15 7l-6.7 3.4a3 3 0 1 0 0 3.2L15 17a3 3 0 1 0 3-1z"/></svg>',
   pencil:'<svg viewBox="0 0 24 24"><path d="M3 17.3V21h3.7L17.8 9.9l-3.7-3.7zM20.7 7a1 1 0 0 0 0-1.4l-2.3-2.3a1 1 0 0 0-1.4 0l-1.8 1.8 3.7 3.7z"/></svg>',
@@ -532,7 +533,7 @@ function renderQuests(S) {
   if (homeVisible() || !prevOn) renderQuests.on = QS.map(q => q.n >= q.of);
   $("questCount").textContent = T("of", wonN, QS.length);
   $("quests").innerHTML = QS.map(q => { const won = q.n >= q.of;
-    return `<div class="quest${won ? " won" : ""}"><div class="q-ico">${I[q.ico]}</div><div class="q-main"><div class="q-t">${q.t}</div><div class="bar${won ? " green" : ""}"><i style="width:${100*q.n/q.of}%"></i><b>${q.n} / ${q.of}</b></div></div><span class="q-rew">${won ? T("done") : q.rew ? "+" + q.rew : T("bonus")}</span></div>`; }).join("");
+    return `<div class="quest${won ? " won" : ""}"><div class="q-ico">${I[q.ico]}</div><div class="q-main"><div class="q-t">${q.t}</div><div class="bar${won ? " green" : ""}"><i style="width:${100*q.n/q.of}%"></i><b>${q.n} / ${q.of}</b></div></div><span class="q-rew${!won && !q.rew ? " chest" : ""}">${won ? T("done") : q.rew ? "+" + q.rew : I.chest + T("chestTag")}</span></div>`; }).join("");
 }
 /* ================= Today: game-level strip ================= */
 // Each section is a level. Stars show progress in thirds; the little Tunas stands on the level to play next.
@@ -585,9 +586,11 @@ function renderLevelDetail(d, mins, target, S) {
     return;
   }
   const st = nodeState(target, d), nx = nextTitle(target, d), live = inWindow(target, mins);
-  const when = target.kind === "weekly" ? esc(target.range) : live && target.to != null ? T("until", fmtClock(target.to)) : target.from != null ? T("startsAt", fmtClock(target.from)) : esc(target.range || "");
+  // Past its window the level still counts, so say so instead of showing a start time that already went by.
+  const ended = !live && target.kind !== "weekly" && target.to != null && mins >= target.to;
+  const when = target.kind === "weekly" ? esc(target.range) : live && target.to != null ? T("until", fmtClock(target.to)) : ended ? T("endedAt", fmtClock(target.to)) : target.from != null ? T("startsAt", fmtClock(target.from)) : esc(target.range || "");
   el.className = "lv-detail";
-  el.innerHTML = `<div class="ld-h"><b>${esc(target.title)}</b><span>${T("of", st.n, st.total)}${when ? " · " + when : ""}</span></div>
+  el.innerHTML = `<div class="ld-h"><b>${esc(target.title)}</b><span${ended ? ' class="ended"' : ""}>${T("of", st.n, st.total)}${when ? " · " + when : ""}</span></div>
     ${nx ? `<p>${T("nextIs", esc(nx))}</p>` : ""}
     <button class="btn ld-go" type="button" data-node="${target.id}">${st.n === 0 ? T("start") : T("cont")}</button>`;
 }
@@ -727,9 +730,11 @@ function starMeter(id, st) {
   const bar = $("shHead").querySelector(".bar"); if (!bar || !st.total) return;
   const k = starsFor(st), prev = sheetStars[id]; sheetStars[id] = k;
   const wrap = document.createElement("div"); wrap.className = "starbar"; bar.replaceWith(wrap); wrap.appendChild(bar);
-  const at = starAt(st.total), seen = {};
-  wrap.insertAdjacentHTML("beforeend", at.map((n, i) => { const pct = 100 * n / st.total, dup = seen[pct] = (seen[pct] || 0) + 1, on = i < k, pop = on && prev != null && i >= prev;
-    return `<i class="sm${on ? " on" : ""}${pop ? " pop" : ""}" style="left:${pct}%;--dup:${dup - 1};--d:${pop ? (i - prev) * 140 : 0}ms" aria-hidden="true">${I.star}</i>`; }).join(""));
+  // Stars earned on the same tick share one marker (×2, ×3), so short levels don't stack markers.
+  const at = starAt(st.total), groups = [];
+  at.forEach((n, i) => { const g = groups.find(x => x.n === n); if (g) g.stars.push(i); else groups.push({ n, stars: [i] }); });
+  wrap.insertAdjacentHTML("beforeend", groups.map(g => { const last = g.stars[g.stars.length - 1], on = last < k, pop = on && prev != null && last >= prev;
+    return `<i class="sm${on ? " on" : ""}${pop ? " pop" : ""}${g.n === st.total ? " end" : ""}" style="left:${100 * g.n / st.total}%;--d:${pop ? Math.max(0, g.stars[0] - prev) * 140 : 0}ms" aria-hidden="true">${I.star}${g.stars.length > 1 ? `<em>×${g.stars.length}</em>` : ""}</i>`; }).join(""));
   wrap.setAttribute("aria-label", T("starsOf", k));
   if (prev != null && k > prev) for (let i = prev; i < k; i++) setTimeout(() => { sfx("star" + (i + 1)); buzz(10); }, (i - prev) * 140 + 60);
 }

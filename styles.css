@@ -96,7 +96,8 @@ button:focus-visible,summary:focus-visible,input:focus-visible{outline:3px solid
 .q-ico svg{width:24px;height:24px;fill:currentColor}
 .q-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
 .q-t{font-weight:800;font-size:15px}
-.q-rew{flex:none;font-size:13px;font-weight:900;color:var(--gold-ink);background:var(--gold-soft);padding:4px 9px;border-radius:99px}
+.q-rew{flex:none;display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:900;color:var(--gold-ink);background:var(--gold-soft);padding:4px 9px;border-radius:99px}
+.q-rew svg{width:14px;height:14px;fill:currentColor}
 .quest.won .q-rew{background:var(--green);color:var(--on-color)}
 
 
@@ -568,11 +569,12 @@ a.btn{text-decoration:none;display:inline-block}
 /* Star meter on the level sheet's progress bar */
 .starbar{position:relative;margin-top:12px}
 .sh-head .starbar .bar{margin-top:0}
-.starbar .sm{position:absolute;top:50%;width:26px;height:26px;margin-left:calc(-13px - var(--dup) * 16px);transform:translateY(-50%);display:grid;place-items:center;border-radius:50%;background:var(--card);border:2px solid var(--line);pointer-events:none}
+.starbar .sm{position:absolute;top:50%;width:26px;height:26px;margin-left:-13px;transform:translateY(-50%);display:grid;place-items:center;border-radius:50%;background:var(--card);border:2px solid var(--line);pointer-events:none}
 .starbar .sm svg{width:15px;height:15px;fill:var(--control)}
 .starbar .sm.on{border-color:var(--gold-d);background:var(--gold)}
 .starbar .sm.on svg{fill:var(--on-gold)}
-.starbar .sm:last-child{margin-left:calc(-24px - var(--dup) * 16px)}
+.starbar .sm.end{margin-left:-24px}
+.starbar .sm em{position:absolute;right:-8px;top:-8px;font-style:normal;font-size:10px;font-weight:900;line-height:1;padding:2px 4px;border-radius:99px;background:var(--gold);color:var(--on-gold)}
 .sm.pop{animation:starpop .5s cubic-bezier(.2,1.8,.4,1) var(--d) both}
 @keyframes starpop{0%{transform:translateY(-50%) scale(.2) rotate(-60deg)}60%{transform:translateY(-50%) scale(1.35) rotate(8deg)}100%{transform:translateY(-50%) scale(1) rotate(0)}}
 /* Stars on the home strip */
