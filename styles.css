@@ -557,3 +557,32 @@ a.btn{text-decoration:none;display:inline-block}
 .foot-links .row-link{gap:10px;padding-inline:12px}
 .row-link b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media (max-width:380px){.foot-links .row-link .chev{display:none}}
+
+/* ===== Game feel: stars, XP flight, level clear ===== */
+/* Star meter on the level sheet's progress bar */
+.starbar{position:relative;margin-top:12px}
+.sh-head .starbar .bar{margin-top:0}
+.starbar .sm{position:absolute;top:50%;width:26px;height:26px;margin-left:calc(-13px - var(--dup) * 16px);transform:translateY(-50%);display:grid;place-items:center;border-radius:50%;background:var(--card);border:2px solid var(--line);pointer-events:none}
+.starbar .sm svg{width:15px;height:15px;fill:var(--control)}
+.starbar .sm.on{border-color:var(--gold-d);background:var(--gold)}
+.starbar .sm.on svg{fill:var(--on-gold)}
+.starbar .sm:last-child{margin-left:calc(-24px - var(--dup) * 16px)}
+.sm.pop{animation:starpop .5s cubic-bezier(.2,1.8,.4,1) var(--d) both}
+@keyframes starpop{0%{transform:translateY(-50%) scale(.2) rotate(-60deg)}60%{transform:translateY(-50%) scale(1.35) rotate(8deg)}100%{transform:translateY(-50%) scale(1) rotate(0)}}
+/* Stars on the home strip */
+.stars i.pop svg{animation:starpop2 .5s cubic-bezier(.2,1.8,.4,1) var(--d) both}
+@keyframes starpop2{0%{transform:scale(0) rotate(-60deg);fill:var(--line)}55%{transform:scale(1.6) rotate(10deg)}100%{transform:scale(1) rotate(0)}}
+/* A level cleared while away: node bounces, then the track fills gold toward the next level */
+.lvl.just-cleared .lvl-node{animation:nodeclear .6s cubic-bezier(.2,1.6,.4,1) .1s both}
+@keyframes nodeclear{0%{transform:scale(.7)}60%{transform:scale(1.18)}100%{transform:scale(1)}}
+.lvl.just-cleared:not(:last-child)::after{background:var(--line)}
+.lvl.just-cleared:not(:last-child)::before{content:"";position:absolute;z-index:0;top:24px;left:50%;width:100%;height:5px;border-radius:99px;background:var(--gold);transform-origin:left center;animation:trackfill .5s cubic-bezier(.3,.7,.3,1) .55s both}
+@keyframes trackfill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+/* XP orb flying to the counter, and the counter's bump */
+.xpfly{position:fixed;z-index:95;width:28px;height:28px;border-radius:50%;background:var(--gold);box-shadow:0 2px 0 var(--gold-d);display:grid;place-items:center;pointer-events:none}
+.xpfly svg{width:17px;height:17px;fill:var(--on-gold)}
+.stat.bump{animation:bump .45s cubic-bezier(.2,1.6,.4,1)}
+@keyframes bump{40%{transform:scale(1.25)}100%{transform:scale(1)}}
+/* Quest pip */
+.pips i.pop{animation:pippop .5s cubic-bezier(.2,1.8,.4,1) .2s both}
+@keyframes pippop{0%{transform:scale(0)}60%{transform:scale(1.8)}100%{transform:scale(1)}}
