@@ -81,7 +81,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.10.29";
+const APP_VERSION = "2026.10.29b";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -343,9 +343,23 @@ function sfx(kind) {
     else if (kind === "level") { [523,659,784,1047,1319].forEach((f,i) => tone(f,i*.1,.32,.2,"triangle")); tone(1568,.55,.5,.15,"sine"); }
     else if (kind === "beep") { tone(880,0,.18,.25,"square"); tone(880,.25,.18,.25,"square"); }
     else if (kind === "pr") { tone(784,0,.12,.18,"triangle"); tone(1175,.1,.3,.18,"triangle"); }
+    else if (kind === "star1") tone(1047,0,.16,.16,"triangle");
+    else if (kind === "star2") tone(1319,0,.16,.16,"triangle");
+    else if (kind === "star3") { tone(1568,0,.2,.17,"triangle"); tone(2093,.07,.28,.12,"sine"); }
+    else if (kind === "hop") { tone(523,0,.08,.1,"sine"); tone(784,.07,.12,.1,"sine"); }
   } catch (e) {}
 }
 function buzz(p) { try { navigator.vibrate && navigator.vibrate(p || 12); } catch (e) {} }
+function flyXP(from) {
+  const to = $("stXP").getBoundingClientRect(); if (reduced() || !to.width) return;
+  const o = document.createElement("div"); o.className = "xpfly"; o.innerHTML = I.bolt;
+  const x0 = from.right - 40, y0 = from.top + from.height / 2 - 14, dx = to.left + 4 - x0, dy = to.top + to.height / 2 - 14 - y0;
+  o.style.left = x0 + "px"; o.style.top = y0 + "px"; document.body.appendChild(o);
+  const dur = 620; xpFlying = Date.now() + dur;
+  const a = o.animate([{ transform: "translate(0,0) scale(.6)", opacity: 0 }, { transform: `translate(${dx * .35}px,${dy * .35 - 40}px) scale(1.15)`, opacity: 1, offset: .35 },
+    { transform: `translate(${dx}px,${dy}px) scale(.55)`, opacity: .9 }], { duration: dur, easing: "cubic-bezier(.45,0,.6,1)" });
+  a.onfinish = () => { o.remove(); buzz(8); };
+}
 function floatXP(x, y, text) { if (reduced()) return; const f = document.createElement("div"); f.className = "fx"; f.textContent = (THEME === "sakura" ? "♥ " : THEME === "ungu" ? "⚡ " : THEME === "langit" ? "~ " : "") + text;
   f.style.left = Math.max(8, Math.min(innerWidth - 90, x)) + "px"; f.style.top = (y - 14) + "px"; document.body.appendChild(f); setTimeout(() => f.remove(), 950); }
 function toast(html, icon, ms, action) { const t = document.createElement("div"); t.className = "toast"; t.innerHTML = `<i>${I[icon || "star"]}</i><span>${html}</span>`;
@@ -483,9 +497,21 @@ $("restPlus").onclick = () => { if (!restT) return startRest(15, $("restLabel").
 
 /* ================= Rendering: main page ================= */
 let lastS = null;
+// Top-bar numbers roll up to their new value and bump, so every tick visibly pays out.
+let xpFlying = 0;
+function setStat(el, icon, value, fmt) {
+  const old = el.dataset.v == null ? null : +el.dataset.v; el.dataset.v = value;
+  const show = v => { el.innerHTML = icon + fmt(v); };
+  if (old == null || value <= old || reduced()) { cancelAnimationFrame(el._raf); clearTimeout(el._wait); show(value); return; }
+  const go = () => { const t0 = performance.now(), dur = 450;
+    const step = now => { const p = Math.min(1, (now - t0) / dur), v = Math.round(old + (value - old) * (1 - Math.pow(1 - p, 3))); show(v); if (p < 1) el._raf = requestAnimationFrame(step); };
+    el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump"); el._raf = requestAnimationFrame(step); };
+  cancelAnimationFrame(el._raf); clearTimeout(el._wait); show(old);
+  if (el.id === "stXP" && xpFlying > Date.now()) el._wait = setTimeout(go, xpFlying - Date.now()); else go();
+}
 function renderTop(S) {
-  $("stStreak").className = "stat fire" + (S.streak ? "" : " off"); $("stStreak").innerHTML = I.flame + S.streak;
-  $("stXP").innerHTML = I.bolt + S.todayXP; $("stLv").innerHTML = I.shield + T("lv", S.level);
+  $("stStreak").className = "stat fire" + (S.streak ? "" : " off"); setStat($("stStreak"), I.flame, S.streak, v => v);
+  setStat($("stXP"), I.bolt, S.todayXP, v => v); setStat($("stLv"), I.shield, S.level, v => T("lv", v));
   $("stSnd").innerHTML = soundOn ? I.sndOn : I.sndOff; $("stSnd").setAttribute("aria-label", T("sound"));
   $("stCog").innerHTML = I.cog;
   $("lvName").innerHTML = `${T("level", S.L.n)} · <span>${titleOf(S.L.n)}</span>`;
@@ -499,7 +525,10 @@ function renderQuests(S) {
   if (W) Q.splice(1, 0, { ico:"bolt", t:T("qWorkout", esc(W.name)), n: done["wo-done"] ? 1 : 0, of: 1, rew: XP.workout });
   else Q.splice(1, 0, { ico:"flame", t:T("qXP"), n: Math.min(S.todayXP, 150), of: 150, rew: 0 });
   const QS = Q.filter(q => q.of > 0), wonN = QS.filter(q => q.n >= q.of).length;
-  $("questPips").innerHTML = QS.map(q => `<i class="${q.n >= q.of ? "on" : ""}"></i>`).join("");
+  // A pip pops when its quest was finished while home was out of view.
+  const prevOn = renderQuests.on, liveQ = homeVisible() && prevOn && !reduced();
+  $("questPips").innerHTML = QS.map((q, i) => { const on = q.n >= q.of; return `<i class="${on ? "on" : ""}${liveQ && on && !prevOn[i] ? " pop" : ""}"></i>`; }).join("");
+  if (homeVisible() || !prevOn) renderQuests.on = QS.map(q => q.n >= q.of);
   $("questCount").textContent = T("of", wonN, QS.length);
   $("quests").innerHTML = QS.map(q => { const won = q.n >= q.of;
     return `<div class="quest${won ? " won" : ""}"><div class="q-ico">${I[q.ico]}</div><div class="q-main"><div class="q-t">${q.t}</div><div class="bar${won ? " green" : ""}"><i style="width:${100*q.n/q.of}%"></i><b>${q.n} / ${q.of}</b></div></div><span class="q-rew">${won ? T("done") : q.rew ? "+" + q.rew : T("bonus")}</span></div>`; }).join("");
@@ -507,27 +536,45 @@ function renderQuests(S) {
 /* ================= Today: game-level strip ================= */
 // Each section is a level. Stars show progress in thirds; the little Tunas stands on the level to play next.
 const starsFor = st => (st.cleared ? 3 : st.n === 0 || !st.total ? 0 : Math.max(1, Math.floor(3 * st.n / st.total)));
-const starRow = (k, cls) => `<span class="stars${cls ? " " + cls : ""}" aria-hidden="true">${[0, 1, 2].map(i => `<i class="${i < k ? "on" : ""}">${I.star}</i>`).join("")}</span>`;
+const starRow = (k, cls, from) => `<span class="stars${cls ? " " + cls : ""}" aria-hidden="true">${[0, 1, 2].map(i => `<i class="${i < k ? "on" : ""}${from != null && i >= from && i < k ? " pop" : ""}"${from != null && i >= from && i < k ? ` style="--d:${300 + (i - from) * 160}ms"` : ""}>${I.star}</i>`).join("")}</span>`;
 function nextTitle(node, d) { const x = nextOpen(node, d); if (!x) return ""; return node.kind === "workout" ? x.name : node.kind === "block" ? itemTitle(x, d) : x.t; }
+// What the home strip last showed while visible. Changes made inside a sheet play here once home is back in view.
+let shownPath = null;
+const homeVisible = () => !sheetId && $("cele").hidden && $("welcome").hidden;
 function renderPath(S) {
   const d = routineDate(), mins = nowMins(), nodes = nodesFor(d), target = pathTarget(d, mins, nodes);
   const strip = $("path"), keepX = strip.scrollLeft;
+  const cur = { k: {}, cleared: {}, target: target ? target.id : "", day: dkey(d) };
+  nodes.forEach(n => { const st = nodeState(n, d); cur.k[n.id] = starsFor(st); cur.cleared[n.id] = st.cleared; });
+  const live = homeVisible() && shownPath && shownPath.day === cur.day && !reduced();
+  const was = live ? shownPath : null;
   strip.innerHTML = nodes.map(n => {
     const st = nodeState(n, d), isT = n === target, k = starsFor(st);
     const cls = st.cleared ? "done" : isT ? "go" : st.n > 0 ? "started" : "";
-    return `<div class="lvl${st.cleared ? " cleared" : ""}${isT ? " is-target" : ""}">
+    const fresh = was && st.cleared && !was.cleared[n.id], from = was ? Math.min(was.k[n.id] || 0, k) : k;
+    return `<div class="lvl${st.cleared ? " cleared" : ""}${isT ? " is-target" : ""}${fresh ? " just-cleared" : ""}" style="--from:${from}">
       ${isT ? `<span class="lvl-me mascot happy" aria-hidden="true">${MASCOT}</span>` : ""}
       <button class="lvl-node ${cls}" type="button" data-node="${n.id}" aria-label="${esc(n.title)}, ${T("of", st.n, st.total)}${isT ? ", " + T("upNext") : ""}">${st.cleared ? I.check : I[n.icon] || I.star}</button>
-      ${starRow(k)}<span class="lvl-name">${esc(n.title)}</span></div>`;
+      ${starRow(k, "", from)}<span class="lvl-name">${esc(n.title)}</span></div>`;
   }).join("");
   $("pathTitle").textContent = T("todayIs", d.toLocaleDateString(locale(), { weekday: "long" }));
   renderLevelDetail(d, mins, target, S || lastS || computeAll());
   // Centre the level to play whenever it changes; otherwise keep where the person scrolled to.
   const t = strip.querySelector(".is-target"), tid = target ? target.id : "";
+  strip.scrollLeft = keepX;
   if (t && strip.dataset.placed !== tid) { strip.dataset.placed = tid;
-    const sr = strip.getBoundingClientRect(), tr = t.getBoundingClientRect();
-    strip.scrollLeft = Math.max(0, keepX + (tr.left - sr.left) - (sr.width - tr.width) / 2); }
-  else strip.scrollLeft = keepX;
+    const sr = strip.getBoundingClientRect(), tr = t.getBoundingClientRect(), left = Math.max(0, keepX + (tr.left - sr.left) - (sr.width - tr.width) / 2);
+    if (live) strip.scrollTo({ left, behavior: "smooth" }); else strip.scrollLeft = left; }
+  // The token hops from the level it stood on to the next one.
+  if (was && was.target && tid && was.target !== tid) {
+    const me = t && t.querySelector(".lvl-me"), old = strip.querySelector(`[data-node="${was.target}"]`);
+    if (me && old) { const dx = old.closest(".lvl").offsetLeft - t.offsetLeft;
+      me.animate([{ transform: `translateX(calc(-50% + ${dx}px))` }, { transform: `translateX(calc(-50% + ${dx / 2}px)) translateY(-30px)`, offset: .5 }, { transform: "translateX(-50%)" }],
+        { duration: 650, delay: 700, easing: "cubic-bezier(.4,0,.3,1)", fill: "backwards" });
+      setTimeout(() => sfx("hop"), 760); } }
+  const gained = was ? nodes.reduce((s, n) => s + Math.max(0, cur.k[n.id] - (was.k[n.id] || 0)), 0) : 0;
+  for (let i = 0; i < Math.min(gained, 3); i++) setTimeout(() => sfx("star" + (i + 1)), 300 + i * 160);
+  if (homeVisible() || !shownPath || shownPath.day !== cur.day) shownPath = cur;
 }
 function renderLevelDetail(d, mins, target, S) {
   const el = $("levelDetail");
@@ -543,6 +590,7 @@ function renderLevelDetail(d, mins, target, S) {
     ${nx ? `<p>${T("nextIs", esc(nx))}</p>` : ""}
     <button class="btn ld-go" type="button" data-node="${target.id}">${st.n === 0 ? T("start") : T("cont")}</button>`;
 }
+function playHome() { if (homeVisible()) { const S = lastS || computeAll(); renderPath(S); renderQuests(S); } }
 $("path").addEventListener("click", e => { const b = e.target.closest("[data-node]"); if (b) { audio(); openSheet(b.dataset.node); } });
 $("levelDetail").addEventListener("click", e => { const b = e.target.closest("[data-node]"); if (b) { audio(); openSheet(b.dataset.node); } });
 
@@ -647,6 +695,7 @@ function closeSheet(fromBack) {
   $("scrim").classList.remove("show"); $("sheet").classList.remove("show"); document.body.classList.remove("locked");
   setTimeout(() => { if (!sheetId) { $("scrim").hidden = true; $("sheet").hidden = true; } }, 320);
   if (lastFocus && lastFocus.focus) lastFocus.focus({ preventScroll: true });
+  setTimeout(playHome, 200);
 }
 $("scrim").onclick = () => { if (sheetId === "editor") requestCloseEditor(); else closeSheet(); };
 document.addEventListener("keydown", e => { if (e.key === "Escape") { if (!$("cele").hidden) return nextCele(); if (sheetId === "editor") requestCloseEditor(); else closeSheet(); } });
@@ -667,6 +716,22 @@ function sheetHead(icon, title, sub, st, color) {
   return `<div class="grab"></div><div class="sh-row"><div class="sh-ico" style="background:var(${color || "--green"})">${I[icon] || I.star}</div><div><h2 id="shTitle">${title}</h2><p>${sub}</p></div><button class="x" id="shClose" type="button" aria-label="Close">${I.x}</button></div>` +
     (st ? `<div class="bar green"><i style="width:${st.total ? 100*st.n/st.total : 0}%"></i><b>${st.n} / ${st.total}</b></div>` : "");
 }
+// Star meter: the sheet's progress bar shows where each of the level's 3 stars is earned.
+const sheetStars = {};
+function starAt(total) { // smallest tick count that earns star 1, 2, 3 (same rule as starsFor)
+  const need = k => { for (let n = 1; n <= total; n++) if (starsFor({ n, total, cleared: n === total }) >= k) return n; return total; };
+  return [need(1), need(2), need(3)];
+}
+function starMeter(id, st) {
+  const bar = $("shHead").querySelector(".bar"); if (!bar || !st.total) return;
+  const k = starsFor(st), prev = sheetStars[id]; sheetStars[id] = k;
+  const wrap = document.createElement("div"); wrap.className = "starbar"; bar.replaceWith(wrap); wrap.appendChild(bar);
+  const at = starAt(st.total), seen = {};
+  wrap.insertAdjacentHTML("beforeend", at.map((n, i) => { const pct = 100 * n / st.total, dup = seen[pct] = (seen[pct] || 0) + 1, on = i < k, pop = on && prev != null && i >= prev;
+    return `<i class="sm${on ? " on" : ""}${pop ? " pop" : ""}" style="left:${pct}%;--dup:${dup - 1};--d:${pop ? (i - prev) * 140 : 0}ms" aria-hidden="true">${I.star}</i>`; }).join(""));
+  wrap.setAttribute("aria-label", T("starsOf", k));
+  if (prev != null && k > prev) for (let i = prev; i < k; i++) setTimeout(() => { sfx("star" + (i + 1)); buzz(10); }, (i - prev) * 140 + 60);
+}
 function renderSheet(keep) {
   if (!sheetId) return;
   if (sheetId === "settings") return renderSettings(keep);
@@ -676,6 +741,7 @@ function renderSheet(keep) {
   const d = routineDate(), today = dkey(d), node = nodesFor(d).find(n => n.id === sheetId); if (!node) { closeSheet(); return; }
   const st = nodeState(node, d), body = $("shBody"), top = keep ? body.scrollTop : 0;
   $("shHead").innerHTML = sheetHead(node.icon, esc(node.title), `${esc(node.range)}${node.range ? " · " : ""}${T("of", st.n, st.total)}`, st, st.cleared ? "--gold" : "--green");
+  starMeter(node.id, st);
   $("shClose").onclick = closeSheet;
   const done = store.days[today] || {};
   let h = "";
@@ -741,6 +807,7 @@ function tickAll() {
   const ticked = [];
   node.b.items.forEach(i => { if (shown(i, d) && !done[i.id]) { done[i.id] = true; ticked.push(i.id); xp += xpFor(i.id, d); } });
   save(); sfx("ding"); buzz([15, 40, 15]); floatXP(innerWidth / 2 - 40, innerHeight / 2, `+${xp} XP`); jump($("mascot"));
+  const tb = document.querySelector("#shBody .tickall"); if (tb) flyXP(tb.getBoundingClientRect());
   refresh(true);
   // One mis-tap shouldn't tick a whole section for good: offer Undo for a few seconds.
   offerUndo(T("tickedAll", ticked.length), () => {
@@ -759,7 +826,7 @@ $("shBody").addEventListener("click", e => {
   const box = sheetId === "weekly" ? (store.weeks[wkey(d)] ||= {}) : (store.days[dayKey] ||= {}), was = box[id];
   box[id] = v; save();
   const rect = t.getBoundingClientRect();
-  if (v) { const xp = sheetId === "weekly" ? XP.weekly : xpFor(id, d); sfx("ding"); buzz(); floatXP(rect.right - 90, rect.top + rect.height/2, `+${xp} XP`);
+  if (v) { const xp = sheetId === "weekly" ? XP.weekly : xpFor(id, d); sfx("ding"); buzz(); floatXP(rect.right - 90, rect.top + rect.height/2, `+${xp} XP`); if (!sheetId.startsWith("day:")) flyXP(rect);
     const it = id === "wo-done" ? { t: T("woDone") } : sheetId === "weekly" ? WEEKLY.find(w => w.id === id) : BLOCKS.flatMap(b => b.items).find(i => i.id === id);
     const node = nodesFor(d).find(n => n.id === sheetId), nx = node && !sheetId.startsWith("day:") ? nextOpen(node, d) : null;
     say(`${pick(T("cheers"))} ${esc(it ? itemTitle(it, d) : "")} ✓`, nx ? T("sayThen", esc(nx.name || itemTitle(nx, d))) + ` · +${xp} XP` : `+${xp} XP`, "happy", 3200); jump($("mascot"));
@@ -1266,7 +1333,7 @@ function finishWelcome() {
 const celeQ = [];
 function queueCele(c) { celeQ.push(c); if ($("cele").hidden) nextCele(); }
 function nextCele() {
-  const c = celeQ.shift(); if (!c) { $("cele").hidden = true; contextSay(); return; }
+  const c = celeQ.shift(); if (!c) { $("cele").hidden = true; contextSay(); setTimeout(playHome, 150); return; }
   if (sheetId && sheetId !== "settings" && sheetId !== "editor" && !sheetId.startsWith("day:")) closeSheet();
   const el = $("cele"); el.hidden = false;
   el.innerHTML = `<div class="mascot cheer" id="celeMascot">${MASCOT}</div><h2 class="${c.color || ""}">${c.title}</h2><p>${c.sub}</p>

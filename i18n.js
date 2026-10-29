@@ -179,7 +179,7 @@ window.TUNAS_I18N = {
     streakShort: n => `${n} day${n === 1 ? "" : "s"}`, upNext: "up next", todayIs: d => `Today · ${d}`,
     allClear: "All levels cleared!", allClearSub: n => `You earned ${n} XP today. See you tomorrow.`,
     until: t => `until ${t}`, startsAt: t => `starts ${t}`, nextIs: t => `Next: <b>${t}</b>`,
-    histSub: "Your streak and every day so far", badgesSub: (n, t) => `${n} of ${t} earned`,
+    starsOf: n => `${n} of 3 stars`, histSub: "Your streak and every day so far", badgesSub: (n, t) => `${n} of ${t} earned`,
   },
   ms: {
     locale: "ms-MY",
@@ -356,6 +356,6 @@ window.TUNAS_I18N = {
     streakShort: n => `${n} hari`, upNext: "seterusnya", todayIs: d => `Hari ini · ${d}`,
     allClear: "Semua tahap selesai!", allClearSub: n => `Kau dapat ${n} XP hari ini. Jumpa esok.`,
     until: t => `sampai ${t}`, startsAt: t => `mula ${t}`, nextIs: t => `Seterusnya: <b>${t}</b>`,
-    histSub: "Streak kau dan setiap hari setakat ini", badgesSub: (n, t) => `${n} daripada ${t} dapat`,
+    starsOf: n => `${n} daripada 3 bintang`, histSub: "Streak kau dan setiap hari setakat ini", badgesSub: (n, t) => `${n} daripada ${t} dapat`,
   }
 };
