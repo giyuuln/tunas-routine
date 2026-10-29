@@ -185,6 +185,10 @@ window.TUNAS_I18N = {
     allClear: "All levels cleared!", allClearSub: n => `You earned ${n} XP today. See you tomorrow.`,
     until: t => `until ${t}`, startsAt: t => `starts ${t}`, endedAt: t => `ended ${t} · still counts`, nextIs: t => `Next: <b>${t}</b>`,
     starsOf: n => `${n} of 3 stars`, histSub: "Your streak and every day so far", badgesSub: (n, t) => `${n} of ${t} earned`,
+    wsTitle: n => `Week done, ${n}!`, wsGoodSub: "Strong week! Here's how it went.", wsOkSub: "Here's how last week went. New week, fresh start.",
+    wsBest: (t, n, o) => `Best habit: <b>${t}</b> · ${n}/${o} days`, wsMiss: (t, n) => `Needs love: <b>${t}</b> · missed ${n} day${n === 1 ? "" : "s"}`,
+    wsNoMiss: "Nothing missed. Perfect week!", wsEmpty: "No ticks that week. This week is a fresh start.", tWorkouts: "Workouts",
+    wsLast: "Last week", wsAgo: n => `${n} weeks ago`, wsPrev: "Previous week", wsNext: "Next week",
   },
   ms: {
     locale: "ms-MY",
@@ -367,5 +371,9 @@ window.TUNAS_I18N = {
     allClear: "Semua tahap selesai!", allClearSub: n => `Kau dapat ${n} XP hari ini. Jumpa esok.`,
     until: t => `sampai ${t}`, startsAt: t => `mula ${t}`, endedAt: t => `tamat ${t} · masih dikira`, nextIs: t => `Seterusnya: <b>${t}</b>`,
     starsOf: n => `${n} daripada 3 bintang`, histSub: "Streak kau dan setiap hari setakat ini", badgesSub: (n, t) => `${n} daripada ${t} dapat`,
+    wsTitle: n => `Seminggu dah lepas, ${n}!`, wsGoodSub: "Minggu yang power! Ini ceritanya.", wsOkSub: "Ini cerita minggu lepas. Minggu baru, mula baru.",
+    wsBest: (t, n, o) => `Tabiat terbaik: <b>${t}</b> · ${n}/${o} hari`, wsMiss: (t, n) => `Perlu perhatian: <b>${t}</b> · terlepas ${n} hari`,
+    wsNoMiss: "Tak ada yang terlepas. Minggu sempurna!", wsEmpty: "Tak ada tanda minggu tu. Minggu ni mula baru.", tWorkouts: "Senaman",
+    wsLast: "Minggu lepas", wsAgo: n => `${n} minggu lepas`, wsPrev: "Minggu sebelumnya", wsNext: "Minggu seterusnya",
   }
 };

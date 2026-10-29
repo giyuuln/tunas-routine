@@ -83,7 +83,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.10.29c";
+const APP_VERSION = "2026.10.29d";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -688,8 +688,8 @@ function renderProgressSheet(kind, keep) {
   const body = $("shBody"), top = keep ? body.scrollTop : 0, S = lastS || computeAll();
   if (kind === "history") {
     $("shHead").innerHTML = sheetHead("cal", T("history"), T("histSub"), null, "--green");
-    body.innerHTML = `<div class="card streak-card" id="streakCard"></div><div class="card hist" id="hist"></div>`;
-    renderStreak(S); renderHistory();
+    body.innerHTML = `<div class="card streak-card" id="streakCard"></div><div class="card hist wsum" id="wsum"></div><div class="card hist" id="hist"></div>`;
+    renderStreak(S); renderWeekSum(); renderHistory();
   } else {
     const n = BADGES.filter(b => b.test(S)).length;
     $("shHead").innerHTML = sheetHead("trophy", T("badges"), T("badgesSub", n, BADGES.length), null, "--gold");
@@ -1403,6 +1403,46 @@ function checkRecap() {
     tiles: [{ k: T("tDone"), v: `${pct}%`, i: "", c: "--green" }, { k: T("tStars"), v: stars, i: "star", c: "--gold" }, { k: T("tXP"), v: `+${xp}`, i: "bolt", c: "--gold" }, { k: T("tStreak"), v: S.streak, i: "flame", c: "--orange" }] });
 }
 
+/* ================= Weekly summary ================= */
+// How a week (Monday to Sunday) went: done %, best and most-missed habit, workouts and XP. Rest days don't count against you.
+function weekSummary(mon) {
+  const pr = computePRs(), today = dkey(routineDate()), seen = {}, got = {};
+  let done = 0, total = 0, workouts = 0, xp = 0, active = 0;
+  for (let i = 0; i < 7; i++) { const d = new Date(mon); d.setDate(d.getDate() + i); const k = dkey(d); if (k > today) break;
+    const dn = store.days[k] || {}; xp += dayXP(k, pr.byDay);
+    if (Object.values(dn).some(Boolean)) active++; if (dn["wo-done"]) workouts++;
+    if (isRest(d)) continue;
+    itemsFor(d).forEach(id => { total++; if (dn[id]) done++; if (id === "wo-done") return; seen[id] = (seen[id] || 0) + 1; if (dn[id]) got[id] = (got[id] || 0) + 1; }); }
+  const wk = store.weeks[dkey(mon)] || {}, wkN = Object.values(wk).filter(Boolean).length; xp += wkN * XP.weekly; if (wkN) active++;
+  const ids = Object.keys(seen), name = id => (BLOCKS.flatMap(b => b.items).find(i => i.id === id) || {}).t || "";
+  const best = ids.filter(id => got[id]).sort((a, b) => (got[b] / seen[b] - got[a] / seen[a]) || (got[b] - got[a]))[0];
+  const miss = ids.filter(id => id !== best && seen[id] - (got[id] || 0) > 0).sort((a, b) => (seen[b] - (got[b] || 0)) - (seen[a] - (got[a] || 0)))[0];
+  const end = new Date(mon); end.setDate(end.getDate() + 6);
+  return { pct: total ? Math.round(100 * done / total) : 0, workouts, xp, active, end,
+    best: best && { t: name(best), n: got[best], of: seen[best] }, miss: miss && { t: name(miss), n: seen[miss] - (got[miss] || 0) } };
+}
+const wsTiles = s => [{ k: T("tDone"), v: `${s.pct}%`, i: "", c: "--green" }, { k: T("tWorkouts"), v: s.workouts, i: "dumb", c: "--sky" }, { k: T("tXP"), v: `+${s.xp}`, i: "bolt", c: "--gold" }];
+const wsLines = s => [s.best ? T("wsBest", esc(s.best.t), s.best.n, s.best.of) : "", s.miss ? T("wsMiss", esc(s.miss.t), s.miss.n) : s.best ? T("wsNoMiss") : ""].filter(Boolean);
+const lastMonday = () => { const m = keyToDate(wkey(routineDate())); m.setDate(m.getDate() - 7); return m; };
+// On Monday, the first open shows last week's summary once (after the morning recap).
+function checkWeekRecap() {
+  if (sheetId || !$("welcome").hidden) return;
+  const d = routineDate(), wk = wkey(d); if (d.getDay() !== 1 || store.weekRecap === wk) return;
+  store.weekRecap = wk; save();
+  const s = weekSummary(lastMonday()); if (!s.active) return;
+  queueCele({ title: T("wsTitle", firstName()), sub: [T(s.pct >= 80 ? "wsGoodSub" : "wsOkSub"), ...wsLines(s)].join("<br>"), color: "green", sound: "ding", tiles: wsTiles(s) });
+}
+// History shows any past week's summary. 1 = last week, 2 = the week before, ...
+let wsBack = 1;
+function renderWeekSum() {
+  const el = $("wsum"); if (!el) return;
+  const mon = lastMonday(); mon.setDate(mon.getDate() - 7 * (wsBack - 1)); const s = weekSummary(mon), f = { day: "numeric", month: "short" };
+  const range = `${mon.toLocaleDateString(locale(), f)} – ${s.end.toLocaleDateString(locale(), f)}`;
+  el.innerHTML = `<div class="h-top"><button class="x" type="button" data-wsnav="1" aria-label="${T("wsPrev")}" ${wsBack >= 52 ? "disabled" : ""}>‹</button><div class="ws-h"><b>${wsBack === 1 ? T("wsLast") : T("wsAgo", wsBack)}</b><span>${range}</span></div><button class="x" type="button" data-wsnav="-1" aria-label="${T("wsNext")}" ${wsBack <= 1 ? "disabled" : ""}>›</button></div>
+    ${s.active ? `<div class="tiles">${wsTiles(s).map(t => `<div class="tile" style="--c:var(${t.c})"><small>${t.k}</small><b>${t.i ? I[t.i] : ""}${t.v}</b></div>`).join("")}</div>${wsLines(s).map(l => `<p class="ws-line">${l}</p>`).join("")}` : `<p class="ws-line">${T("wsEmpty")}</p>`}`;
+}
+$("shBody").addEventListener("click", e => { const b = e.target.closest("[data-wsnav]"); if (!b || b.disabled) return; wsBack = Math.max(1, Math.min(52, wsBack + (+b.dataset.wsnav))); renderWeekSum(); });
+
 /* ================= Daily chest ================= */
 // Finishing all daily quests opens today's chest: a celebration only, it adds no XP.
 function checkChest() {
@@ -1448,7 +1488,7 @@ function refresh(keepSheet) {
     if (S.prsToday > lastS.prsToday) { toast(T("prToast", XP.pr), "trophy"); sfx("pr"); buzz([20,40,20]); say(T("prSay"), "+" + XP.pr + " XP", "cheer", 3000); }
   }
   prevCleared = states; lastS = S;
-  checkChest(); checkRecap(); coach();
+  checkChest(); checkRecap(); checkWeekRecap(); coach();
   if (!mascotTimer) contextSay();
 }
 
