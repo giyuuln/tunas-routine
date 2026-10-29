@@ -83,7 +83,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.10.29b";
+const APP_VERSION = "2026.10.29c";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -227,6 +227,10 @@ const BADGES = [
   { id:"pr1", ic:"bolt", n:"", test:S=>S.prs>=1 }, { id:"pr10", ic:"bolt", n:"10", test:S=>S.prs>=10 }, { id:"habit14", ic:"star", n:"14", test:S=>S.topQuestCount>=14 },
   { id:"perfect7", ic:"trophy", n:"7", test:S=>S.perfectDays>=7 }, { id:"ticks500", ic:"check", n:"500", test:S=>S.ticks>=500 }, { id:"lv5", ic:"shield", n:"5", test:S=>S.level>=5 }, { id:"lv10", ic:"shield", n:"10", test:S=>S.level>=10 },
 ];
+// Progress toward each badge: [have, need]. Locked badges show it so there is always a next goal.
+const BADGE_GOAL = { first: S => [S.ticks, 1], quest: S => [S.quests, 1], perfect: S => [S.perfectDays, 1], streak3: S => [S.bestStreak, 3], streak7: S => [S.bestStreak, 7],
+  streak30: S => [S.bestStreak, 30], iron: S => [S.workouts, 1], fullweek: S => [S.fullWeeks, 1], w12: S => [S.workouts, 12], pr1: S => [S.prs, 1], pr10: S => [S.prs, 10],
+  habit14: S => [S.topQuestCount, 14], perfect7: S => [S.perfectDays, 7], ticks500: S => [S.ticks, 500], lv5: S => [S.level, 5], lv10: S => [S.level, 10] };
 const badgeName = id => (T("badge")[id] || [id, ""])[0], badgeHow = id => (T("badge")[id] || ["", ""])[1];
 const titleOf = n => { const t = T("titles"); return t[Math.min(n - 1, t.length - 1)]; };
 
@@ -526,7 +530,7 @@ function renderQuests(S) {
   const Q = [{ ico:"star", t:T("qStar"), n:S.questDone, of:S.questTotal, rew:XP.quest }, { ico:"trophy", t:T("qDay"), n:S.doneToday, of:S.totalToday, rew:XP.perfect }];
   if (W) Q.splice(1, 0, { ico:"bolt", t:T("qWorkout", esc(W.name)), n: done["wo-done"] ? 1 : 0, of: 1, rew: XP.workout });
   else Q.splice(1, 0, { ico:"flame", t:T("qXP"), n: Math.min(S.todayXP, 150), of: 150, rew: 0 });
-  const QS = Q.filter(q => q.of > 0), wonN = QS.filter(q => q.n >= q.of).length;
+  const QS = Q.filter(q => q.of > 0), wonN = QS.filter(q => q.n >= q.of).length; renderQuests.allWon = QS.length > 0 && wonN === QS.length;
   // A pip pops when its quest was finished while home was out of view.
   const prevOn = renderQuests.on, liveQ = homeVisible() && prevOn && !reduced();
   $("questPips").innerHTML = QS.map((q, i) => { const on = q.n >= q.of; return `<i class="${on ? "on" : ""}${liveQ && on && !prevOn[i] ? " pop" : ""}"></i>`; }).join("");
@@ -594,6 +598,25 @@ function renderLevelDetail(d, mins, target, S) {
     ${nx ? `<p>${T("nextIs", esc(nx))}</p>` : ""}
     <button class="btn ld-go" type="button" data-node="${target.id}">${st.n === 0 ? T("start") : T("cont")}</button>`;
 }
+/* ================= First-time tips ================= */
+// One short tip at a time, shown in place under what it explains. "Got it" hides it for good.
+const TIPS_ORDER = [
+  { id: "levels", where: () => !sheetId && $("path"), place: el => el.closest(".levels").querySelector(".lv-detail") , before: true },
+  { id: "sheet", where: () => sheetId && nodesFor(routineDate()).some(n => n.id === sheetId) && $("shHead").querySelector(".starbar"), place: el => el, after: true },
+  { id: "quests", where: () => !sheetId && $("questFold"), place: el => el, after: true }];
+function coach() {
+  document.querySelectorAll(".coach").forEach(c => { if (!c.isConnected || c.dataset.stale) c.remove(); });
+  if (!$("welcome").hidden || !$("cele").hidden) return;
+  store.tips ||= {};
+  const tip = TIPS_ORDER.find(t => !store.tips[t.id]); if (!tip) return;
+  const anchor = tip.where(); if (!anchor) return;
+  if (document.querySelector(`.coach[data-tip="${tip.id}"]`)) return;
+  document.querySelectorAll(".coach").forEach(c => c.remove());
+  const box = document.createElement("div"); box.className = "coach"; box.dataset.tip = tip.id; box.setAttribute("role", "note");
+  box.innerHTML = `<i aria-hidden="true">${I.star}</i><p>${T("tip_" + tip.id)}</p><button class="btn small" type="button">${T("gotIt")}</button>`;
+  box.querySelector("button").onclick = () => { store.tips[tip.id] = 1; save(); box.remove(); coach(); };
+  const at = tip.place(anchor); if (tip.before) at.before(box); else at.after(box);
+}
 function playHome() { if (homeVisible()) { const S = lastS || computeAll(); renderPath(S); renderQuests(S); } }
 $("path").addEventListener("click", e => { const b = e.target.closest("[data-node]"); if (b) { audio(); openSheet(b.dataset.node); } });
 $("levelDetail").addEventListener("click", e => { const b = e.target.closest("[data-node]"); if (b) { audio(); openSheet(b.dataset.node); } });
@@ -646,9 +669,12 @@ $("shBody").addEventListener("click", e => {
 function renderBadges(S) {
   const got = BADGES.filter(b => b.test(S)); $("badgeMeta").textContent = `${got.length}/${BADGES.length}`;
   const grid = $("bgrid"); if (!grid) return got;
-  const list = BADGES.map((b, i) => ({ b, i, ok: b.test(S) })).sort((x, y) => (y.ok - x.ok) || (x.i - y.i));
+  const near = b => { const [h, n] = (BADGE_GOAL[b.id] || (() => [0, 1]))(S); return Math.min(1, h / n); };
+  const list = BADGES.map((b, i) => ({ b, i, ok: b.test(S), p: near(b) })).sort((x, y) => (y.ok - x.ok) || (y.p - x.p) || (x.i - y.i));
   grid.innerHTML = list.map(({ b, i, ok }) => { const c = COLORS[i % COLORS.length];
-    return `<div class="badge${ok ? "" : " locked"}" style="--c:var(${c[0]});--cd:var(${c[1]})"><div class="medal"><span>${I[b.ic] || I.star}${b.n ? `<small>${b.n}</small>` : ""}</span></div><div class="bn">${badgeName(b.id)}</div><div class="bh">${badgeHow(b.id)}</div></div>`; }).join("");
+    const [have, need] = (BADGE_GOAL[b.id] || (() => [0, 1]))(S), pct = Math.min(100, 100 * have / need);
+    const prog = ok ? `<div class="bp done">${I.check}${T("earned")}</div>` : `<div class="bp"><span class="bar"><i style="width:${pct}%"></i></span><b>${Math.min(have, need)} / ${need}</b></div>`;
+    return `<div class="badge${ok ? "" : " locked"}" style="--c:var(${c[0]});--cd:var(${c[1]})"><div class="medal"><span>${I[b.ic] || I.star}${b.n ? `<small>${b.n}</small>` : ""}</span></div><div class="bn">${badgeName(b.id)}</div><div class="bh">${badgeHow(b.id)}</div>${prog}</div>`; }).join("");
   return got;
 }
 // The routine's guide and daily tip live in Settings now; refresh it if it's open.
@@ -699,7 +725,7 @@ function closeSheet(fromBack) {
   $("scrim").classList.remove("show"); $("sheet").classList.remove("show"); document.body.classList.remove("locked");
   setTimeout(() => { if (!sheetId) { $("scrim").hidden = true; $("sheet").hidden = true; } }, 320);
   if (lastFocus && lastFocus.focus) lastFocus.focus({ preventScroll: true });
-  setTimeout(playHome, 200);
+  setTimeout(() => { playHome(); coach(); }, 200);
 }
 $("scrim").onclick = () => { if (sheetId === "editor") requestCloseEditor(); else closeSheet(); };
 document.addEventListener("keydown", e => { if (e.key === "Escape") { if (!$("cele").hidden) return nextCele(); if (sheetId === "editor") requestCloseEditor(); else closeSheet(); } });
@@ -747,7 +773,7 @@ function renderSheet(keep) {
   const d = routineDate(), today = dkey(d), node = nodesFor(d).find(n => n.id === sheetId); if (!node) { closeSheet(); return; }
   const st = nodeState(node, d), body = $("shBody"), top = keep ? body.scrollTop : 0;
   $("shHead").innerHTML = sheetHead(node.icon, esc(node.title), `${esc(node.range)}${node.range ? " · " : ""}${T("of", st.n, st.total)}`, st, st.cleared ? "--gold" : "--green");
-  starMeter(node.id, st);
+  starMeter(node.id, st); setTimeout(coach, 0);
   $("shClose").onclick = closeSheet;
   const done = store.days[today] || {};
   let h = "";
@@ -986,8 +1012,21 @@ function renderSettings(keep) {
     <div class="set-group"><h3>${T("errLog")}</h3><p>${T("errLogHelp")}</p>${errLogHTML()}</div>
     <div class="set-group"><h3>${T("about")}</h3><p>${T("aboutText")}</p><p class="ver">v${APP_VERSION}</p></div>`;
   $("setName").addEventListener("change", e => { const v = e.target.value.trim().slice(0, 30); const r = { ...RAW, name: v || (LANG === "ms" ? "Kawan" : "Friend") }; if (saveRoutine(r)) { toast(T("nameSaved"), "check"); contextSay(); } });
+  foldSettings(body);
   if (keep) body.scrollTop = top;
   if (settingsPane === "paste") $("pasteBox").focus();
+}
+// Settings groups fold into one tappable row each; the open ones stay open across re-renders.
+const setOpen = new Set();
+function foldSettings(body) {
+  body.querySelectorAll(":scope > .set-group").forEach(g => {
+    const h = g.querySelector(":scope > h3"); if (!h) return;
+    const key = h.textContent, d = document.createElement("details"); d.className = g.className + " fold";
+    if (setOpen.has(key) || (key === T("routine") && settingsPane === "paste")) d.open = true;
+    const sm = document.createElement("summary"); sm.appendChild(h); sm.insertAdjacentHTML("beforeend", '<span class="chev" aria-hidden="true"></span>');
+    d.appendChild(sm); while (g.firstChild) d.appendChild(g.firstChild); g.replaceWith(d);
+    d.addEventListener("toggle", () => { if (d.open) setOpen.add(key); else setOpen.delete(key); });
+  });
 }
 function errLogHTML() {
   let list = []; try { list = JSON.parse(storeGet(ERR_KEY) || "[]"); } catch (e) {}
@@ -1342,12 +1381,40 @@ function nextCele() {
   const c = celeQ.shift(); if (!c) { $("cele").hidden = true; contextSay(); setTimeout(playHome, 150); return; }
   if (sheetId && sheetId !== "settings" && sheetId !== "editor" && !sheetId.startsWith("day:")) closeSheet();
   const el = $("cele"); el.hidden = false;
-  el.innerHTML = `<div class="mascot cheer" id="celeMascot">${MASCOT}</div><h2 class="${c.color || ""}">${c.title}</h2><p>${c.sub}</p>
-    <div class="tiles">${c.tiles.map(t => `<div class="tile" style="--c:var(${t.c})"><small>${t.k}</small><b>${t.i ? I[t.i] : ""}${t.v}</b></div>`).join("")}</div>
-    <button class="btn" type="button" id="celeGo">${T("cont")}</button>`;
+  el.innerHTML = `${c.art || `<div class="mascot cheer" id="celeMascot">${MASCOT}</div>`}<h2 class="${c.color || ""}">${c.title}</h2><p>${c.sub}</p>
+    ${c.tiles.length ? `<div class="tiles">${c.tiles.map(t => `<div class="tile" style="--c:var(${t.c})"><small>${t.k}</small><b>${t.i ? I[t.i] : ""}${t.v}</b></div>`).join("")}</div>` : ""}
+    <button class="btn" type="button" id="celeGo">${c.btn || T("cont")}</button>`;
   $("celeGo").onclick = nextCele; $("celeGo").focus({ preventScroll: true });
-  jump($("celeMascot")); sfx(c.sound || "clear"); buzz([30,60,30]); confetti();
+  if ($("celeMascot")) jump($("celeMascot")); sfx(c.sound || "clear"); buzz([30,60,30]); confetti();
 }
+
+/* ================= Morning recap ================= */
+// First open of a new day shows how yesterday went. Shown once per day; skipped on someone's very first day.
+function checkRecap() {
+  if (!homeVisible() || celeQ.length) return;
+  const d = routineDate(), today = dkey(d); if (store.recap === today) return;
+  const y = new Date(d); y.setDate(y.getDate() - 1); const yk = dkey(y);
+  const hadBefore = Object.keys(store.days).some(k => k < today && Object.values(store.days[k] || {}).some(Boolean));
+  store.recap = today; save(); if (!hadBefore) return;
+  const ids = itemsFor(y), done = store.days[yk] || {}, n = ids.filter(id => done[id]).length, pct = ids.length ? Math.round(100 * n / ids.length) : 0;
+  const stars = nodesFor(y).reduce((s2, nd) => s2 + starsFor(nodeState(nd, y)), 0), S = lastS || computeAll();
+  const xp = dayXP(yk, computePRs().byDay), rest = isRest(y);
+  queueCele({ title: T(rest ? "recapRestTitle" : n ? "recapTitle" : "recapQuietTitle", firstName()), sub: T(rest ? "recapRestSub" : pct >= 80 ? "recapGoodSub" : n ? "recapOkSub" : "recapQuietSub"), color: "sky", sound: "ding",
+    tiles: [{ k: T("tDone"), v: `${pct}%`, i: "", c: "--green" }, { k: T("tStars"), v: stars, i: "star", c: "--gold" }, { k: T("tXP"), v: `+${xp}`, i: "bolt", c: "--gold" }, { k: T("tStreak"), v: S.streak, i: "flame", c: "--orange" }] });
+}
+
+/* ================= Daily chest ================= */
+// Finishing all daily quests opens today's chest: a celebration only, it adds no XP.
+function checkChest() {
+  const today = dkey(routineDate()); store.chest ||= {};
+  if (!renderQuests.allWon || store.chest[today]) return;
+  store.chest[today] = 1; Object.keys(store.chest).forEach(k => { if (k < dkey(new Date(Date.now() - 40 * 864e5))) delete store.chest[k]; }); save();
+  queueCele({ title: T("chestTitle"), sub: pick(T("chestLines")), color: "green", sound: "level", art: CHEST, btn: T("chestBtn"), tiles: [] });
+}
+const CHEST = `<div class="chest-art" aria-hidden="true"><svg viewBox="0 0 120 100"><g class="glow"><circle cx="60" cy="40" r="34"/></g>
+  <rect class="ch-body" x="18" y="46" width="84" height="44" rx="8"/><rect class="ch-band" x="18" y="58" width="84" height="8"/>
+  <g class="ch-lid"><path d="M18 46v-8a22 22 0 0 1 22-22h40a22 22 0 0 1 22 22v8z"/><rect class="ch-band" x="18" y="38" width="84" height="8"/></g>
+  <rect class="ch-lock" x="53" y="52" width="14" height="18" rx="3"/></svg></div>`;
 
 /* ================= Refresh + comparisons ================= */
 let prevCleared = null;
@@ -1381,6 +1448,7 @@ function refresh(keepSheet) {
     if (S.prsToday > lastS.prsToday) { toast(T("prToast", XP.pr), "trophy"); sfx("pr"); buzz([20,40,20]); say(T("prSay"), "+" + XP.pr + " XP", "cheer", 3000); }
   }
   prevCleared = states; lastS = S;
+  checkChest(); checkRecap(); coach();
   if (!mascotTimer) contextSay();
 }
 

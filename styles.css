@@ -623,3 +623,35 @@ a.btn{text-decoration:none;display:inline-block}
 /* locked / disabled */
 button:disabled,.btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;transform:none}
 .hc.future,.h-top .x:disabled{opacity:.45}
+/* reward: daily chest (all quests won) */
+.q-rew.chest{color:var(--gold-ink);background:var(--gold-soft)}
+.chest-art{width:150px;height:130px;display:grid;place-items:center}
+.chest-art svg{width:150px;height:125px;overflow:visible}
+.chest-art .glow circle{fill:var(--gold-soft);transform-origin:60px 40px;animation:chGlow 1.6s ease-out .35s both}
+.chest-art .ch-body,.chest-art .ch-lid path{fill:var(--gold);stroke:var(--gold-ink);stroke-width:3}
+.chest-art .ch-band{fill:var(--gold-ink)}
+.chest-art .ch-lock{fill:var(--card);stroke:var(--gold-ink);stroke-width:3}
+.chest-art .ch-lid{transform-origin:22px 46px;animation:chLid .7s cubic-bezier(.3,1.6,.5,1) .3s both}
+@keyframes chLid{from{transform:rotate(0)}to{transform:rotate(-24deg) translateY(-4px)}}
+@keyframes chGlow{from{transform:scale(.2);opacity:0}to{transform:scale(1);opacity:1}}
+@media (prefers-reduced-motion: reduce){.chest-art .ch-lid{transform:rotate(-24deg) translateY(-4px)}.chest-art .glow circle{opacity:1}}
+/* reward progress on locked badges */
+.badge .bp{display:flex;align-items:center;gap:6px;width:100%;max-width:120px;font-size:12px;font-weight:900;color:var(--muted)}
+.badge .bp .bar{flex:1;height:7px;border-radius:99px;background:var(--line);overflow:hidden}
+.badge .bp .bar i{display:block;height:100%;background:var(--gold);border-radius:99px}
+.badge .bp.done{justify-content:center;color:var(--gold-ink)}
+/* info: first-time tips (one at a time, dismissed for good) */
+.coach{position:relative;display:flex;align-items:center;gap:10px;margin:10px 0;padding:10px 10px 10px 12px;border:2px solid var(--info);border-radius:14px;background:var(--info-soft);color:var(--ink)}
+.coach::before{content:"";position:absolute;top:-8px;left:28px;width:12px;height:12px;background:var(--info-soft);border-left:2px solid var(--info);border-top:2px solid var(--info);transform:rotate(45deg)}
+.coach i{flex:none;width:22px;height:22px;display:grid;place-items:center} .coach i svg{width:20px;height:20px;fill:var(--info-ink)}
+.coach p{flex:1;margin:0;font-size:13.5px;font-weight:800;line-height:1.35}
+.coach .btn{flex:none;min-height:44px;background:var(--info-ink);color:#fff;box-shadow:none}
+/* settings: each group folds to one 44 px row */
+details.set-group.fold{gap:0;padding:0}
+details.set-group.fold > summary{display:flex;align-items:center;justify-content:space-between;min-height:52px;padding:4px 14px;cursor:pointer;list-style:none}
+details.set-group.fold > summary::-webkit-details-marker{display:none}
+details.set-group.fold > summary .chev{width:10px;height:10px;border-right:3px solid var(--muted);border-bottom:3px solid var(--muted);transform:rotate(45deg);transition:transform .2s}
+details.set-group.fold[open] > summary .chev{transform:rotate(225deg)}
+details.set-group.fold[open]{gap:10px;padding:0 14px 14px}
+details.set-group.fold[open] > summary{padding:4px 0}
+.tiles:has(> .tile:nth-child(4)){display:grid;grid-template-columns:repeat(2,minmax(130px,1fr))}
