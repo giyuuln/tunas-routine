@@ -18,6 +18,7 @@ const I = {
   shield:'<svg viewBox="0 0 24 24"><path d="M12 1.5 3.5 5v6.2c0 5.3 3.6 9.9 8.5 11.3 4.9-1.4 8.5-6 8.5-11.3V5z"/></svg>',
   trophy:'<svg viewBox="0 0 24 24"><path d="M7 3h10v2h4v3a4 4 0 0 1-4 4h-.4A5 5 0 0 1 13 14.9V18h3v3H8v-3h3v-3.1A5 5 0 0 1 7.4 12H7a4 4 0 0 1-4-4V5h4zm10 4v3a2 2 0 0 0 2-2V7zM5 7v1a2 2 0 0 0 2 2V7z"/></svg>',
   x:'<svg viewBox="0 0 24 24"><path d="M6.4 5 12 10.6 17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4z"/></svg>',
+  warn:'<svg class="ico" viewBox="0 0 24 24"><path d="M12 2 1 21h22L12 2zm1 15h-2v-2h2v2zm0-4h-2V9h2v4z"/></svg>',
   cog:'<svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M10.3 2h3.4l.5 2.6a8 8 0 0 1 1.9 1.1l2.5-.9 1.7 3-2 1.7a8 8 0 0 1 0 2.2l2 1.7-1.7 3-2.5-.9a8 8 0 0 1-1.9 1.1l-.5 2.6h-3.4l-.5-2.6a8 8 0 0 1-1.9-1.1l-2.5.9-1.7-3 2-1.7a8 8 0 0 1 0-2.2l-2-1.7 1.7-3 2.5.9a8 8 0 0 1 1.9-1.1zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg>',
   share:'<svg viewBox="0 0 24 24"><path d="M18 16a3 3 0 0 0-2.4 1.2l-6.7-3.4a3 3 0 0 0 0-1.6l6.7-3.4A3 3 0 1 0 15 7l-6.7 3.4a3 3 0 1 0 0 3.2L15 17a3 3 0 1 0 3-1z"/></svg>',
   pencil:'<svg viewBox="0 0 24 24"><path d="M3 17.3V21h3.7L17.8 9.9l-3.7-3.7zM20.7 7a1 1 0 0 0 0-1.4l-2.3-2.3a1 1 0 0 0-1.4 0l-1.8 1.8 3.7 3.7z"/></svg>',
@@ -362,7 +363,7 @@ function flyXP(from) {
 }
 function floatXP(x, y, text) { if (reduced()) return; const f = document.createElement("div"); f.className = "fx"; f.textContent = (THEME === "sakura" ? "♥ " : THEME === "ungu" ? "⚡ " : THEME === "langit" ? "~ " : "") + text;
   f.style.left = Math.max(8, Math.min(innerWidth - 90, x)) + "px"; f.style.top = (y - 14) + "px"; document.body.appendChild(f); setTimeout(() => f.remove(), 950); }
-function toast(html, icon, ms, action) { const t = document.createElement("div"); t.className = "toast"; t.innerHTML = `<i>${I[icon || "star"]}</i><span>${html}</span>`;
+function toast(html, icon, ms, action) { const t = document.createElement("div"); t.className = "toast" + (icon === "x" ? " err" : ""); t.innerHTML = `<i>${I[icon || "star"]}</i><span>${html}</span>`;
   if (action) { const b = document.createElement("button"); b.type = "button"; b.className = "toast-act"; b.textContent = action.label;
     b.onclick = () => { t.remove(); action.fn(); }; t.appendChild(b); t.classList.add("has-act"); }
   $("toasts").appendChild(t); setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 320); }, ms || 2800); return t; }
@@ -922,7 +923,7 @@ let nudgeHTML = "";
 function renderNudge() {
   const el = $("nudge");
   if (!needsBackup()) { el.hidden = true; el.innerHTML = nudgeHTML = ""; return; }
-  const html = `<div class="nd-top"><div class="nd-ico">${I.shield}</div><div><b id="nudgeT">${T("nudgeTitle")}</b><span>${T("nudgeSub", backupAge())}</span></div></div>
+  const html = `<div class="nd-top"><div class="nd-ico">${I.warn}</div><div><b id="nudgeT">${T("nudgeTitle")}</b><span>${T("nudgeSub", backupAge())}</span></div></div>
     <div class="row"><button class="btn small" type="button" data-nudge="save">${T("downloadBackup")}</button><button class="btn ghost small" type="button" data-nudge="later">${T("nudgeLater")}</button></div>`;
   if (nudgeHTML !== html) el.innerHTML = nudgeHTML = html; // don't redraw (and lose focus) on the minute refresh
   el.hidden = false;
@@ -959,12 +960,12 @@ function renderSettings(keep) {
     <div class="set-group"><h3>${T("routine")}</h3>
       <p>${T("using")} <span class="pill-ok">${esc(CFG.label || T("custom"))}</span> · ${T("sections", BLOCKS.length, Object.keys(WORKOUTS).length)}</p>
       <div class="row"><button class="btn small" type="button" data-act="edit">${T("editRoutine")}</button>
-        <button class="btn ghost small warn" type="button" data-act="template">${T("newTemplate")}</button></div>
+        <button class="btn ghost small danger-ghost" type="button" data-act="template">${T("newTemplate")}</button></div>
       <p>${T("routineLocal")}</p>
-      <div class="row"><button class="btn ghost small" type="button" data-act="importRoutine">${T("importFile")}</button>
-        <button class="btn ghost small" type="button" data-act="pasteToggle">${T("pasteInstead")}</button>
+      <div class="row"><button class="btn ghost small danger-ghost" type="button" data-act="importRoutine">${T("importFile")}</button>
+        <button class="btn ghost small danger-ghost" type="button" data-act="pasteToggle">${T("pasteInstead")}</button>
         <button class="btn ghost small" type="button" data-act="exportRoutine">${T("downloadRoutine")}</button></div>
-      ${settingsPane === "paste" ? `<textarea class="field" id="pasteBox" placeholder="${T("pastePh")}"></textarea><div class="row"><button class="btn small" type="button" data-act="pasteApply">${T("useThis")}</button></div>` : ""}
+      ${settingsPane === "paste" ? `<textarea class="field" id="pasteBox" placeholder="${T("pastePh")}"></textarea><div class="row"><button class="btn small danger" type="button" data-act="pasteApply">${T("useThis")}</button></div>` : ""}
     </div>
     ${guideHTML()}
     <div class="set-group"><h3>${T("reminders")}</h3><p>${T("remShort")}</p><details class="more-help"><summary>${T("remHow")}</summary><p>${T("remHelp")}</p></details>
@@ -975,7 +976,7 @@ function renderSettings(keep) {
     <div class="set-group"><h3>${T("share")}</h3><p>${T("shareHelp")}</p><div class="row"><button class="btn small" type="button" data-act="share">${T("shareBtn")}</button></div></div>
     <div class="set-group"><h3>${T("backup")}</h3><p>${T("backupHelp")}</p><p class="bk-last">${T("lastBackup", backupAge())}</p>
       <div class="row"><button class="btn small" type="button" data-act="backup">${T("downloadBackup")}</button>
-        <button class="btn ghost small warn" type="button" data-act="restore">${T("restoreBackup")}</button></div></div>
+        <button class="btn ghost small danger-ghost" type="button" data-act="restore">${T("restoreBackup")}</button></div></div>
     <div class="set-group"><h3>${T("sound")}</h3><div class="row"><button class="btn ghost small" type="button" data-act="sound">${soundOn ? T("soundOff") : T("soundOn")}</button></div></div>
     <div class="set-group"><h3>${T("errLog")}</h3><p>${T("errLogHelp")}</p>${errLogHTML()}</div>
     <div class="set-group"><h3>${T("about")}</h3><p>${T("aboutText")}</p><p class="ver">v${APP_VERSION}</p></div>`;
@@ -987,7 +988,7 @@ function errLogHTML() {
   let list = []; try { list = JSON.parse(storeGet(ERR_KEY) || "[]"); } catch (e) {}
   if (!list.length) return `<p class="pill-ok">${T("errLogEmpty")}</p>`;
   return `<ul class="errlog">${list.slice(0, 5).map(x => `<li><b>${esc(new Date(x.t).toLocaleString(locale()))}</b> · ${esc(x.where)}<br>${esc(x.msg)}</li>`).join("")}</ul>
-    <div class="row"><button class="btn ghost small" type="button" data-act="copyLog">${T("copyLog")}</button><button class="btn ghost small" type="button" data-act="clearLog">${T("clearLog")}</button></div>`;
+    <div class="row"><button class="btn ghost small" type="button" data-act="copyLog">${T("copyLog")}</button><button class="btn ghost small danger-ghost" type="button" data-act="clearLog">${T("clearLog")}</button></div>`;
 }
 function loadRoutineText(text) {
   if (String(text || "").length > LIMITS.routineBytes) { toast(T("errFileTooBig", LIMITS.routineBytes / 1e6), "x"); return false; }
@@ -1100,7 +1101,7 @@ function renderEditor(keep) {
   $("shClose").onclick = requestCloseEditor;
   const tabs = ["sections", "workouts", "weekly"].map(t => `<button type="button" data-ed="tab" data-tab="${t}" aria-pressed="${ED.tab === t}">${T(t === "sections" ? "edSections" : t === "workouts" ? "edWorkouts" : "edWeekly")}</button>`).join("");
   let h = ED.offer ? `<div class="ed-restore" role="status"><div><b>${T("edRestoreQ", esc(new Date(ED.offer.at).toLocaleString(locale(), { weekday: "short", hour: "numeric", minute: "2-digit" })))}</b></div>
-    <div class="row"><button class="btn small" type="button" data-ed="restoreDraft">${T("edRestore")}</button><button class="btn ghost small" type="button" data-ed="dropDraft">${T("edDiscard")}</button></div></div>` : "";
+    <div class="row"><button class="btn small" type="button" data-ed="restoreDraft">${T("edRestore")}</button><button class="btn ghost small danger-ghost" type="button" data-ed="dropDraft">${T("edDiscard")}</button></div></div>` : "";
   h += `<div class="seg" role="group">${tabs}</div>`;
   if (ED.tab === "sections") {
     const woDays = Object.keys(D.workouts || {}).length;
@@ -1148,7 +1149,7 @@ function renderEditor(keep) {
             ${edBtn("exUp", `data-k="${k}" data-ei="${ei}"`, I.up, T("edUp"))}${edBtn("exDown", `data-k="${k}" data-ei="${ei}"`, I.down, T("edDown"))}</div></div>`;
       });
       h += `<button class="btn ghost small ed-add" type="button" data-ed="addEx" data-k="${k}">${I.plus}${T("edAddEx")}</button>
-        <div class="ed-row">${ED.confirm === `wo.${k}` ? `<button class="btn small danger-btn" type="button" data-ed="del" data-key="wo.${k}" data-k="${k}">${T("edSure")}</button>` : `<button class="btn ghost small" type="button" data-ed="del" data-key="wo.${k}" data-k="${k}">${T("edRemoveWo")}</button>`}</div></div>`;
+        <div class="ed-row">${ED.confirm === `wo.${k}` ? `<button class="btn small danger-btn" type="button" data-ed="del" data-key="wo.${k}" data-k="${k}">${T("edSure")}</button>` : `<button class="btn ghost small danger-ghost" type="button" data-ed="del" data-key="wo.${k}" data-k="${k}">${T("edRemoveWo")}</button>`}</div></div>`;
     }
   } else {
     h += `<p class="ed-help">${T("edWeeklyHelp")}</p>`;
@@ -1386,8 +1387,8 @@ $("stStreak").onclick = () => { const S = lastS || computeAll(); toast(T("statSt
 $("stXP").onclick = () => { const S = lastS || computeAll(); toast(T("statXP", S.todayXP, S.xp), "bolt", 3500); };
 $("stLv").onclick = () => { const S = lastS || computeAll(); toast(T("statLv", S.L.n, esc(titleOf(S.L.n)), S.L.span - S.L.cur), "shield", 3500); };
 const area = $("resetArea");
-function resetIdle() { area.innerHTML = `<button class="btn ghost small" type="button" id="resetBtn">${T("clearToday")}</button>`;
-  $("resetBtn").onclick = () => { area.innerHTML = `<div class="confirm"><span>${T("clearConfirm")}</span><button class="btn small" id="yesBtn" type="button">${T("clear")}</button><button class="btn ghost small" id="noBtn" type="button">${T("keep")}</button></div>`;
+function resetIdle() { area.innerHTML = `<button class="btn ghost small danger-ghost" type="button" id="resetBtn">${T("clearToday")}</button>`;
+  $("resetBtn").onclick = () => { area.innerHTML = `<div class="confirm"><span>${T("clearConfirm")}</span><button class="btn small danger" id="yesBtn" type="button">${T("clear")}</button><button class="btn ghost small" id="noBtn" type="button">${T("keep")}</button></div>`;
     $("yesBtn").onclick = () => { delete store.days[dkey(routineDate())]; save(); lastS = null; prevCleared = null; refresh(); resetIdle(); };
     $("noBtn").onclick = resetIdle; }; }
 
