@@ -110,6 +110,8 @@ button:focus-visible,summary:focus-visible,input:focus-visible{outline:3px solid
 .nd-top b{display:block;font-size:16px;font-weight:900}
 .nd-top span{display:block;font-size:14px;color:var(--ink);margin-top:2px}
 .nudge .row{display:flex;flex-wrap:wrap;gap:10px}
+.nd-steps{margin:0;padding-left:22px;font-size:14px;display:flex;flex-direction:column;gap:4px}
+.nd-note{margin:0;font-size:13.5px}
 .bk-last{font-size:13px;color:var(--muted)}
 /* Locked backup sheet */
 .lk-form{display:flex;flex-direction:column;gap:10px}
@@ -374,6 +376,9 @@ a.btn{text-decoration:none;display:inline-block}
 .tpl[aria-pressed="true"]{border-color:var(--green);background:var(--green-soft);box-shadow:0 4px 0 var(--green)}
 .tpl[aria-pressed="true"] .tpl-ico{background:var(--green);color:var(--on-color)}
 .w-links{display:flex;justify-content:space-between;gap:12px;width:100%;flex-wrap:wrap}
+.w-links.one{justify-content:center}
+/* A sheet opened over the welcome screen (restoring a backup there) sits above it; toasts stay on top. */
+body.sheet-top .scrim{z-index:74} body.sheet-top .sheet{z-index:75}
 .linkish{background:none;border:0;padding:12px 0;min-height:44px;min-width:44px;color:var(--green-ink);font-weight:900;font-size:14px;text-decoration:underline;text-underline-offset:3px}
 @media (max-width:360px){.tpl-grid{grid-template-columns:1fr}}
 /* Editor fit tweaks for narrow phones */

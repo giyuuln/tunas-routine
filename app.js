@@ -83,7 +83,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.10.30a";
+const APP_VERSION = "2026.10.30b";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -710,6 +710,8 @@ function openSheet(id) {
   // A day opened from History goes back to History when closed; a locked-backup sheet goes back to Settings.
   parentSheet = (sheetId === "history" && id.startsWith("day:")) || (sheetId === "settings" && id.startsWith("lock:")) ? sheetId : null;
   if (!parentSheet) lastFocus = document.activeElement;
+  // Restoring a backup from the welcome screen opens a sheet on top of it.
+  document.body.classList.toggle("sheet-top", !$("welcome").hidden);
   sheetId = id;
   $("scrim").hidden = false; $("sheet").hidden = false; document.body.classList.add("locked");
   renderSheet(false);
@@ -723,8 +725,8 @@ function closeSheet(fromBack) {
     if (fromBack) { try { history.pushState({ tunasSheet: 1 }, ""); } catch (e) {} }
     sheetId = p; renderSheet(false); const x = $("shClose"); x && x.focus({ preventScroll: true }); return; } sheetId = null; ED = null;
   if (!fromBack && history.state && history.state.tunasSheet) { try { history.back(); } catch (e) {} }
-  $("scrim").classList.remove("show"); $("sheet").classList.remove("show"); document.body.classList.remove("locked");
-  setTimeout(() => { if (!sheetId) { $("scrim").hidden = true; $("sheet").hidden = true; } }, 320);
+  $("scrim").classList.remove("show"); $("sheet").classList.remove("show"); if ($("welcome").hidden) document.body.classList.remove("locked");
+  setTimeout(() => { if (!sheetId) { $("scrim").hidden = true; $("sheet").hidden = true; document.body.classList.remove("sheet-top"); } }, 320);
   if (lastFocus && lastFocus.focus) lastFocus.focus({ preventScroll: true });
   setTimeout(() => { playHome(); coach(); }, 200);
 }
@@ -936,7 +938,7 @@ function buildICS() {
 
 /* ================= Share ================= */
 async function shareApp() {
-  const url = appURL();
+  const url = OLD_HOME ? NEW_HOME : appURL(); // friends start on the new address; reminders keep this one until people move
   try { if (navigator.share) { await navigator.share({ title: "Tunas Routine", text: T("shareText"), url }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
   try { await navigator.clipboard.writeText(url); toast(T("copied"), "check"); }
   catch (e) { toast(`${T("copyFail")} <b>${esc(url)}</b>`, "share", 6000); }
@@ -952,12 +954,27 @@ function needsBackup() {
   if (store.backupSnooze && daysAgo(store.backupSnooze) < NUDGE_SNOOZE) return false;
   const since = store.lastBackup || firstUseTime(); return since != null && daysAgo(since) >= BACKUP_EVERY;
 }
+/* Moving to tunas.amkaz.dev: each web address keeps its own storage, so data can't follow by itself.
+   The old GitHub Pages address shows a move banner (in place of the backup nudge) that walks people through
+   backup → open the new address → restore. The new address never shows it. */
+const NEW_HOST = "tunas.amkaz.dev", NEW_HOME = `https://${NEW_HOST}/`;
+const OLD_HOME = location.hostname === "giyuuln.github.io";
+const MOVE_FROM = Date.UTC(2026, 9, 30), MOVE_SNOOZE = 3; // backups older than the banner don't count as "ready to move"
+function moveHTML() {
+  const ready = store.lastBackup >= MOVE_FROM;
+  if (ready && store.moveSnooze && daysAgo(store.moveSnooze) < MOVE_SNOOZE) return "";
+  const open = cls => `<a class="btn ${cls}small" href="${NEW_HOME}" target="_blank" rel="noopener">${T("moveOpen", NEW_HOST)}</a>`;
+  return `<div class="nd-top"><div class="nd-ico">${I.warn}</div><div><b id="nudgeT">${ready ? T("moveReadyTitle") : T("moveTitle", NEW_HOST)}</b><span>${ready ? T("moveReadySub", NEW_HOST) : T("moveSub")}</span></div></div>` +
+    (ready ? `<p class="nd-note">${T("lastBackup", backupAge())}</p>` : `<ol class="nd-steps">${T("moveSteps", NEW_HOST).map(s => `<li>${s}</li>`).join("")}</ol>`) +
+    `<div class="row">${ready ? open("") + `<button class="btn ghost small" type="button" data-nudge="save">${T("moveFresh")}</button><button class="btn ghost small" type="button" data-nudge="moveLater">${T("nudgeLater")}</button>`
+      : `<button class="btn small" type="button" data-nudge="save">${T("downloadBackup")}</button>` + open("ghost ")}</div>`;
+}
 let nudgeHTML = "";
 function renderNudge() {
   const el = $("nudge");
-  if (!needsBackup()) { el.hidden = true; el.innerHTML = nudgeHTML = ""; return; }
-  const html = `<div class="nd-top"><div class="nd-ico">${I.warn}</div><div><b id="nudgeT">${T("nudgeTitle")}</b><span>${T("nudgeSub", backupAge())}</span></div></div>
+  const html = OLD_HOME ? moveHTML() : !needsBackup() ? "" : `<div class="nd-top"><div class="nd-ico">${I.warn}</div><div><b id="nudgeT">${T("nudgeTitle")}</b><span>${T("nudgeSub", backupAge())}</span></div></div>
     <div class="row"><button class="btn small" type="button" data-nudge="save">${T("downloadBackup")}</button><button class="btn ghost small" type="button" data-nudge="later">${T("nudgeLater")}</button></div>`;
+  if (!html) { el.hidden = true; el.innerHTML = nudgeHTML = ""; return; }
   if (nudgeHTML !== html) el.innerHTML = nudgeHTML = html; // don't redraw (and lose focus) on the minute refresh
   el.hidden = false;
 }
@@ -1057,7 +1074,8 @@ async function unlockSubmit() {
 $("nudge").addEventListener("click", e => {
   const b = e.target.closest("[data-nudge]"); if (!b) return;
   if (b.dataset.nudge === "save") return void saveBackup();
-  store.backupSnooze = Date.now(); save(); sfx("undo"); renderNudge();
+  if (b.dataset.nudge === "moveLater") store.moveSnooze = Date.now(); else store.backupSnooze = Date.now();
+  save(); sfx("undo"); renderNudge();
 });
 
 /* ================= Settings ================= */
@@ -1189,6 +1207,7 @@ function restoreBackupText(text) {
   const prevStore = store; store = b.data; normStore(); store.welcomed = true;
   if (!save()) { store = prevStore; return; }
   if (b.routine && !validateRoutine(b.routine)) { if (saveRoutine(clampText(b.routine))) renderGuide(); }
+  if (!$("welcome").hidden) closeWelcome();
   lastS = null; prevCleared = null; refresh(true); toast(T("restored"), "check");
 }
 // Locked files are bigger (base64), so the file limit here is higher; plain ones are held to 4 MB in restoreBackupText.
@@ -1418,7 +1437,9 @@ function renderWelcome() {
       ${segLang("wLang")}
       <div class="w-label">${T("wTheme")}</div>${themePicker()}
       <label class="w-label" for="wName">${T("wNameQ")}</label><input class="field w-name" id="wName" value="${esc(WEL.name)}" placeholder="${T("namePh")}" maxlength="30" autocomplete="given-name">
-      <button class="btn" type="button" id="wNext">${T("next")}</button></div>`;
+      <button class="btn" type="button" id="wNext">${T("next")}</button>
+      <div class="w-links one"><button class="linkish" type="button" id="wBackup">${T("wHaveBackup")}</button></div></div>`;
+    $("wBackup").onclick = () => $("fileBackup").click();
     $("wName").addEventListener("input", e => { WEL.name = e.target.value; });
     $("wName").addEventListener("keydown", e => { if (e.key === "Enter") $("wNext").click(); });
     $("wNext").onclick = () => { WEL.step = 2; renderWelcome(); };
