@@ -83,7 +83,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.10.30e";
+const APP_VERSION = "2026.10.30f";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -171,6 +171,7 @@ function validateRoutine(r) {
   if (r.packs != null && (!Array.isArray(r.packs) || r.packs.length > 60 || !r.packs.every(x => typeof x === "string"))) return T("badFile");
   if (r.day != null && (typeof r.day !== "object" || Array.isArray(r.day))) return T("badFile");
   if (r.fitness != null && (typeof r.fitness !== "object" || Array.isArray(r.fitness))) return T("badFile");
+  if (r.skin != null && (typeof r.skin !== "object" || Array.isArray(r.skin))) return T("badFile");
   return guideError(r);
 }
 // Guide and tips are shown with md(), which escapes first; here we only check shape and size.
@@ -188,6 +189,8 @@ function guideError(r) {
   }
   return null;
 }
+// "Only on these weekdays" (0 = Sunday). Anything invalid or empty means every day.
+function weekdays(a) { const d = Array.isArray(a) ? [...new Set(a.map(Number).filter(n => Number.isInteger(n) && n >= 0 && n <= 6))] : []; return d.length && d.length < 7 ? d : null; }
 // Cut very long text so one huge field can't break the layout or fill storage.
 function clampText(o) {
   if (typeof o === "string") return o.length > LIMITS.text ? o.slice(0, LIMITS.text) : o;
@@ -202,7 +205,7 @@ function applyRoutine(r) {
     return { id: slug(b.id || b.title), title: b.title || "Section", icon: I[b.icon] ? b.icon : "star", range: b.from && b.to ? fmtRange(from, to) : (b.range || ""), from, to, remind: b.remind ? tm(b.remind, null) : null,
       say: Array.isArray(b.say) ? b.say : null,
       items: (b.items || []).map(i => ({ id: slug(i.id || i.title), t: i.title || "", n: i.note || "", time: i.time || "",
-        key: !!i.quest, alt: !!i.everyOtherDay, hide: Array.isArray(i.hideOnDays) && i.hideOnDays.length ? i.hideOnDays.map(Number) : null, dyn: !!i.useFocus })) };
+        key: !!i.quest, alt: !!i.everyOtherDay, hide: Array.isArray(i.hideOnDays) && i.hideOnDays.length ? i.hideOnDays.map(Number) : null, dyn: !!i.useFocus, on: weekdays(i.onDays) })) };
   });
   FOCUS = {};
   for (let k = 0; k < 7; k++) { const f = (r.focus || {})[k] || (r.focus || {})[String(k)] || {}; FOCUS[k] = { t: f.title || (LANG === "ms" ? "1 jam: fokus" : "1 hour: focus"), n: f.note || "" }; }
@@ -268,7 +271,7 @@ function routineDate() { const d = new Date(); if (d.getHours() < 4) d.setDate(d
 function nowMins() { const n = new Date(); return n.getHours()*60 + n.getMinutes() + (n.getHours() < 4 ? 1440 : 0); }
 const weekdayName = (k, style) => { const d = new Date(2024, 0, 7 + k); return d.toLocaleDateString(locale(), { weekday: style || "long" }); };
 const isAltDay = d => dayNum(d) % 2 === 0;
-const shown = (i, d) => !(i.alt && !isAltDay(d)) && !(i.hide && i.hide.includes(d.getDay()));
+const shown = (i, d) => !(i.alt && !isAltDay(d)) && !(i.hide && i.hide.includes(d.getDay())) && !(i.on && !i.on.includes(d.getDay()));
 const firstName = () => esc(CFG.name || (LANG === "ms" ? "Kawan" : "Friend"));
 
 function itemsFor(d) { const out = []; BLOCKS.forEach(b => b.items.forEach(i => { if (shown(i,d)) out.push(i.id); })); if (WORKOUTS[d.getDay()]) out.push("wo-done"); return out; }
@@ -726,7 +729,7 @@ function openSheet(id) {
   // Phone back button closes the sheet instead of leaving the app.
   if (!sheetId && !(history.state && history.state.tunasSheet)) { try { history.pushState({ tunasSheet: 1 }, ""); } catch (e) {} }
   // A day opened from History goes back to History when closed; a locked-backup sheet goes back to Settings.
-  parentSheet = (sheetId === "history" && id.startsWith("day:")) || (sheetId === "settings" && (id.startsWith("lock:") || id === "packs" || id === "wosetup")) ? sheetId : null;
+  parentSheet = (sheetId === "history" && id.startsWith("day:")) || (sheetId === "settings" && (id.startsWith("lock:") || id === "packs" || id === "wosetup" || id === "skinsetup")) ? sheetId : null;
   if (!parentSheet) lastFocus = document.activeElement;
   // Restoring a backup from the welcome screen opens a sheet on top of it.
   document.body.classList.toggle("sheet-top", !$("welcome").hidden);
@@ -792,6 +795,7 @@ function renderSheet(keep) {
   if (sheetId.startsWith("lock:")) return renderLockSheet(keep);
   if (sheetId === "packs") return renderPackSheet(keep);
   if (sheetId === "wosetup") return renderWoSheet(keep);
+  if (sheetId === "skinsetup") return renderSkinSheet(keep);
   if (sheetId.startsWith("day:")) return renderDaySheet(sheetId.slice(4), keep);
   if (sheetId === "history" || sheetId === "badges") return renderProgressSheet(sheetId, keep);
   const d = routineDate(), today = dkey(d), node = nodesFor(d).find(n => n.id === sheetId); if (!node) { closeSheet(); return; }
@@ -1191,8 +1195,9 @@ function setLang(l) {
   applyStatic(); renderGuide(); lastS = null; prevCleared = null; refresh(true);
 }
 function settingsAction(act, el) {
-  if (act === "addPacks") { PK = { sel: new Set(), step: "", fit: normFit(RAW.fitness) }; return openSheet("packs"); }
-  if (act === "woSetup") { PK = { sel: new Set(), step: "", fit: normFit(RAW.fitness) }; return openSheet("wosetup"); }
+  if (act === "addPacks" || act === "woSetup" || act === "skinSetup") {
+    PK = { sel: new Set(), step: "", fit: normFit(RAW.fitness), skin: normSkin(RAW.skin) };
+    return openSheet(act === "addPacks" ? "packs" : act === "woSetup" ? "wosetup" : "skinsetup"); }
   if (act === "rmPack") { const id = el && el.dataset.pack; if (!id) return;
     if (settingsPane !== "rm:" + id) { settingsPane = "rm:" + id; return renderSettings(true); }
     settingsPane = ""; return removePackNow(id); }
@@ -1213,10 +1218,12 @@ function settingsAction(act, el) {
   if (act === "restore") return $("fileBackup").click();
   if (act === "sound") { toggleSound(); return renderSettings(true); }
 }
-$("sheet").addEventListener("click", e => { if (sheetId === "packs" || sheetId === "wosetup") { const wo = e.target.closest("[data-wo]"); if (wo) { woToggle(PK.fit, wo); return renderSheet(true); }
-    if (e.target.closest("[data-wosave]")) return saveWoSetup(); }
+$("sheet").addEventListener("click", e => { if (sheetId === "packs" || sheetId === "wosetup" || sheetId === "skinsetup") { const wo = e.target.closest("[data-wo]"); if (wo) { woToggle(PK.fit, wo); return renderSheet(true); }
+    const sk = e.target.closest("[data-sk]"); if (sk) { skinToggle(PK.skin, sk); return renderSheet(true); }
+    if (e.target.closest("[data-wosave]")) return saveWoSetup();
+    if (e.target.closest("[data-sksave]")) return saveSkinSetup(); }
   if (sheetId === "packs") { const pk = e.target.closest("[data-pack]"); if (pk) { togglePack(PK.sel, pk.dataset.pack); return renderPackSheet(true); }
-    if (e.target.closest("[data-packback]")) { PK.step = ""; return renderPackSheet(false); }
+    if (e.target.closest("[data-packback]")) { const L = pkSteps(); PK.step = L[Math.max(0, L.indexOf(PK.step) - 1)]; return renderPackSheet(false); }
     if (e.target.closest("[data-packgo]")) return addPacksNow(); }
   const b = e.target.closest("[data-lang]"); if (b) { setLang(b.dataset.lang); return; }
   const t = e.target.closest("[data-theme-pick]"); if (t) { pickTheme(t.dataset.themePick); if (sheetId === "settings") renderSettings(true); } });
@@ -1321,6 +1328,7 @@ function renderEditor(keep) {
           ${open ? `<div class="ed-more">
             ${it.useFocus ? `<p>${T("edFocusEdit")}</p>${[1,2,3,4,5,6,0].map(k => `<label class="ed-flabel">${weekdayName(k, "short")}<input class="field" data-path="focus.${k}.title" value="${esc(((D.focus || {})[k] || {}).title || "")}" placeholder="${T("edFocusPh")}"></label>`).join("")}`
               : `<input class="field" data-path="${p}.note" value="${esc(it.note || "")}" placeholder="${T("edNotePh")}">`}
+            ${weekdays(it.onDays) ? `<label class="ed-check"><input type="checkbox" data-ed-check="ondays" data-bi="${bi}" data-ii="${ii}" checked>${T("edOnDays", weekdays(it.onDays).map(k => weekdayName(k, "short")).join(", "))}</label>` : ""}
             <label class="ed-check"><input type="checkbox" data-ed-check="alt" data-bi="${bi}" data-ii="${ii}" ${it.everyOtherDay ? "checked" : ""}>${T("edAlt")}</label>
             <label class="ed-check"><input type="checkbox" data-ed-check="skip" data-bi="${bi}" data-ii="${ii}" ${it.hideOnDays && it.hideOnDays.length ? "checked" : ""} ${woDays ? "" : "disabled"}>${T("edSkipWo")}</label>
             <div class="ed-row">${edBtn("itemUp", `data-bi="${bi}" data-ii="${ii}"`, I.up, T("edUp"))}${edBtn("itemDown", `data-bi="${bi}" data-ii="${ii}"`, I.down, T("edDown"))}${delBtn(`item.${bi}.${ii}`, `data-bi="${bi}" data-ii="${ii}"`)}</div>
@@ -1402,6 +1410,7 @@ function editorClick(e) {
   if (chk) {
     const D = ED.draft, kind = chk.dataset.edCheck;
     if (kind === "alt") { const it = D.blocks[+chk.dataset.bi].items[+chk.dataset.ii]; it.everyOtherDay = chk.checked; }
+    if (kind === "ondays" && !chk.checked) { delete D.blocks[+chk.dataset.bi].items[+chk.dataset.ii].onDays; markDirty(); return renderEditor(true); }
     if (kind === "skip") { const it = D.blocks[+chk.dataset.bi].items[+chk.dataset.ii]; it.hideOnDays = chk.checked ? Object.keys(D.workouts || {}).map(Number) : []; }
     if (kind === "bw") { D.workouts[chk.dataset.k].exercises[+chk.dataset.ei].bodyweight = chk.checked; }
     markDirty(); return;
@@ -1499,7 +1508,7 @@ function saveEditor() {
 
 /* ================= Welcome ================= */
 const newWel = (step, switching) => ({ step: step || 1, tpls: new Set(["worker"]), includeWo: true, switching: !!switching, name: switching ? (CFG.name || "") : "",
-  packs: new Set(), fit: normFit(RAW.fitness), wake: (RAW.day && RAW.day.wake) || "06:30", sleep: (RAW.day && RAW.day.sleep) || "23:00", busy: true, busyFrom: "08:30", busyTo: "17:00" });
+  packs: new Set(), fit: normFit(RAW.fitness), skin: normSkin(RAW.skin), wake: (RAW.day && RAW.day.wake) || "06:30", sleep: (RAW.day && RAW.day.sleep) || "23:00", busy: true, busyFrom: "08:30", busyTo: "17:00" });
 let WEL = newWel(1);
 function countHabits(r) { return (r.blocks || []).reduce((s, b) => s + (b.items || []).length, 0); }
 function openWelcome(step, switching) {
@@ -1524,6 +1533,7 @@ function renderWelcome() {
   } else if (WEL.step === 2) { renderWelcomePacks(el);
   } else if (WEL.step === 3) { renderWelcomeDay(el);
   } else if (WEL.step === "wo") { renderWelcomeWorkout(el);
+  } else if (WEL.step === "skin") { renderWelcomeSkin(el);
   } else {
     const anyWo = [...WEL.tpls].some(id => Object.keys((window.TUNAS_TEMPLATES.find(t => t.id === id) || {}).routine?.workouts || {}).length);
     el.innerHTML = `<div class="w-in wide"><h2>${T("wPick")}</h2><p>${T("wPickMulti")}</p>
@@ -1619,17 +1629,24 @@ function addPacks(base, ids) {
   const anchorOf = (b, slot) => made.has(b) ? plan[slot].anchor : dayWrap(tm(b.remind, tm(b.from, plan[slot].anchor)));
   packOrder(ids).forEach(id => {
     const P = R(packById(id));
-    P.habits.forEach(hb => {
+    const gen = P.setup === "skin" ? skinPlan(r.skin = normSkin(r.skin)) : null;
+    if (gen) {
+      if (!r.guide || typeof r.guide !== "object") r.guide = { title: T("packGuide"), sections: [] };
+      r.guide.sections ||= [];
+      if (r.guide.sections.length < LIMITS.guideSections && !r.guide.sections.some(g => g.pack === id && g.plan))
+        r.guide.sections.unshift({ title: T("skPlanTitle"), lines: gen.guide.slice(0, LIMITS.guideLines), pack: id, plan: true });
+    }
+    (gen ? gen.habits : P.habits).forEach(hb => {
       const b = slotBlock(r, hb.slot, plan, made);
       if (r.blocks.some(x => x.items.some(i => i.id === hb.id))) return;
       if (b.items.length >= LIMITS.items) { skipped++; return; }
       const it = { id: hb.id, title: hb.title, pack: id };
-      if (hb.note) it.note = hb.note; if (hb.quest) it.quest = true; if (hb.everyOtherDay) it.everyOtherDay = true;
+      if (hb.note) it.note = hb.note; if (hb.quest) it.quest = true; if (hb.everyOtherDay) it.everyOtherDay = true; if (hb.onDays) it.onDays = hb.onDays;
       if (hb.at != null) { const m = anchorOf(b, hb.slot) + hb.at; it.time = clock12(m); if (made.has(b)) it._m = dayWrap(m); }
       b.items.push(it);
     });
-    (P.weekly || []).forEach(x => { if (r.weekly.some(y => y.id === x.id)) return; if (r.weekly.length >= LIMITS.weekly) { skipped++; return; } r.weekly.push({ id: x.id, title: x.title, pack: id }); });
-    (P.tips || []).forEach(x => { if (!r.tips.includes(x) && r.tips.length < LIMITS.tips) r.tips.push(x); });
+    ((gen ? gen.weekly : P.weekly) || []).forEach(x => { if (r.weekly.some(y => y.id === x.id)) return; if (r.weekly.length >= LIMITS.weekly) { skipped++; return; } r.weekly.push({ id: x.id, title: x.title, pack: id }); });
+    [...(gen ? gen.tips : []), ...(P.tips || [])].forEach(x => { if (!r.tips.includes(x) && r.tips.length < LIMITS.tips) r.tips.push(x); });
     (P.guide || []).forEach(g => {
       if (!r.guide || typeof r.guide !== "object") r.guide = { title: T("packGuide"), sections: [] };
       r.guide.sections ||= [];
@@ -1663,6 +1680,7 @@ function addPacks(base, ids) {
 function removePack(base, id) {
   const r = clone(base), P = packById(id), txt = new Set();
   ((P && P.tips) || []).forEach(x => { txt.add(x.en); txt.add(x.ms); });
+  if (P && P.setup === "skin") { const S = window.TUNAS_SKIN; [...S.types, ...S.concerns].map(x => x.tip).concat(S.tips).forEach(x => { txt.add(x.en); txt.add(x.ms); }); }
   r.blocks = (r.blocks || []).map(b => ({ ...b, items: (b.items || []).filter(i => i.pack !== id) })).filter(b => b.items.length);
   r.weekly = (r.weekly || []).filter(x => x.pack !== id);
   r.tips = (r.tips || []).filter(x => !txt.has(x));
@@ -1677,10 +1695,11 @@ function packGridHTML(sel, skip) {
   return window.TUNAS_PACK_CATS.map(c => {
     const list = window.TUNAS_PACKS.filter(p => p.cat === c.id && !(skip && skip.has(p.id))); if (!list.length) return "";
     return `<h4 class="pk-cat">${esc(R(c.title))}</h4><div class="pk-grid">${list.map(p => `<button type="button" class="pk" data-pack="${esc(p.id)}" aria-pressed="${sel.has(p.id)}">
-      <span class="pk-emo" aria-hidden="true">${esc(p.emoji)}</span><span class="tpl-tick">${I.check}</span><b>${esc(R(p.title))}</b><span>${esc(R(p.desc))}</span><small>${T("packHabits", p.habits.length)}</small></button>`).join("")}</div>`;
+      <span class="pk-emo" aria-hidden="true">${esc(p.emoji)}</span><span class="tpl-tick">${I.check}</span><b>${esc(R(p.title))}</b><span>${esc(R(p.desc))}</span><small>${p.setup ? T("packAsks") : T("packHabits", p.habits.length)}</small></button>`).join("")}</div>`;
   }).join("");
 }
-const selHabits = sel => [...sel].reduce((n, id) => n + ((packById(id) || {}).habits || []).length, 0);
+const packSize = p => p ? (p.setup === "skin" ? 5 : p.habits.length) : 0; // skincare builds 5 to 12 habits; 5 is the Basic routine
+const selHabits = sel => [...sel].reduce((n, id) => n + packSize(packById(id)), 0);
 function renderWelcomePacks(el) {
   const n = WEL.packs.size, hb = selHabits(WEL.packs);
   el.innerHTML = `<div class="w-in wide pk-room"><h2>${T("wHelpQ")}</h2><p>${T("wHelpSub")}</p>${packGridHTML(WEL.packs)}
@@ -1688,7 +1707,7 @@ function renderWelcomePacks(el) {
       <button class="btn" type="button" id="wPkNext" ${n ? "" : "disabled"}>${T("next")}</button>
       <div class="w-links"><button class="linkish" type="button" id="wBack">${WEL.switching ? T("cancel") : T("back")}</button><button class="linkish" type="button" id="wTpl">${T("wReady")}</button></div></div></div>`;
   el.querySelectorAll("[data-pack]").forEach(b => b.onclick = () => { togglePack(WEL.packs, b.dataset.pack); const top = el.scrollTop; renderWelcome(); el.scrollTop = top; });
-  $("wPkNext").onclick = () => { if (!WEL.packs.size) return; WEL.step = WEL.packs.has("workout") ? "wo" : 3; renderWelcome(); el.scrollTop = 0; };
+  $("wPkNext").onclick = () => { if (!WEL.packs.size) return; welGo(1); };
   $("wBack").onclick = () => { if (WEL.switching) closeWelcome(); else { WEL.step = 1; renderWelcome(); } };
   $("wTpl").onclick = () => { WEL.step = "tpl"; renderWelcome(); el.scrollTop = 0; };
 }
@@ -1702,7 +1721,7 @@ function renderWelcomeDay(el) {
     <div class="w-links one"><button class="linkish" type="button" id="wBack">${T("back")}</button></div></div>`;
   [["wWake", "wake"], ["wSleep", "sleep"], ["wB1", "busyFrom"], ["wB2", "busyTo"]].forEach(([id, k]) => { const f = $(id); if (f) f.addEventListener("change", () => { if (/^\d{2}:\d{2}$/.test(f.value)) WEL[k] = f.value; }); });
   $("wBusy").onclick = () => { WEL.busy = !WEL.busy; renderWelcome(); };
-  $("wBack").onclick = () => { WEL.step = WEL.packs.has("workout") ? "wo" : 2; renderWelcome(); };
+  $("wBack").onclick = () => welGo(-1);
   $("wGo").onclick = finishPacks;
 }
 function finishPacks() {
@@ -1710,16 +1729,19 @@ function finishPacks() {
   const base = { version: 1, label: T("myRoutine"), name: "", blocks: [], focus: {}, workouts: {}, progression: {}, weekly: [], tips: [], guide: null, day, showWorkouts: true, packs: [],
     away: day.busy ? { from: day.busy[0], to: day.busy[1], say: T("awaySay") } : null };
   if (WEL.packs.has("workout")) base.fitness = normFit(WEL.fit);
+  if (WEL.packs.has("skin")) base.skin = normSkin(WEL.skin);
   const { r } = addPacks(base, [...WEL.packs]);
   if (!r.blocks.length) { toast(T("wPickOne"), "x"); return; }
   welcomeDone(r);
 }
 // Settings → Habit packs
-let PK = { sel: new Set(), step: "", fit: null };
+let PK = { sel: new Set(), step: "", fit: null, skin: null };
+// Setup questions come after picking packs, in this order.
+const pkSteps = () => ["", ...(PK.sel.has("skin") ? ["skin"] : []), ...(PK.sel.has("workout") ? ["wo"] : [])];
 function packsSettingsHTML() {
   const active = (Array.isArray(RAW.packs) ? RAW.packs : []).map(packById).filter(Boolean);
   const rows = active.map(p => { const sure = settingsPane === "rm:" + p.id;
-    return `<div class="pk-row"><span class="pk-emo" aria-hidden="true">${esc(p.emoji)}</span><span class="pk-row-t"><b>${esc(R(p.title))}</b><span>${T("packHabits", packCount(RAW, p.id))}</span>${p.setup === "workout" ? `<button class="linkish" type="button" data-act="woSetup">${T("woChange")}</button>` : ""}</span>
+    return `<div class="pk-row"><span class="pk-emo" aria-hidden="true">${esc(p.emoji)}</span><span class="pk-row-t"><b>${esc(R(p.title))}</b><span>${T("packHabits", packCount(RAW, p.id))}</span>${p.setup === "workout" ? `<button class="linkish" type="button" data-act="woSetup">${T("woChange")}</button>` : p.setup === "skin" ? `<button class="linkish" type="button" data-act="skinSetup">${T("skChange")}</button>` : ""}</span>
       <button class="btn small ${sure ? "danger" : "ghost danger-ghost"}" type="button" data-act="rmPack" data-pack="${esc(p.id)}">${sure ? T("edSure") : T("removePack")}</button></div>`; }).join("");
   return `<div class="set-group"><h3>${T("packsTitle")}</h3><p>${T("packsHelp")}</p>${rows || `<p>${T("packsNone")}</p>`}
     <div class="row"><button class="btn small ed-add" type="button" data-act="addPacks">${I.plus}${T("addPacks")}</button></div></div>`;
@@ -1730,6 +1752,13 @@ function renderPackSheet(keep) {
   $("shHead").querySelector(".sh-ico").innerHTML = I.plus;
   $("shClose").onclick = closeSheet;
   const have = new Set(Array.isArray(RAW.packs) ? RAW.packs : []);
+  if (PK.step === "skin") {
+    $("shHead").innerHTML = sheetHead("heart", T("skSetQ"), T("skSetSub"), null, "--green");
+    $("shClose").onclick = closeSheet;
+    const last = pkSteps().slice(-1)[0] === "skin";
+    body.innerHTML = `<div class="pk-bar"><button class="btn" type="button" data-packgo>${last ? T("addN", n) : T("next")}</button></div>${skinSetupHTML(PK.skin)}<div class="row"><button class="linkish" type="button" data-packback>${T("back")}</button></div>`;
+    if (keep) body.scrollTop = top; return;
+  }
   if (PK.step === "wo") {
     $("shHead").innerHTML = sheetHead("dumb", T("woSetQ"), T("woSetSub"), null, "--green");
     $("shClose").onclick = closeSheet;
@@ -1741,8 +1770,10 @@ function renderPackSheet(keep) {
 }
 function addPacksNow() {
   if (!PK.sel.size) return;
-  if (PK.sel.has("workout") && PK.step !== "wo") { PK.step = "wo"; return renderPackSheet(false); }
-  const ids = [...PK.sel], { r, skipped } = addPacks(PK.sel.has("workout") ? { ...RAW, fitness: PK.fit } : RAW, ids);
+  const L = pkSteps(), at = L.indexOf(PK.step);
+  if (at < L.length - 1) { PK.step = L[at + 1]; return renderPackSheet(false); }
+  const base = { ...RAW }; if (PK.sel.has("workout")) base.fitness = PK.fit; if (PK.sel.has("skin")) base.skin = PK.skin;
+  const ids = [...PK.sel], { r, skipped } = addPacks(base, ids);
   if (RAW_IS_DEFAULT || !r.label) r.label = T("myRoutine");
   const err = validateRoutine(r); if (err) { toast(esc(err), "x"); return; }
   if (!saveRoutine(clampText(r))) return;
@@ -1807,8 +1838,8 @@ function renderWelcomeWorkout(el) {
   el.innerHTML = `<div class="w-in wide pk-room"><h2>${T("woSetQ")}</h2><p>${T("woSetSub")}</p>${woSetupHTML(WEL.fit)}
     <div class="pk-foot"><button class="btn" type="button" id="wWoNext">${T("next")}</button><div class="w-links one"><button class="linkish" type="button" id="wBack">${T("back")}</button></div></div></div>`;
   el.querySelectorAll("[data-wo]").forEach(b => b.onclick = () => { woToggle(WEL.fit, b); const top = el.scrollTop; renderWelcome(); el.scrollTop = top; });
-  $("wWoNext").onclick = () => { WEL.step = 3; renderWelcome(); el.scrollTop = 0; };
-  $("wBack").onclick = () => { WEL.step = 2; renderWelcome(); el.scrollTop = 0; };
+  $("wWoNext").onclick = () => welGo(1);
+  $("wBack").onclick = () => welGo(-1);
 }
 function renderWoSheet(keep) {
   const body = $("shBody"), top = keep ? body.scrollTop : 0;
@@ -1830,6 +1861,91 @@ function saveWoSetup() {
   if (!saveRoutine(clampText(r))) return;
   lastS = null; prevCleared = null; closeSheet(); refresh(true); sfx("clear"); toast(T("woSaved"), "check");
 }
+
+/* ================= Skincare setup ================= */
+// Skin type + number of steps + goals → morning and night habits. Same habit ids for every setup, so ticks and streaks carry over.
+function normSkin(f) {
+  const S = window.TUNAS_SKIN; f = f && typeof f === "object" ? f : {};
+  return { type: S.types.some(x => x.id === f.type) ? f.type : "normal", level: S.levels.some(x => x.id === f.level) ? f.level : "basic",
+    concerns: Array.isArray(f.concerns) ? [...new Set(f.concerns.filter(c => S.concerns.some(x => x.id === c)))] : [] };
+}
+const dayList = a => a.map(k => weekdayName(k, "short")).join(", ");
+function skinPlan(fitIn) {
+  const S = window.TUNAS_SKIN, f = normSkin(fitIn), ty = S.types.find(x => x.id === f.type), C = f.concerns.map(id => S.concerns.find(c => c.id === id));
+  const soft = f.type === "sensitive", std = f.level !== "basic", full = f.level === "full", H = [];
+  const add = (id, slot, title, note, at, o) => H.push({ id, slot, title, note, ...(at != null ? { at } : {}), ...(o || {}) });
+  const base = f.type === "oily" ? "nia" : "hya", ok = k => (S.serums[k] ? k : base);
+  const amS = ok((C[0] || {}).am), pmS = ok((C.find(c => c.pm !== amS) || C[0] || {}).pm);
+  add("sk-am-clean", "morning", f.type === "dry" || soft ? T("skRinse") : T("skCleanser"), R(ty.cleanser), 15);
+  if (full && f.type !== "oily") add("sk-am-toner", "morning", T("skToner"), T("skTonerNote"), 16);
+  if (std) add("sk-am-serum", "morning", R(S.serums[amS]), T("skSerumNote"), 17);
+  add("sk-am-moist", "morning", T("skMoist"), R(ty.moist), 18);
+  add("sk-spf", "morning", T("skSpf"), `${R(ty.spf)} · ${T("skSpfNote")}`, 20, { quest: true });
+  if (full) add("sk-spf-re", "day", T("skSpfRe"), T("skSpfReNote"));
+  if (full) add("sk-pm-oil", "night", T("skOil"), T("skOilNote"), 0);
+  add("sk-pm-clean", "night", T("skCleanser"), full ? T("skSecondNote") : T("skPmCleanNote"), 2);
+  // Treatments only on the Full routine, on their own nights (retinoid and exfoliant never on the same night).
+  let ret = false, exf = null;
+  if (full) { const tr = C.map(c => c.treat).filter(Boolean); ret = tr.includes("ret"); exf = tr.includes("bha") ? "bha" : tr.includes("aha") ? "aha" : null;
+    if (!ret && !exf && f.type !== "dry" && !f.concerns.includes("dry")) exf = "aha"; }
+  const nights = k => soft ? S.treats[k].soft : S.treats[k].days;
+  if (ret) add("sk-pm-ret", "night", R(S.treats.ret.title), R(S.treats.ret.note), 5, { onDays: nights("ret") });
+  if (exf) add("sk-pm-exf", "night", R(S.treats[exf].title), R(S.treats[exf].note), 5, { onDays: nights(exf) });
+  if (std) add("sk-pm-serum", "night", R(S.serums[pmS]), T("skSerumNote"), 7);
+  add("sk-pm-moist", "night", T("skMoist"), f.type === "dry" ? T("skMoistDryPm") : R(ty.moist), 10);
+  const steps = slot => H.filter(h => h.slot === slot && h.id !== "sk-spf-re").map(h => h.onDays ? `${h.title} (${dayList(h.onDays)})` : h.title).join(" → ");
+  return { fit: f, habits: H,
+    weekly: [{ id: "sk-pillow", title: f.concerns.includes("acne") ? T("skPillow2") : T("skPillow") }],
+    tips: [R(ty.tip), ...C.slice(0, 3).map(c => R(c.tip)), ...(full ? S.tips : S.tips.slice(0, 1)).map(R)],
+    guide: [...(f.type !== "unsure" ? [T("skLineType", R(ty.title), R(ty.cleanser), R(ty.moist))] : [R(ty.tip)]), T("skLineAM", steps("morning")), T("skLinePM", steps("night")),
+      ...(full ? [T("skLineSpfRe")] : []), ...(ret ? [T("skLineRet")] : []), R(S.caution)] };
+}
+function skinToggle(F, b) {
+  const S = window.TUNAS_SKIN, k = b.dataset.sk, id = b.dataset.id;
+  if (k === "type" && S.types.some(x => x.id === id)) { F.type = id; }
+  else if (k === "level" && S.levels.some(x => x.id === id)) F.level = id;
+  else if (k === "concern") { if (id === "none") F.concerns = []; else if (S.concerns.some(x => x.id === id)) F.concerns = F.concerns.includes(id) ? F.concerns.filter(c => c !== id) : [...F.concerns, id]; }
+}
+function skinSetupHTML(F) {
+  const S = window.TUNAS_SKIN, sugLevel = F.type === "sensitive" || F.type === "unsure" ? "basic" : "std";
+  const opt = (kind, id, inner, on, cls) => `<button type="button" class="wo-opt${cls ? " " + cls : ""}" data-sk="${kind}" data-id="${esc(id)}" aria-pressed="${on}">${inner}</button>`;
+  const plan = skinPlan(F), row = slot => plan.habits.filter(h => h.slot === slot).map(h => esc(h.onDays ? `${h.title} (${dayList(h.onDays)})` : h.title)).join(" → ");
+  return `<h3 class="wo-q">${T("skTypeQ")}</h3><div class="wo-chips">${S.types.map(x => opt("type", x.id, `<b>${esc(R(x.title))}</b><span>${esc(R(x.desc))}</span>`, F.type === x.id)).join("")}</div>
+    <h3 class="wo-q">${T("skLevelQ")}</h3><div class="wo-list">${S.levels.map(l => opt("level", l.id, `<b>${esc(R(l.title))}${l.id === sugLevel ? ` <span class="wo-sug">${T("woSuggested")}</span>` : ""}</b><span>${esc(R(l.desc))}</span>`, F.level === l.id)).join("")}</div>
+    <p class="wo-hint">${esc(R(S.suggest[sugLevel]))}</p>
+    <h3 class="wo-q">${T("skConcernQ")}</h3><div class="wo-chips">${opt("concern", "none", esc(T("skNoConcern")), !F.concerns.length, "chip")}${S.concerns.map(c => opt("concern", c.id, esc(R(c.title)), F.concerns.includes(c.id), "chip")).join("")}</div>
+    ${F.level !== "full" && F.concerns.some(c => ["acne", "spots", "lines", "oil", "dull"].includes(c)) ? `<p class="wo-hint">${T("skFullHint")}</p>` : ""}
+    <div class="wo-prev"><b>${T("woPreview")}</b><p><b>${T("skMorning")}</b><span>${row("morning")}</span></p>${plan.habits.some(h => h.slot === "day") ? `<p><b>${T("skDay")}</b><span>${row("day")}</span></p>` : ""}<p><b>${T("skNight")}</b><span>${row("night")}</span></p></div>
+    <p class="wo-hint">${esc(R(S.caution))}</p>`;
+}
+function renderWelcomeSkin(el) {
+  el.innerHTML = `<div class="w-in wide pk-room"><h2>${T("skSetQ")}</h2><p>${T("skSetSub")}</p>${skinSetupHTML(WEL.skin)}
+    <div class="pk-foot"><button class="btn" type="button" id="wSkNext">${T("next")}</button><div class="w-links one"><button class="linkish" type="button" id="wBack">${T("back")}</button></div></div></div>`;
+  el.querySelectorAll("[data-sk]").forEach(b => b.onclick = () => { skinToggle(WEL.skin, b); const top = el.scrollTop; renderWelcome(); el.scrollTop = top; });
+  $("wSkNext").onclick = () => welGo(1);
+  $("wBack").onclick = () => welGo(-1);
+}
+function renderSkinSheet(keep) {
+  const body = $("shBody"), top = keep ? body.scrollTop : 0;
+  $("shHead").innerHTML = sheetHead("heart", T("skSetQ"), T("skSetSub"), null, "--green");
+  $("shClose").onclick = closeSheet;
+  body.innerHTML = `<div class="pk-bar"><button class="btn" type="button" data-sksave>${T("skSave")}</button></div>${skinSetupHTML(PK.skin)}<p class="wo-hint">${T("skKeep")}</p>`;
+  if (keep) body.scrollTop = top;
+}
+// Rebuild only what the Skincare pack made; ticks stay because the habit ids don't change.
+function applySkin(base, fit) {
+  const r = removePack(base, "skin"); r.skin = normSkin(fit);
+  return addPacks(r, ["skin"]).r;
+}
+function saveSkinSetup() {
+  const r = applySkin(RAW, PK.skin);
+  const err = validateRoutine(r); if (err) { toast(esc(err), "x"); return; }
+  if (!saveRoutine(clampText(r))) return;
+  lastS = null; prevCleared = null; closeSheet(); refresh(true); sfx("clear"); toast(T("skSaved"), "check");
+}
+// Welcome steps after picking packs: skincare and workout questions only when those packs are picked.
+const welSteps = () => [2, ...(WEL.packs.has("skin") ? ["skin"] : []), ...(WEL.packs.has("workout") ? ["wo"] : []), 3];
+function welGo(d) { const L = welSteps(), i = Math.max(0, L.indexOf(WEL.step)); WEL.step = L[Math.max(0, Math.min(L.length - 1, i + d))]; renderWelcome(); $("welcome").scrollTop = 0; }
 
 /* ================= Celebration screens ================= */
 const celeQ = [];

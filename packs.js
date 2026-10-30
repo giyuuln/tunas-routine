@@ -142,28 +142,83 @@
     }
   };
 
+  /* Skincare setup: skin type, number of steps and goals → morning and night habits built on the phone.
+     General cosmetic care, not medical advice. Habit ids stay the same across setups so streaks and ticks carry over. */
+  window.TUNAS_SKIN = {
+    types: [
+      { id: "oily", title: t("Oily", "Berminyak"), desc: t("Shiny all over by midday", "Berkilat seluruh muka menjelang tengah hari"),
+        cleanser: t("Gel or foam cleanser", "Pencuci gel atau buih"), moist: t("Light gel moisturiser", "Pelembap gel ringan"), spf: t("Gel or fluid SPF 30+", "SPF 30+ jenis gel atau cecair"),
+        tip: t("**Oily skin still needs moisturiser.** Skipping it can make you shinier.", "**Kulit berminyak tetap perlu pelembap.** Tak pakai boleh buat lagi berminyak.") },
+      { id: "dry", title: t("Dry", "Kering"), desc: t("Feels tight, can flake", "Rasa tegang, boleh mengelupas"),
+        cleanser: t("Cream or milky cleanser; water is fine in the morning", "Pencuci krim atau susu; air pun cukup waktu pagi"), moist: t("Rich cream moisturiser", "Pelembap krim pekat"), spf: t("Cream SPF 30+", "SPF 30+ jenis krim"),
+        tip: t("**Moisturise on damp skin** and keep showers warm, not hot.", "**Pakai pelembap masa kulit masih lembap** dan mandi air suam, bukan panas.") },
+      { id: "combo", title: t("Combination", "Kombinasi"), desc: t("Oily T-zone, dry cheeks", "Zon-T berminyak, pipi kering"),
+        cleanser: t("Gentle gel cleanser", "Pencuci gel lembut"), moist: t("Light lotion; a bit extra on dry areas", "Losyen ringan; lebih sikit di kawasan kering"), spf: t("Light SPF 30+", "SPF 30+ ringan"),
+        tip: t("**Treat zones differently.** Lighter products on the T-zone, more moisture on the cheeks.", "**Rawat ikut zon.** Produk ringan di zon-T, lebih lembap di pipi.") },
+      { id: "normal", title: t("Normal", "Normal"), desc: t("Comfortable most days", "Selesa kebanyakan hari"),
+        cleanser: t("Gentle cleanser", "Pencuci lembut"), moist: t("Lotion moisturiser", "Pelembap losyen"), spf: t("SPF 30+", "SPF 30+"),
+        tip: t("**Keep it simple.** Normal skin mostly needs gentle cleansing and daily sunscreen.", "**Buat ringkas.** Kulit normal kebanyakannya cuma perlu cuci lembut dan pelindung matahari setiap hari.") },
+      { id: "sensitive", title: t("Sensitive", "Sensitif"), desc: t("Stings or reddens easily", "Mudah pedih atau merah"),
+        cleanser: t("Fragrance-free gentle cleanser", "Pencuci lembut tanpa pewangi"), moist: t("Fragrance-free moisturiser", "Pelembap tanpa pewangi"), spf: t("Mineral SPF 30+ (zinc or titanium)", "SPF 30+ mineral (zink atau titanium)"),
+        tip: t("**Fewer products, fragrance-free.** Patch test anything new for 2 days.", "**Kurang produk, tanpa pewangi.** Uji tampal produk baru selama 2 hari.") },
+      { id: "unsure", title: t("Not sure", "Tak pasti"), desc: t("We'll start gentle", "Kita mula dengan lembut"),
+        cleanser: t("Gentle cleanser", "Pencuci lembut"), moist: t("Lotion moisturiser", "Pelembap losyen"), spf: t("SPF 30+", "SPF 30+"),
+        tip: t("**Find your type:** wash, wait 1 hour. Shiny all over = oily, tight = dry, shiny T-zone only = combination.", "**Kenal jenis kulit:** cuci muka, tunggu 1 jam. Berkilat semua = berminyak, tegang = kering, zon-T sahaja berkilat = kombinasi.") }
+    ],
+    levels: [
+      { id: "basic", title: t("Basic", "Asas"), desc: t("3 steps: cleanse, moisturise, sunscreen", "3 langkah: cuci, lembapkan, pelindung matahari") },
+      { id: "std", title: t("Standard", "Standard"), desc: t("Adds a serum morning and night", "Tambah serum pagi dan malam") },
+      { id: "full", title: t("Full", "Lengkap"), desc: t("Adds double cleanse and treatment nights", "Tambah cuci dua kali dan malam rawatan") }
+    ],
+    // Which level to suggest, and why.
+    suggest: {
+      basic: t("New to skincare or sensitive? Start with Basic for 2 to 4 weeks, then add steps.", "Baru mula atau kulit sensitif? Mula dengan Asas selama 2 hingga 4 minggu, kemudian tambah langkah."),
+      std: t("Standard adds one targeted serum. It's where most people see the best results for the effort.", "Standard tambah satu serum khusus. Paling berbaloi untuk kebanyakan orang.")
+    },
+    concerns: [
+      { id: "acne", title: t("Breakouts", "Jerawat"), am: "nia", pm: "nia", treat: "bha",
+        tip: t("**Don't pick or pop.** It leaves marks that last longer than the spot.", "**Jangan picit.** Ia tinggalkan parut lebih lama dari jerawat.") },
+      { id: "spots", title: t("Dark spots", "Bintik gelap"), am: "vitc", pm: "nia", treat: "ret",
+        tip: t("**Daily sunscreen does more for dark spots** than any serum.", "**Pelindung matahari setiap hari lebih berkesan untuk bintik gelap** dari mana-mana serum.") },
+      { id: "dull", title: t("Dullness", "Kusam"), am: "vitc", pm: "hya", treat: "aha",
+        tip: t("**Glow comes from gentle exfoliation and sleep,** not scrubbing hard.", "**Kulit berseri datang dari pengelupasan lembut dan tidur,** bukan sental kuat.") },
+      { id: "dry", title: t("Dry patches", "Tompok kering"), am: "hya", pm: "hya", treat: null,
+        tip: t("**Hydrating serum on damp skin,** then moisturiser to lock it in.", "**Serum pelembap pada kulit lembap,** kemudian pelembap untuk kunci.") },
+      { id: "oil", title: t("Oil & pores", "Minyak & liang"), am: "nia", pm: "nia", treat: "bha",
+        tip: t("**Blotting paper beats washing more.** Over-washing makes skin oilier.", "**Kertas penyerap minyak lebih baik dari cuci lebih kerap.** Terlebih cuci buat lagi berminyak.") },
+      { id: "lines", title: t("Fine lines", "Garis halus"), am: "vitc", pm: "hya", treat: "ret",
+        tip: t("**Sunscreen and a retinoid** are the two steps with the most evidence for fine lines.", "**Pelindung matahari dan retinoid** dua langkah yang paling terbukti untuk garis halus.") }
+    ],
+    serums: {
+      nia: t("Niacinamide serum", "Serum niasinamida"),
+      vitc: t("Vitamin C serum", "Serum vitamin C"),
+      hya: t("Hydrating serum (hyaluronic acid)", "Serum pelembap (asid hialuronik)")
+    },
+    treats: {
+      ret: { title: t("Retinoid", "Retinoid"), note: t("Pea-size, on dry skin. Start gentle; it can sting at first.", "Sebesar kacang pis, pada kulit kering. Mula yang lembut; mungkin pedih pada awalnya."), days: [1, 3, 6], soft: [3] },
+      bha: { title: t("BHA exfoliant (salicylic acid)", "Pengelupas BHA (asid salisilik)"), note: t("After cleansing; skip if skin feels raw.", "Lepas cuci muka; tak payah kalau kulit rasa pedih."), days: [2, 5], soft: [5] },
+      aha: { title: t("AHA exfoliant (glycolic or lactic acid)", "Pengelupas AHA (asid glikolik atau laktik)"), note: t("After cleansing; skip if skin feels raw.", "Lepas cuci muka; tak payah kalau kulit rasa pedih."), days: [2, 5], soft: [5] }
+    },
+    tips: [
+      t("**Patch test new products** behind the ear for 2 days, and add one at a time.", "**Uji tampal produk baru** di belakang telinga selama 2 hari, dan tambah satu demi satu."),
+      t("**Retinoids and exfoliants on different nights,** never together.", "**Retinoid dan pengelupas pada malam berbeza,** jangan serentak.")
+    ],
+    caution: t("General skincare tips, not medical advice. For painful acne, rashes or sudden changes, see a doctor or pharmacist. Pregnant or breastfeeding? Ask a doctor before using retinoids.", "Tip penjagaan kulit umum, bukan nasihat perubatan. Untuk jerawat yang sakit, ruam atau perubahan mendadak, jumpa doktor atau ahli farmasi. Hamil atau menyusu? Tanya doktor sebelum guna retinoid.")
+  };
+
   window.TUNAS_PACKS = [
     /* ---------- Body ---------- */
-    { id: "skin", cat: "body", emoji: "🧴", title: t("Skincare", "Penjagaan kulit"), desc: t("Cleanse, moisturise and sunscreen, morning and night.", "Cuci, lembapkan dan pelindung matahari, pagi dan malam."),
-      habits: [
-        h("sk-am-clean", "morning", t("Rinse or gentle cleanser", "Bilas atau pencuci lembut"), { at: 15, note: t("Pat dry, leave skin a little damp", "Tepuk kering, biar kulit sedikit lembap") }),
-        h("sk-am-moist", "morning", t("Moisturiser", "Pelembap"), { at: 17 }),
-        h("sk-spf", "morning", t("Sunscreen", "Pelindung matahari"), { at: 20, quest: true, note: t("Two finger-lengths for face and neck", "Dua panjang jari untuk muka dan leher") }),
-        h("sk-pm-clean", "night", t("Gentle cleanser", "Pencuci lembut"), { at: 0, note: t("Washes off sunscreen and the day's oil", "Tanggalkan pelindung matahari dan minyak") }),
-        h("sk-pm-moist", "night", t("Moisturiser", "Pelembap"), { at: 5 })
-      ],
-      weekly: [w("sk-pillow", t("Change pillowcase", "Tukar sarung bantal"))],
+    { id: "skin", cat: "body", emoji: "🧴", title: t("Skincare", "Penjagaan kulit"), desc: t("A routine for your skin type and goals, morning and night.", "Rutin ikut jenis kulit dan matlamat kau, pagi dan malam."),
+      setup: "skin", // asks skin type, steps and goals, then builds the habits (see TUNAS_SKIN)
+      habits: [],
       tips: [
         t("**Thin to thick:** watery products first, creams after, sunscreen last in the morning.", "**Nipis ke pekat:** produk cair dulu, krim kemudian, pelindung matahari paling akhir waktu pagi."),
         t("**Results take 4 to 8 weeks.** Keep the streak going.", "**Hasil ambil masa 4 hingga 8 minggu.** Teruskan streak.")
       ],
       guide: [
-        { title: t("Skincare: the order", "Kulit: susunan"), lines: [
-          t("**Morning:** cleanser → serum → moisturiser → sunscreen", "**Pagi:** pencuci → serum → pelembap → pelindung matahari"),
-          t("**Night:** cleanser → serum → moisturiser", "**Malam:** pencuci → serum → pelembap"),
-          t("Add one new product at a time, two weeks apart.", "Tambah satu produk baru pada satu masa, selang dua minggu.") ] },
         { title: t("Skincare: how much", "Kulit: berapa banyak"), lines: [
           t("**Cleanser:** one small pump, about 30 seconds.", "**Pencuci:** satu pam kecil, lebih kurang 30 saat."),
+          t("**Serum:** 2 to 3 drops on slightly damp skin.", "**Serum:** 2 hingga 3 titis pada kulit yang sedikit lembap."),
           t("**Moisturiser:** a pea-size amount.", "**Pelembap:** sebesar kacang pis."),
           t("**Sunscreen:** two finger-lengths for face and neck.", "**Pelindung matahari:** dua panjang jari untuk muka dan leher.") ] }
       ] },
