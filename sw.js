@@ -1,7 +1,7 @@
 /* Tunas Routine service worker: works offline after the first visit. Bump VERSION when you change app files. */
-const VERSION = "tunas-v23";
+const VERSION = "tunas-v24";
 const SHELL = [
-  "./", "./index.html", "./styles.css", "./app.js", "./i18n.js", "./templates.js", "./manifest.webmanifest",
+  "./", "./index.html", "./styles.css", "./app.js", "./i18n.js", "./templates.js", "./packs.js", "./manifest.webmanifest",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/maskable-512.png", "./icons/apple-touch-icon.png", "./icons/favicon.svg"
 ];
 self.addEventListener("install", e => {

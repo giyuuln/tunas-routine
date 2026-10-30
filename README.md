@@ -30,10 +30,11 @@ Open **https://tunas.amkaz.dev** on your phone, then:
 
 ## Make it yours
 
-On first open, Tunas asks your name and language, then lets you pick a template. After that:
+On first open, Tunas asks your name and language, then what you want help with. Pick a few **habit packs** (30 to choose from: skincare, water, sleep, solat, study, money, pet care and more), tell it when you wake up, go to bed and work or study, and it builds your routine on the phone. Prefer a full routine? Tap **Use a ready-made routine instead**. After that:
 
-- **Gear → Edit routine** to change any section, habit, time, workout or weekly task
-- **Gear → Start from a template** to switch templates (your XP and streak stay)
+- **Gear → Habit packs** to add more packs or remove one (its habits, weekly tasks, tips and guide topics go; your history stays)
+- **Gear → Edit routine** to change any section, habit, time, workout, weekly task, and the **Guide** tab for your own guide and daily tips
+- **Gear → Start a new routine** to start over with packs or a template (your XP and streak stay)
 - **Gear → Import routine file** if someone gave you a routine `.json` (or tap **Paste**)
 
 The routine is saved in the app on your phone. **Download my routine** saves a copy, and **Download backup** saves your XP, streak and workout logs.
@@ -68,7 +69,9 @@ The easiest way to get a routine file is **Gear → Download my routine** after 
   "weekly": [ { "id": "pillow", "title": "Change pillowcase" } ],
   "away": { "from": "08:30", "to": "17:30", "say": ["Good luck at work!", "Drink water."] },
   "tips": [ "**Bold** works in tips and guide lines" ],
-  "guide": { "title": "Guide", "sections": [ { "title": "Section", "lines": [ "**Morning:** …" ] } ] }
+  "guide": { "title": "Guide", "sections": [ { "title": "Section", "lines": [ "**Morning:** …" ] } ] },
+  "packs": [ "skin", "water" ],
+  "day": { "wake": "06:30", "sleep": "23:00", "busy": [ "08:30", "17:00" ] }
 }
 ```
 
@@ -78,6 +81,9 @@ The easiest way to get a routine file is **Gear → Download my routine** after 
 | `from` / `to` | When the section is "now" (24h). If `to` is earlier than `from`, it runs past midnight |
 | `quest: true` | A ★ habit: worth more XP and part of the daily quest |
 | `everyOtherDay: true` | Shows only every second day |
+| `pack` | On habits, weekly tasks, workouts and guide sections: which pack added it, so removing the pack removes it. Leave it out for your own items |
+| `packs` / `day` | Packs in use, and the wake/sleep/busy hours used to place habits from new packs (see [`packs.js`](packs.js)) |
+| `tips` / `guide` | Up to 50 tips and 12 guide sections of 20 lines each |
 | `hideOnDays: [3]` | Hide on these weekdays (0 = Sunday … 6 = Saturday) |
 | `useFocus: true` | Title comes from the `focus` entry for today's weekday |
 | `workouts` | Keyed by weekday. `after` is the section id it appears after in Today's levels |

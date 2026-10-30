@@ -1,0 +1,287 @@
+/* Tunas Routine — habit packs in English and Bahasa Melayu.
+   A pack is a small set of habits for one part of daily life. People pick packs at the start
+   (or later in Settings → Habit packs) and Tunas builds the routine from them on the phone.
+
+   Habit fields:
+     slot   which part of the day: morning | day | evening | night
+     at     minutes after that part starts (optional; no time if left out)
+     quest  ★ habit, worth bonus XP
+   Every habit, weekly task and guide topic keeps a `pack` tag, so a pack can be removed again. */
+(function () {
+  const t = (en, ms) => ({ en, ms });
+  const h = (id, slot, title, o) => ({ id, slot, title, ...(o || {}) });
+  const w = (id, title) => ({ id, title });
+
+  // The four parts of a day that packs fill. Same ids as the ready-made templates, so packs slot into those too.
+  window.TUNAS_SLOTS = {
+    morning: { title: t("Morning", "Pagi"), icon: "sun", say: [t("Morning! Small wins first.", "Selamat pagi! Mula dengan yang kecil."), t("One habit at a time.", "Satu tabiat satu masa.")] },
+    day: { title: t("Daytime", "Siang"), icon: "walk", say: [t("Keep going, you're doing fine.", "Teruskan, kau okay je."), t("Water break?", "Rehat minum air?")] },
+    evening: { title: t("Evening", "Petang"), icon: "heart", say: [t("Day's work done. Your time now.", "Kerja hari ini siap. Masa kau sekarang."), t("A few habits, then rest.", "Beberapa tabiat, lepas tu rehat.")] },
+    night: { title: t("Night", "Malam"), icon: "moon", say: [t("Wind down. Big day tomorrow.", "Masa berehat. Esok hari baru."), t("Phone away, lights off.", "Letak phone, tutup lampu.")] }
+  };
+
+  window.TUNAS_PACK_CATS = [
+    { id: "body", title: t("Body", "Badan") },
+    { id: "mind", title: t("Mind", "Minda") },
+    { id: "faith", title: t("Faith", "Agama") },
+    { id: "grow", title: t("Study & work", "Belajar & kerja") },
+    { id: "home", title: t("Home & life", "Rumah & hidup") }
+  ];
+
+  const bodyweightEx = [
+    { id: "pushup", name: t("Push-ups", "Tekan tubi"), reps: "8–15", rest: "60s", cue: t("Knees down is fine. Chest to the floor, body straight.", "Lutut di lantai pun boleh. Dada ke lantai, badan lurus."), bodyweight: true },
+    { id: "squat", name: t("Bodyweight Squat", "Cangkung"), reps: "12–20", rest: "60s", cue: t("Sit back like a chair, 3 seconds down.", "Duduk ke belakang macam kerusi, turun 3 saat."), bodyweight: true },
+    { id: "bridge", name: t("Glute Bridge", "Jambatan punggung"), reps: "12–20", rest: "45s", cue: t("Squeeze at the top for 1 second.", "Kepit di atas selama 1 saat."), bodyweight: true },
+    { id: "plank", name: t("Plank", "Plank"), reps: "30–45 sec", rest: "45s", cue: t("Squeeze glutes, ribs down.", "Kepit punggung, rusuk ke bawah."), bodyweight: true, unit: "sec" }
+  ];
+  const homeWorkout = { name: t("Home Workout", "Senaman di Rumah"), say: [t("Workout time! Let's go.", "Masa senaman! Jom."), t("Log every set to catch a new PR.", "Catat setiap set untuk kejar rekod baru.")], exercises: bodyweightEx };
+
+  window.TUNAS_PACKS = [
+    /* ---------- Body ---------- */
+    { id: "skin", cat: "body", emoji: "🧴", title: t("Skincare", "Penjagaan kulit"), desc: t("Cleanse, moisturise and sunscreen, morning and night.", "Cuci, lembapkan dan pelindung matahari, pagi dan malam."),
+      habits: [
+        h("sk-am-clean", "morning", t("Rinse or gentle cleanser", "Bilas atau pencuci lembut"), { at: 15, note: t("Pat dry, leave skin a little damp", "Tepuk kering, biar kulit sedikit lembap") }),
+        h("sk-am-moist", "morning", t("Moisturiser", "Pelembap"), { at: 17 }),
+        h("sk-spf", "morning", t("Sunscreen", "Pelindung matahari"), { at: 20, quest: true, note: t("Two finger-lengths for face and neck", "Dua panjang jari untuk muka dan leher") }),
+        h("sk-pm-clean", "night", t("Gentle cleanser", "Pencuci lembut"), { at: 0, note: t("Washes off sunscreen and the day's oil", "Tanggalkan pelindung matahari dan minyak") }),
+        h("sk-pm-moist", "night", t("Moisturiser", "Pelembap"), { at: 5 })
+      ],
+      weekly: [w("sk-pillow", t("Change pillowcase", "Tukar sarung bantal"))],
+      tips: [
+        t("**Thin to thick:** watery products first, creams after, sunscreen last in the morning.", "**Nipis ke pekat:** produk cair dulu, krim kemudian, pelindung matahari paling akhir waktu pagi."),
+        t("**Results take 4 to 8 weeks.** Keep the streak going.", "**Hasil ambil masa 4 hingga 8 minggu.** Teruskan streak.")
+      ],
+      guide: [
+        { title: t("Skincare: the order", "Kulit: susunan"), lines: [
+          t("**Morning:** cleanser → serum → moisturiser → sunscreen", "**Pagi:** pencuci → serum → pelembap → pelindung matahari"),
+          t("**Night:** cleanser → serum → moisturiser", "**Malam:** pencuci → serum → pelembap"),
+          t("Add one new product at a time, two weeks apart.", "Tambah satu produk baru pada satu masa, selang dua minggu.") ] },
+        { title: t("Skincare: how much", "Kulit: berapa banyak"), lines: [
+          t("**Cleanser:** one small pump, about 30 seconds.", "**Pencuci:** satu pam kecil, lebih kurang 30 saat."),
+          t("**Moisturiser:** a pea-size amount.", "**Pelembap:** sebesar kacang pis."),
+          t("**Sunscreen:** two finger-lengths for face and neck.", "**Pelindung matahari:** dua panjang jari untuk muka dan leher.") ] }
+      ] },
+    { id: "water", cat: "body", emoji: "💧", title: t("Drink water", "Minum air"), desc: t("A glass on waking and a bottle that goes everywhere.", "Segelas bila bangun dan botol yang ikut ke mana-mana."),
+      habits: [
+        h("wt-wake", "morning", t("Glass of water when you wake up", "Segelas air bila bangun"), { at: 0 }),
+        h("wt-bottle", "day", t("Refill your water bottle", "Isi semula botol air")),
+        h("wt-8", "day", t("Drink 8 glasses of water", "Minum 8 gelas air"), { quest: true }),
+        h("wt-home", "evening", t("Glass of water when you get home", "Segelas air bila sampai rumah"), { at: 0 })
+      ],
+      tips: [t("**Keep a bottle in sight.** You drink what you can see.", "**Letak botol depan mata.** Nampak, baru minum.")] },
+    { id: "sleep", cat: "body", emoji: "😴", title: t("Better sleep", "Tidur lebih baik"), desc: t("Same wake time, no late coffee, 7–8 hours.", "Bangun masa sama, tiada kopi lewat, 7–8 jam."),
+      habits: [
+        h("sl-wake", "morning", t("Wake up at the same time", "Bangun pada masa yang sama"), { at: 0 }),
+        h("sl-coffee", "day", t("No coffee after 2pm", "Tiada kopi selepas 2 petang")),
+        h("sl-dark", "night", t("Room dark and cool", "Bilik gelap dan sejuk"), { at: 50 }),
+        h("sl-sleep", "night", t("Sleep on time", "Tidur ikut masa"), { at: 60, quest: true, note: t("Aim for 7–8 hours", "Sasarkan 7–8 jam") })
+      ],
+      tips: [t("**Same wake time, even on weekends.** Your body clock loves routine.", "**Bangun masa sama, walaupun hujung minggu.** Jam badan suka rutin.")],
+      guide: [{ title: t("Sleep basics", "Asas tidur"), lines: [
+        t("**Screens off 30 minutes before bed.** Bright light keeps you awake.", "**Tutup skrin 30 minit sebelum tidur.** Cahaya terang buat mata segar."),
+        t("**Can't sleep after 20 minutes?** Get up, do something calm, then try again.", "**Tak boleh tidur selepas 20 minit?** Bangun, buat benda tenang, kemudian cuba lagi.") ] }] },
+    { id: "move", cat: "body", emoji: "🚶", title: t("Daily movement", "Bergerak setiap hari"), desc: t("Steps, stairs, a stretch and a short walk.", "Langkah, tangga, regangan dan jalan sekejap."),
+      habits: [
+        h("mv-stretch", "morning", t("5 min stretch", "Regangan 5 minit"), { at: 10 }),
+        h("mv-stairs", "day", t("Take the stairs", "Guna tangga")),
+        h("mv-steps", "day", t("8,000 steps", "8,000 langkah"), { quest: true }),
+        h("mv-walk", "evening", t("20 min walk", "Jalan 20 minit"), { at: 30 })
+      ],
+      tips: [t("**Every bit counts.** Three 10-minute walks equal one 30-minute walk.", "**Setiap sikit pun dikira.** Tiga kali jalan 10 minit sama macam sekali 30 minit.")] },
+    { id: "workout", cat: "body", emoji: "💪", title: t("Home workout", "Senaman di rumah"), desc: t("Bodyweight training Monday, Wednesday and Friday.", "Latihan berat badan hari Isnin, Rabu dan Jumaat."),
+      habits: [h("wo-stretch", "evening", t("Stretch 5 min after training", "Regangan 5 minit lepas latihan"), { at: 90 })],
+      workouts: { "1": homeWorkout, "3": homeWorkout, "5": homeWorkout },
+      tips: [
+        t("**Beat last week by 1 rep.** That's progress.", "**Lebih 1 rep dari minggu lepas.** Itu dah kemajuan."),
+        t("**Rest days build muscle.** Don't skip them.", "**Hari rehat bina otot.** Jangan langkau.")
+      ],
+      guide: [{ title: t("Training basics", "Asas latihan"), lines: [
+        t("**Stop 2 reps before failure** on most sets.", "**Berhenti 2 rep sebelum tak larat** untuk kebanyakan set."),
+        t("**Hit the top of the rep range on every set?** Make it harder next time.", "**Capai rep maksimum setiap set?** Buat lebih susah lain kali.") ] }] },
+    { id: "eat", cat: "body", emoji: "🥗", title: t("Eat well", "Makan sihat"), desc: t("Protein breakfast, more veg, fewer sweet drinks.", "Sarapan protein, lebih sayur, kurang air manis."),
+      habits: [
+        h("ea-bfast", "morning", t("Breakfast with protein", "Sarapan dengan protein"), { at: 30, note: t("Eggs, yogurt or tofu", "Telur, yogurt atau tauhu") }),
+        h("ea-veg", "day", t("Half the plate veg at lunch", "Separuh pinggan sayur masa makan tengah hari"), { at: 0 }),
+        h("ea-sugar", "day", t("No sugary drinks", "Tiada minuman manis"), { quest: true }),
+        h("ea-dinner", "evening", t("Lighter dinner", "Makan malam ringan"), { at: 120, note: t("Less rice, more protein and veg", "Kurang nasi, lebih protein dan sayur") })
+      ],
+      tips: [t("**Cut liquid sugar first.** Teh tarik and soft drinks add up fast.", "**Kurangkan gula cecair dulu.** Teh tarik dan air bergas cepat bertambah.")] },
+    { id: "groom", cat: "body", emoji: "🪥", title: t("Teeth & grooming", "Gigi & dandanan"), desc: t("Brush twice, floss at night, stay fresh.", "Berus dua kali, flos waktu malam, sentiasa segar."),
+      habits: [
+        h("gr-brush-am", "morning", t("Brush teeth", "Berus gigi"), { at: 10 }),
+        h("gr-shower", "morning", t("Shower", "Mandi"), { at: 12 }),
+        h("gr-brush-pm", "night", t("Brush teeth + floss", "Berus gigi + flos"), { at: 15, quest: true })
+      ],
+      weekly: [w("gr-nails", t("Trim nails", "Potong kuku"))],
+      tips: [t("**Brush for 2 minutes.** Most people stop at 45 seconds.", "**Berus selama 2 minit.** Ramai berhenti pada 45 saat.")] },
+    { id: "desk", cat: "body", emoji: "🖥️", title: t("Desk health", "Sihat di meja"), desc: t("Eye breaks, standing up and good posture.", "Rehat mata, berdiri dan postur yang baik."),
+      habits: [
+        h("dk-eyes", "day", t("20-20-20 eye break", "Rehat mata 20-20-20"), { note: t("Every 20 min, look 6 metres away for 20 seconds", "Setiap 20 minit, pandang 6 meter jauh selama 20 saat") }),
+        h("dk-stand", "day", t("Stand up every hour", "Berdiri setiap jam"), { quest: true }),
+        h("dk-posture", "day", t("Screen at eye level, feet flat", "Skrin paras mata, kaki rata"))
+      ],
+      tips: [t("**Set a quiet hourly reminder** to stand and stretch.", "**Pasang peringatan senyap setiap jam** untuk berdiri dan regang.")] },
+    { id: "outdoor", cat: "body", emoji: "🌳", title: t("Fresh air", "Udara segar"), desc: t("Morning daylight and time outside.", "Cahaya pagi dan masa di luar."),
+      habits: [
+        h("od-sun", "morning", t("10 min of morning daylight", "10 minit cahaya pagi"), { at: 20, quest: true }),
+        h("od-out", "evening", t("Step outside for a bit", "Keluar rumah sekejap"), { at: 30 })
+      ],
+      weekly: [w("od-park", t("Visit a park, beach or hill", "Pergi taman, pantai atau bukit"))],
+      tips: [t("**Morning light helps you sleep at night.** Even on cloudy days.", "**Cahaya pagi bantu tidur malam.** Walaupun hari mendung.")] },
+
+    /* ---------- Mind ---------- */
+    { id: "morning", cat: "mind", emoji: "☀️", title: t("Morning kickstart", "Mula pagi"), desc: t("Bed made, daylight in, top 3 picked.", "Katil kemas, buka langsir, pilih 3 perkara utama."),
+      habits: [
+        h("mk-bed", "morning", t("Make your bed", "Kemas katil"), { at: 5 }),
+        h("mk-light", "morning", t("Open the curtains", "Buka langsir"), { at: 6 }),
+        h("mk-dress", "morning", t("Get dressed, even on days off", "Tukar baju, walaupun hari cuti"), { at: 25 }),
+        h("mk-top3", "morning", t("Pick your top 3 for today", "Pilih 3 perkara utama hari ini"), { at: 35, quest: true })
+      ],
+      tips: [t("**Decide the night before.** Mornings go smoother with fewer choices.", "**Tentukan malam sebelumnya.** Pagi lebih lancar bila kurang pilihan.")] },
+    { id: "winddown", cat: "mind", emoji: "🌙", title: t("Night wind-down", "Rehat malam"), desc: t("Dim lights, prepare for tomorrow, phone away.", "Malapkan lampu, sedia untuk esok, jauhkan phone."),
+      habits: [
+        h("wd-dim", "night", t("Dim the lights", "Malapkan lampu"), { at: 0 }),
+        h("wd-prep", "night", t("Prepare for tomorrow", "Sedia untuk esok"), { at: 10, note: t("Clothes, bag, charger", "Baju, beg, pengecas") }),
+        h("wd-phone", "night", t("Phone away from bed", "Jauhkan phone dari katil"), { at: 30, quest: true }),
+        h("wd-read", "night", t("Read or stretch instead of scrolling", "Baca atau regang, bukan scroll"), { at: 35 })
+      ],
+      tips: [t("**Charge your phone outside the bedroom.** Use a cheap alarm clock.", "**Cas phone di luar bilik tidur.** Guna jam loceng murah.")] },
+    { id: "calm", cat: "mind", emoji: "🧘", title: t("Calm mind", "Minda tenang"), desc: t("Breathing, a mindful pause and 3 good things.", "Pernafasan, berhenti sejenak dan 3 perkara baik."),
+      habits: [
+        h("cm-breathe", "morning", t("5 min of slow breathing", "5 minit pernafasan perlahan"), { at: 15, quest: true, note: t("In for 4 seconds, out for 6", "Tarik 4 saat, hembus 6 saat") }),
+        h("cm-pause", "day", t("One mindful pause", "Berhenti sejenak dan sedar")),
+        h("cm-good", "night", t("Note 3 good things from today", "Catat 3 perkara baik hari ini"), { at: 20 })
+      ],
+      guide: [{ title: t("Quick calm", "Tenang cepat"), lines: [
+        t("**Box breathing:** in 4, hold 4, out 4, hold 4. Repeat 4 times.", "**Pernafasan kotak:** tarik 4, tahan 4, hembus 4, tahan 4. Ulang 4 kali."),
+        t("**5-4-3-2-1:** name 5 things you see, 4 you hear, 3 you feel, 2 you smell, 1 you taste.", "**5-4-3-2-1:** sebut 5 benda kau nampak, 4 dengar, 3 rasa, 2 bau, 1 kecap."),
+        t("Feeling low for weeks? Talk to someone you trust or a counsellor.", "Rasa sedih berminggu-minggu? Bercakap dengan orang yang kau percaya atau kaunselor.") ] }] },
+    { id: "journal", cat: "mind", emoji: "📓", title: t("Journaling", "Menulis jurnal"), desc: t("One intention in the morning, 3 lines at night.", "Satu niat waktu pagi, 3 baris waktu malam."),
+      habits: [
+        h("jr-intent", "morning", t("Write one intention for today", "Tulis satu niat untuk hari ini"), { at: 20 }),
+        h("jr-write", "night", t("Write 3 lines about today", "Tulis 3 baris tentang hari ini"), { at: 15, quest: true })
+      ],
+      weekly: [w("jr-review", t("Read back this week's notes", "Baca semula catatan minggu ini"))] },
+    { id: "screen", cat: "mind", emoji: "📵", title: t("Screen balance", "Imbang masa skrin"), desc: t("Phone-free mornings and meals, check your screen time.", "Pagi dan waktu makan tanpa phone, semak masa skrin."),
+      habits: [
+        h("sc-morning", "morning", t("No phone for the first 30 minutes", "Tiada phone 30 minit pertama"), { quest: true }),
+        h("sc-meals", "day", t("No phone while eating", "Tiada phone masa makan")),
+        h("sc-check", "night", t("Check today's screen time", "Semak masa skrin hari ini"), { at: 0 })
+      ],
+      weekly: [w("sc-mute", t("Mute or delete one time-wasting app", "Senyapkan atau buang satu app yang buang masa"))] },
+    { id: "read", cat: "mind", emoji: "📚", title: t("Reading", "Membaca"), desc: t("10 pages a day and one idea worth keeping.", "10 muka surat sehari dan satu idea untuk disimpan."),
+      habits: [
+        h("rd-pages", "night", t("Read 10 pages", "Baca 10 muka surat"), { at: 25, quest: true }),
+        h("rd-idea", "night", t("Write down one idea you read", "Catat satu idea yang kau baca"), { at: 40 })
+      ],
+      weekly: [w("rd-next", t("Pick your next book", "Pilih buku seterusnya"))],
+      tips: [t("**10 pages a day is about 12 books a year.**", "**10 muka surat sehari lebih kurang 12 buku setahun.**")] },
+
+    /* ---------- Faith ---------- */
+    { id: "solat", cat: "faith", emoji: "🕌", title: t("Solat", "Solat"), desc: t("The five daily prayers.", "Solat lima waktu."),
+      habits: [
+        h("so-subuh", "morning", t("Subuh", "Subuh")),
+        h("so-zohor", "day", t("Zohor", "Zohor")),
+        h("so-asar", "day", t("Asar", "Asar")),
+        h("so-maghrib", "evening", t("Maghrib", "Maghrib")),
+        h("so-isyak", "night", t("Isyak", "Isyak"))
+      ],
+      tips: [t("**Prayer times change through the year.** Check the times for your zone.", "**Waktu solat berubah sepanjang tahun.** Semak waktu untuk zon kau.")] },
+    { id: "quran", cat: "faith", emoji: "📖", title: t("Quran & zikir", "Al-Quran & zikir"), desc: t("Morning and evening zikir, a page of Quran a day.", "Zikir pagi dan petang, satu muka surat Al-Quran sehari."),
+      habits: [
+        h("qr-zikir-am", "morning", t("Morning zikir", "Zikir pagi"), { at: 25 }),
+        h("qr-zikir-pm", "evening", t("Evening zikir", "Zikir petang"), { at: 30 }),
+        h("qr-read", "evening", t("Read Quran (1 page or 5 min)", "Baca Al-Quran (1 muka surat atau 5 minit)"), { at: 75, quest: true })
+      ],
+      weekly: [w("qr-kahfi", t("Surah Al-Kahf on Friday", "Surah Al-Kahfi hari Jumaat"))],
+      tips: [t("**Small and steady beats big and rare.** One page a day finishes the Quran in under 2 years.", "**Sikit tapi berterusan lebih baik.** Satu muka surat sehari khatam dalam kurang 2 tahun.")] },
+
+    /* ---------- Study & work ---------- */
+    { id: "study", cat: "grow", emoji: "🎓", title: t("Study", "Belajar"), desc: t("Review notes daily and stay on top of deadlines.", "Ulang kaji setiap hari dan ikut tarikh akhir."),
+      habits: [
+        h("st-review", "evening", t("Review today's notes (30 min)", "Ulang kaji nota hari ini (30 minit)"), { at: 15, quest: true }),
+        h("st-tasks", "evening", t("Check assignments and deadlines", "Semak tugasan dan tarikh akhir"), { at: 45 }),
+        h("st-bag", "night", t("Pack your bag for tomorrow", "Kemas beg untuk esok"), { at: 5 })
+      ],
+      weekly: [w("st-plan", t("Plan the week's assignments", "Rancang tugasan minggu ini"))],
+      tips: [t("**Review within 24 hours.** You'll remember twice as much.", "**Ulang kaji dalam 24 jam.** Kau akan ingat dua kali ganda.")],
+      guide: [{ title: t("The 25–5 method", "Kaedah 25–5"), lines: [
+        t("**Study 25 minutes,** then rest 5. After 4 rounds, rest 20.", "**Belajar 25 minit,** rehat 5. Selepas 4 pusingan, rehat 20."),
+        t("**One subject per block.** Switching wastes time.", "**Satu subjek setiap blok.** Bertukar-tukar membazir masa.") ] }] },
+    { id: "focus", cat: "grow", emoji: "🎯", title: t("Deep work", "Kerja fokus"), desc: t("One distraction-free focus block a day.", "Satu blok fokus tanpa gangguan sehari."),
+      habits: [
+        h("fc-block", "day", t("One focus block (45 min)", "Satu blok fokus (45 minit)"), { quest: true, note: t("Phone in another room, one task only", "Phone di bilik lain, satu tugasan sahaja") }),
+        h("fc-inbox", "day", t("Check messages at set times, not all day", "Semak mesej pada masa tetap, bukan sepanjang hari")),
+        h("fc-done", "evening", t("Write down what you finished", "Catat apa yang dah siap"), { at: 0 })
+      ],
+      tips: [t("**Hardest task first,** while your energy is high.", "**Tugasan paling susah dulu,** masa tenaga masih tinggi.")] },
+    { id: "lang", cat: "grow", emoji: "🗣️", title: t("Learn a language", "Belajar bahasa"), desc: t("15 minutes of practice and 5 new words a day.", "15 minit latihan dan 5 perkataan baru sehari."),
+      habits: [
+        h("lg-words", "day", t("Learn 5 new words", "Belajar 5 perkataan baru")),
+        h("lg-practice", "evening", t("15 min language practice", "Latihan bahasa 15 minit"), { at: 45, quest: true })
+      ],
+      weekly: [w("lg-talk", t("Talk or write to someone in that language", "Bercakap atau menulis dengan seseorang dalam bahasa itu"))] },
+    { id: "code", cat: "grow", emoji: "💻", title: t("Coding practice", "Latihan coding"), desc: t("Code a little every day and keep a learning log.", "Code sikit setiap hari dan simpan log belajar."),
+      habits: [
+        h("cd-code", "evening", t("30 min of coding", "30 minit coding"), { at: 60, quest: true }),
+        h("cd-log", "night", t("Note one thing you learned", "Catat satu benda yang kau belajar"), { at: 10 })
+      ],
+      weekly: [w("cd-ship", t("Finish and push one small task", "Siapkan dan push satu tugasan kecil"))],
+      tips: [t("**Build small things often.** Finished beats perfect.", "**Bina benda kecil selalu.** Siap lebih baik dari sempurna.")] },
+    { id: "career", cat: "grow", emoji: "💼", title: t("Career growth", "Kerjaya"), desc: t("Apply, build skills and keep your CV fresh.", "Mohon kerja, tambah kemahiran dan kemas kini resume."),
+      habits: [
+        h("cr-apply", "day", t("Apply to one job or opportunity", "Mohon satu kerja atau peluang"), { quest: true }),
+        h("cr-skill", "evening", t("20 min on a work skill", "20 minit belajar kemahiran kerja"), { at: 90 })
+      ],
+      weekly: [w("cr-cv", t("Update your CV or portfolio", "Kemas kini resume atau portfolio")), w("cr-net", t("Message one person in your field", "Mesej seorang dalam bidang kau"))],
+      tips: [t("**Tailor each application.** Three good ones beat twenty copy-paste ones.", "**Sesuaikan setiap permohonan.** Tiga yang bagus lebih baik dari dua puluh yang sama.")] },
+    { id: "create", cat: "grow", emoji: "🎨", title: t("Creative time", "Masa kreatif"), desc: t("20 minutes to draw, write, play or make.", "20 minit untuk melukis, menulis, bermain atau mencipta."),
+      habits: [h("cv-make", "evening", t("20 min of creative time", "20 minit masa kreatif"), { at: 120, quest: true, note: t("Draw, write, play music, edit", "Lukis, tulis, main muzik, edit") })],
+      weekly: [w("cv-share", t("Share or save one thing you made", "Kongsi atau simpan satu hasil kau"))] },
+
+    /* ---------- Home & life ---------- */
+    { id: "cook", cat: "home", emoji: "🍳", title: t("Home cooking", "Masak di rumah"), desc: t("Cook one meal a day and plan the week.", "Masak satu hidangan sehari dan rancang minggu."),
+      habits: [
+        h("ck-cook", "evening", t("Cook one meal at home", "Masak satu hidangan di rumah"), { at: 60, quest: true }),
+        h("ck-lunch", "night", t("Pack tomorrow's lunch", "Bungkus bekal untuk esok"), { at: 5 })
+      ],
+      weekly: [w("ck-plan", t("Plan meals and a grocery list", "Rancang menu dan senarai barang dapur")), w("ck-prep", t("Meal prep for the week", "Sediakan makanan untuk seminggu"))],
+      tips: [t("**Cook once, eat twice.** Make double and keep half for tomorrow.", "**Masak sekali, makan dua kali.** Masak lebih dan simpan separuh untuk esok.")] },
+    { id: "tidy", cat: "home", emoji: "🧹", title: t("Tidy home", "Rumah kemas"), desc: t("10 minutes a day keeps the big clean away.", "10 minit sehari, tak perlu kemas besar-besaran."),
+      habits: [
+        h("td-10", "evening", t("10-minute tidy", "Kemas 10 minit"), { at: 150, quest: true }),
+        h("td-sink", "night", t("Clear the sink before bed", "Kosongkan sinki sebelum tidur"), { at: 0 })
+      ],
+      weekly: [w("td-laundry", t("Laundry", "Basuh baju")), w("td-sheets", t("Change bed sheets", "Tukar cadar")), w("td-deep", t("Deep clean one area", "Cuci menyeluruh satu kawasan"))] },
+    { id: "money", cat: "home", emoji: "💰", title: t("Money habits", "Urus duit"), desc: t("Track spending, skip impulse buys, save weekly.", "Catat belanja, elak beli ikut nafsu, simpan setiap minggu."),
+      habits: [
+        h("mn-nobuy", "day", t("No impulse buys today", "Tiada beli ikut nafsu hari ini"), { note: t("Wait 24 hours before buying anything you didn't plan", "Tunggu 24 jam sebelum beli benda yang tak dirancang") }),
+        h("mn-log", "night", t("Log today's spending", "Catat belanja hari ini"), { at: 15, quest: true })
+      ],
+      weekly: [w("mn-review", t("Review this week's spending", "Semak belanja minggu ini")), w("mn-save", t("Move money to savings", "Pindah duit ke simpanan"))],
+      tips: [t("**Pay yourself first.** Save on payday, then spend what's left.", "**Bayar diri sendiri dulu.** Simpan masa gaji masuk, baru belanja bakinya.")] },
+    { id: "family", cat: "home", emoji: "👨‍👩‍👧", title: t("Family & friends", "Keluarga & kawan"), desc: t("Stay in touch every day, not just on holidays.", "Kekal berhubung setiap hari, bukan masa cuti sahaja."),
+      habits: [
+        h("fm-msg", "evening", t("Message a friend or family member", "Mesej kawan atau keluarga"), { at: 60, quest: true }),
+        h("fm-meal", "evening", t("One meal with others, phones away", "Makan bersama, phone diletak jauh"), { at: 120, everyOtherDay: true })
+      ],
+      weekly: [w("fm-call", t("Call your parents", "Telefon mak ayah")), w("fm-meet", t("Meet a friend", "Jumpa kawan"))] },
+    { id: "pet", cat: "home", emoji: "🐾", title: t("Pet care", "Jaga haiwan peliharaan"), desc: t("Feeding, play time and a clean space.", "Makan, masa bermain dan tempat yang bersih."),
+      habits: [
+        h("pt-feed-am", "morning", t("Feed your pet", "Beri makan haiwan peliharaan"), { at: 10 }),
+        h("pt-play", "evening", t("Walk or play for 15 min", "Bawa jalan atau main 15 minit"), { at: 30, quest: true }),
+        h("pt-feed-pm", "evening", t("Evening feed and fresh water", "Makan petang dan air bersih"), { at: 60 })
+      ],
+      weekly: [w("pt-clean", t("Clean the litter box, cage or tank", "Cuci pasir, sangkar atau akuarium")), w("pt-stock", t("Check food and supplies", "Semak makanan dan barang keperluan"))] },
+    { id: "plants", cat: "home", emoji: "🌱", title: t("Plant care", "Jaga pokok"), desc: t("A quick daily check and a weekly once-over.", "Semakan ringkas setiap hari dan sekali seminggu."),
+      habits: [h("pl-check", "morning", t("Check the soil, water if dry", "Semak tanah, siram kalau kering"), { at: 30 })],
+      weekly: [w("pl-wipe", t("Wipe leaves and turn pots", "Lap daun dan pusing pasu")), w("pl-feed", t("Add fertiliser if growing", "Tambah baja kalau sedang membesar"))],
+      tips: [t("**Most plants die from too much water,** not too little. Check the soil first.", "**Kebanyakan pokok mati sebab terlebih air,** bukan kurang. Semak tanah dulu.")] },
+    { id: "kind", cat: "home", emoji: "🤝", title: t("Kindness", "Berbuat baik"), desc: t("One kind act a day and giving every week.", "Satu kebaikan sehari dan bersedekah setiap minggu."),
+      habits: [
+        h("kd-kind", "day", t("Do one kind thing", "Buat satu kebaikan"), { quest: true }),
+        h("kd-thanks", "evening", t("Thank someone properly", "Ucap terima kasih dengan ikhlas"), { at: 90 })
+      ],
+      weekly: [w("kd-give", t("Give or donate something", "Bersedekah atau derma sesuatu"))] }
+  ];
+})();
