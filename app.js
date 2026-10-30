@@ -83,7 +83,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.10.30d";
+const APP_VERSION = "2026.10.30e";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -170,6 +170,7 @@ function validateRoutine(r) {
   if (Array.isArray(r.weekly) && r.weekly.length > LIMITS.weekly) return T("errTooBig");
   if (r.packs != null && (!Array.isArray(r.packs) || r.packs.length > 60 || !r.packs.every(x => typeof x === "string"))) return T("badFile");
   if (r.day != null && (typeof r.day !== "object" || Array.isArray(r.day))) return T("badFile");
+  if (r.fitness != null && (typeof r.fitness !== "object" || Array.isArray(r.fitness))) return T("badFile");
   return guideError(r);
 }
 // Guide and tips are shown with md(), which escapes first; here we only check shape and size.
@@ -212,7 +213,7 @@ function applyRoutine(r) {
     if (!w || !Array.isArray(w.exercises) || !w.exercises.length) return;
     const from = w.from != null ? tm(w.from, null) : null; let to = w.to != null ? tm(w.to, null) : null;
     if (from != null && to != null && to <= from) to += 1440;
-    WORKOUTS[+day] = { name: w.name || "Workout", when: w.when || "", from, to, remind: w.remind ? tm(w.remind, null) : (from != null ? from : null),
+    WORKOUTS[+day] = { name: w.name || "Workout", when: w.when || "", sets: [1, 2, 3, 4, 5].includes(+w.sets) ? +w.sets : null, from, to, remind: w.remind ? tm(w.remind, null) : (from != null ? from : null),
       after: slug(w.after || BLOCKS[0].id), say: Array.isArray(w.say) ? w.say : null,
       ex: w.exercises.map(e => ({ id: slug(e.id || e.name), name: e.name || "Exercise", reps: e.reps || "8–12", rest: e.rest || "60s", cue: e.cue || "", bw: !!e.bodyweight, unit: e.unit === "sec" ? "sec" : "" })) };
   });
@@ -725,7 +726,7 @@ function openSheet(id) {
   // Phone back button closes the sheet instead of leaving the app.
   if (!sheetId && !(history.state && history.state.tunasSheet)) { try { history.pushState({ tunasSheet: 1 }, ""); } catch (e) {} }
   // A day opened from History goes back to History when closed; a locked-backup sheet goes back to Settings.
-  parentSheet = (sheetId === "history" && id.startsWith("day:")) || (sheetId === "settings" && (id.startsWith("lock:") || id === "packs")) ? sheetId : null;
+  parentSheet = (sheetId === "history" && id.startsWith("day:")) || (sheetId === "settings" && (id.startsWith("lock:") || id === "packs" || id === "wosetup")) ? sheetId : null;
   if (!parentSheet) lastFocus = document.activeElement;
   // Restoring a backup from the welcome screen opens a sheet on top of it.
   document.body.classList.toggle("sheet-top", !$("welcome").hidden);
@@ -790,6 +791,7 @@ function renderSheet(keep) {
   if (sheetId === "editor") return renderEditor(keep);
   if (sheetId.startsWith("lock:")) return renderLockSheet(keep);
   if (sheetId === "packs") return renderPackSheet(keep);
+  if (sheetId === "wosetup") return renderWoSheet(keep);
   if (sheetId.startsWith("day:")) return renderDaySheet(sheetId.slice(4), keep);
   if (sheetId === "history" || sheetId === "badges") return renderProgressSheet(sheetId, keep);
   const d = routineDate(), today = dkey(d), node = nodesFor(d).find(n => n.id === sheetId); if (!node) { closeSheet(); return; }
@@ -814,7 +816,7 @@ function renderSheet(keep) {
     WEEKLY.forEach(i => { h += taskHTML(i, !!wd[i.id], `<span class="qtag alt">+${XP.weekly}</span>`); });
     h += `<div class="note">${T("weeklyNote")}</div>`;
   } else {
-    const W = node.W, wk = programWeek(d), nSets = wk <= 4 ? 2 : 3, logs = store.logs[today] || {};
+    const W = node.W, wk = programWeek(d), nSets = W.sets || (wk <= 4 ? 2 : 3), logs = store.logs[today] || {};
     h += `<div class="rules">${T("woRules", wk, nSets, XP.pr)}</div>`;
     W.ex.forEach(ex => {
       const last = lastLog(ex.id, today), prev = bestBefore(ex.id, today), P = PROG[ex.id] || { start: "", step: 2 };
@@ -1189,7 +1191,8 @@ function setLang(l) {
   applyStatic(); renderGuide(); lastS = null; prevCleared = null; refresh(true);
 }
 function settingsAction(act, el) {
-  if (act === "addPacks") { PK.sel = new Set(); return openSheet("packs"); }
+  if (act === "addPacks") { PK = { sel: new Set(), step: "", fit: normFit(RAW.fitness) }; return openSheet("packs"); }
+  if (act === "woSetup") { PK = { sel: new Set(), step: "", fit: normFit(RAW.fitness) }; return openSheet("wosetup"); }
   if (act === "rmPack") { const id = el && el.dataset.pack; if (!id) return;
     if (settingsPane !== "rm:" + id) { settingsPane = "rm:" + id; return renderSettings(true); }
     settingsPane = ""; return removePackNow(id); }
@@ -1210,7 +1213,10 @@ function settingsAction(act, el) {
   if (act === "restore") return $("fileBackup").click();
   if (act === "sound") { toggleSound(); return renderSettings(true); }
 }
-$("sheet").addEventListener("click", e => { if (sheetId === "packs") { const pk = e.target.closest("[data-pack]"); if (pk) { togglePack(PK.sel, pk.dataset.pack); return renderPackSheet(true); }
+$("sheet").addEventListener("click", e => { if (sheetId === "packs" || sheetId === "wosetup") { const wo = e.target.closest("[data-wo]"); if (wo) { woToggle(PK.fit, wo); return renderSheet(true); }
+    if (e.target.closest("[data-wosave]")) return saveWoSetup(); }
+  if (sheetId === "packs") { const pk = e.target.closest("[data-pack]"); if (pk) { togglePack(PK.sel, pk.dataset.pack); return renderPackSheet(true); }
+    if (e.target.closest("[data-packback]")) { PK.step = ""; return renderPackSheet(false); }
     if (e.target.closest("[data-packgo]")) return addPacksNow(); }
   const b = e.target.closest("[data-lang]"); if (b) { setLang(b.dataset.lang); return; }
   const t = e.target.closest("[data-theme-pick]"); if (t) { pickTheme(t.dataset.themePick); if (sheetId === "settings") renderSettings(true); } });
@@ -1493,7 +1499,7 @@ function saveEditor() {
 
 /* ================= Welcome ================= */
 const newWel = (step, switching) => ({ step: step || 1, tpls: new Set(["worker"]), includeWo: true, switching: !!switching, name: switching ? (CFG.name || "") : "",
-  packs: new Set(), wake: (RAW.day && RAW.day.wake) || "06:30", sleep: (RAW.day && RAW.day.sleep) || "23:00", busy: true, busyFrom: "08:30", busyTo: "17:00" });
+  packs: new Set(), fit: normFit(RAW.fitness), wake: (RAW.day && RAW.day.wake) || "06:30", sleep: (RAW.day && RAW.day.sleep) || "23:00", busy: true, busyFrom: "08:30", busyTo: "17:00" });
 let WEL = newWel(1);
 function countHabits(r) { return (r.blocks || []).reduce((s, b) => s + (b.items || []).length, 0); }
 function openWelcome(step, switching) {
@@ -1517,6 +1523,7 @@ function renderWelcome() {
     jump($("wMascot"));
   } else if (WEL.step === 2) { renderWelcomePacks(el);
   } else if (WEL.step === 3) { renderWelcomeDay(el);
+  } else if (WEL.step === "wo") { renderWelcomeWorkout(el);
   } else {
     const anyWo = [...WEL.tpls].some(id => Object.keys((window.TUNAS_TEMPLATES.find(t => t.id === id) || {}).routine?.workouts || {}).length);
     el.innerHTML = `<div class="w-in wide"><h2>${T("wPick")}</h2><p>${T("wPickMulti")}</p>
@@ -1629,7 +1636,17 @@ function addPacks(base, ids) {
       if (r.guide.sections.length < LIMITS.guideSections && !r.guide.sections.some(x => x.pack === id && x.title === g.title))
         r.guide.sections.push({ title: g.title, lines: g.lines.slice(0, LIMITS.guideLines), pack: id });
     });
-    Object.entries(P.workouts || {}).forEach(([k, wo]) => {
+    let wos = P.workouts || {};
+    if (P.setup === "workout") {
+      r.fitness = normFit(r.fitness); const B = buildWorkouts(r.fitness); wos = B.workouts;
+      r.progression ||= {}; Object.entries(B.progression).forEach(([k, v]) => { r.progression[k] ||= v; });
+      const Wd = window.TUNAS_WORKOUT;
+      if (!r.guide || typeof r.guide !== "object") r.guide = { title: T("packGuide"), sections: [] };
+      r.guide.sections ||= [];
+      if (r.guide.sections.length < LIMITS.guideSections && !r.guide.sections.some(g => g.pack === id && g.plan))
+        r.guide.sections.unshift({ title: R(Wd.planTitle), lines: R(Wd.planGuide[r.fitness.level]), pack: id, plan: true });
+    }
+    Object.entries(wos).forEach(([k, wo]) => {
       if (r.workouts[k]) return;
       const eb = slotBlock(r, "evening", plan, made), f = anchorOf(eb, "evening") + 30;
       r.workouts[k] = { ...clone(wo), when: fmtClock(f), from: hhmm(f), to: hhmm(f + 45), remind: hhmm(f), after: eb.id, pack: id };
@@ -1671,7 +1688,7 @@ function renderWelcomePacks(el) {
       <button class="btn" type="button" id="wPkNext" ${n ? "" : "disabled"}>${T("next")}</button>
       <div class="w-links"><button class="linkish" type="button" id="wBack">${WEL.switching ? T("cancel") : T("back")}</button><button class="linkish" type="button" id="wTpl">${T("wReady")}</button></div></div></div>`;
   el.querySelectorAll("[data-pack]").forEach(b => b.onclick = () => { togglePack(WEL.packs, b.dataset.pack); const top = el.scrollTop; renderWelcome(); el.scrollTop = top; });
-  $("wPkNext").onclick = () => { if (!WEL.packs.size) return; WEL.step = 3; renderWelcome(); el.scrollTop = 0; };
+  $("wPkNext").onclick = () => { if (!WEL.packs.size) return; WEL.step = WEL.packs.has("workout") ? "wo" : 3; renderWelcome(); el.scrollTop = 0; };
   $("wBack").onclick = () => { if (WEL.switching) closeWelcome(); else { WEL.step = 1; renderWelcome(); } };
   $("wTpl").onclick = () => { WEL.step = "tpl"; renderWelcome(); el.scrollTop = 0; };
 }
@@ -1685,23 +1702,24 @@ function renderWelcomeDay(el) {
     <div class="w-links one"><button class="linkish" type="button" id="wBack">${T("back")}</button></div></div>`;
   [["wWake", "wake"], ["wSleep", "sleep"], ["wB1", "busyFrom"], ["wB2", "busyTo"]].forEach(([id, k]) => { const f = $(id); if (f) f.addEventListener("change", () => { if (/^\d{2}:\d{2}$/.test(f.value)) WEL[k] = f.value; }); });
   $("wBusy").onclick = () => { WEL.busy = !WEL.busy; renderWelcome(); };
-  $("wBack").onclick = () => { WEL.step = 2; renderWelcome(); };
+  $("wBack").onclick = () => { WEL.step = WEL.packs.has("workout") ? "wo" : 2; renderWelcome(); };
   $("wGo").onclick = finishPacks;
 }
 function finishPacks() {
   const day = { wake: WEL.wake, sleep: WEL.sleep, busy: WEL.busy ? [WEL.busyFrom, WEL.busyTo] : null };
   const base = { version: 1, label: T("myRoutine"), name: "", blocks: [], focus: {}, workouts: {}, progression: {}, weekly: [], tips: [], guide: null, day, showWorkouts: true, packs: [],
     away: day.busy ? { from: day.busy[0], to: day.busy[1], say: T("awaySay") } : null };
+  if (WEL.packs.has("workout")) base.fitness = normFit(WEL.fit);
   const { r } = addPacks(base, [...WEL.packs]);
   if (!r.blocks.length) { toast(T("wPickOne"), "x"); return; }
   welcomeDone(r);
 }
 // Settings → Habit packs
-let PK = { sel: new Set() };
+let PK = { sel: new Set(), step: "", fit: null };
 function packsSettingsHTML() {
   const active = (Array.isArray(RAW.packs) ? RAW.packs : []).map(packById).filter(Boolean);
   const rows = active.map(p => { const sure = settingsPane === "rm:" + p.id;
-    return `<div class="pk-row"><span class="pk-emo" aria-hidden="true">${esc(p.emoji)}</span><span class="pk-row-t"><b>${esc(R(p.title))}</b><span>${T("packHabits", packCount(RAW, p.id))}</span></span>
+    return `<div class="pk-row"><span class="pk-emo" aria-hidden="true">${esc(p.emoji)}</span><span class="pk-row-t"><b>${esc(R(p.title))}</b><span>${T("packHabits", packCount(RAW, p.id))}</span>${p.setup === "workout" ? `<button class="linkish" type="button" data-act="woSetup">${T("woChange")}</button>` : ""}</span>
       <button class="btn small ${sure ? "danger" : "ghost danger-ghost"}" type="button" data-act="rmPack" data-pack="${esc(p.id)}">${sure ? T("edSure") : T("removePack")}</button></div>`; }).join("");
   return `<div class="set-group"><h3>${T("packsTitle")}</h3><p>${T("packsHelp")}</p>${rows || `<p>${T("packsNone")}</p>`}
     <div class="row"><button class="btn small ed-add" type="button" data-act="addPacks">${I.plus}${T("addPacks")}</button></div></div>`;
@@ -1712,12 +1730,19 @@ function renderPackSheet(keep) {
   $("shHead").querySelector(".sh-ico").innerHTML = I.plus;
   $("shClose").onclick = closeSheet;
   const have = new Set(Array.isArray(RAW.packs) ? RAW.packs : []);
+  if (PK.step === "wo") {
+    $("shHead").innerHTML = sheetHead("dumb", T("woSetQ"), T("woSetSub"), null, "--green");
+    $("shClose").onclick = closeSheet;
+    body.innerHTML = `<div class="pk-bar"><button class="btn" type="button" data-packgo>${T("addN", n)}</button></div>${woSetupHTML(PK.fit)}<div class="row"><button class="linkish" type="button" data-packback>${T("back")}</button></div>`;
+    if (keep) body.scrollTop = top; return;
+  }
   body.innerHTML = `<div class="pk-bar"><button class="btn" type="button" data-packgo ${n ? "" : "disabled"}>${T("addN", n)}</button></div>` + packGridHTML(PK.sel, have);
   if (keep) body.scrollTop = top;
 }
 function addPacksNow() {
   if (!PK.sel.size) return;
-  const ids = [...PK.sel], { r, skipped } = addPacks(RAW, ids);
+  if (PK.sel.has("workout") && PK.step !== "wo") { PK.step = "wo"; return renderPackSheet(false); }
+  const ids = [...PK.sel], { r, skipped } = addPacks(PK.sel.has("workout") ? { ...RAW, fitness: PK.fit } : RAW, ids);
   if (RAW_IS_DEFAULT || !r.label) r.label = T("myRoutine");
   const err = validateRoutine(r); if (err) { toast(esc(err), "x"); return; }
   if (!saveRoutine(clampText(r))) return;
@@ -1731,6 +1756,79 @@ function removePackNow(id) {
   const err = validateRoutine(r); if (err) { toast(esc(err), "x"); return; }
   if (!saveRoutine(clampText(r))) return renderSettings(true);
   lastS = null; prevCleared = null; refresh(true); toast(T("packRemoved", esc(R(packById(id).title))), "check");
+}
+
+/* ================= Workout setup ================= */
+// Level + place + equipment → workouts, picked from TUNAS_WORKOUT on the phone. Exercise ids stay stable so logs and PRs carry over.
+function normFit(f) {
+  const W = window.TUNAS_WORKOUT; f = f && typeof f === "object" ? f : {};
+  return { level: W.plans[f.level] ? f.level : "new", place: f.place === "gym" ? "gym" : "home",
+    gear: Array.isArray(f.gear) ? [...new Set(f.gear.filter(g => W.gear.some(x => x.id === g)))] : [] };
+}
+const GEAR_ORDER = { gym: ["gym", "db", "bar", "band", "none"], home: ["db", "bar", "band", "none"] };
+function pickEx(pattern, fit, used) {
+  const have = fit.place === "gym" ? GEAR_ORDER.gym : GEAR_ORDER.home.filter(g => g === "none" || fit.gear.includes(g));
+  for (const g of have) { const e = window.TUNAS_WORKOUT.ex.find(e => e.pattern === pattern && e.gear === g && e.lv.includes(fit.level) && !used.has(e.id)); if (e) return e; }
+  return null;
+}
+function buildWorkouts(fitIn) {
+  const W = window.TUNAS_WORKOUT, fit = normFit(fitIn), plan = W.plans[fit.level], workouts = {}, progression = {};
+  Object.entries(plan.days).forEach(([day, sp]) => {
+    const S = W.splits[sp], used = new Set(), list = [];
+    S.patterns.forEach(pt => { let p = pt, e = pickEx(p, fit, used); while (!e && W.fallback[p]) { p = W.fallback[p]; e = pickEx(p, fit, used); } if (e) { used.add(e.id); list.push(e); } });
+    workouts[day] = { name: R(S.name), when: R(plan.mins), say: R(W.say), exercises: list.map(e => {
+      const weighted = (e.kind === "w" || e.kind === "acc") && (e.gear === "db" || e.gear === "gym");
+      const o = { id: e.id, name: R(e.name), reps: W.reps[e.kind][fit.level], rest: W.rest[e.kind][fit.level], cue: R(e.cue), bodyweight: !weighted };
+      if (e.unit) o.unit = e.unit;
+      if (weighted) progression[e.id] = { start: R(W.start[fit.level]), step: e.step || 2 };
+      return o; }) };
+    if (plan.sets) workouts[day].sets = plan.sets;
+  });
+  return { workouts, progression };
+}
+function woToggle(F, b) {
+  const k = b.dataset.wo, id = b.dataset.id;
+  if (k === "level" && window.TUNAS_WORKOUT.plans[id]) F.level = id;
+  else if (k === "place") F.place = id === "gym" ? "gym" : "home";
+  else if (k === "gear") { if (id === "none") F.gear = []; else F.gear = F.gear.includes(id) ? F.gear.filter(g => g !== id) : [...F.gear, id]; }
+}
+function woSetupHTML(F) {
+  const W = window.TUNAS_WORKOUT, sug = W.suggest[F.level];
+  const opt = (kind, id, inner, on, cls) => `<button type="button" class="wo-opt${cls ? " " + cls : ""}" data-wo="${kind}" data-id="${esc(id)}" aria-pressed="${on}">${inner}</button>`;
+  let h = `<h3 class="wo-q">${T("woLevelQ")}</h3><div class="wo-list">${W.levels.map(l => opt("level", l.id, `<b>${esc(R(l.title))}</b><span>${esc(R(l.desc))}</span>`, F.level === l.id)).join("")}</div>
+    <h3 class="wo-q">${T("woPlaceQ")}</h3><div class="wo-two">${W.places.map(p => opt("place", p.id, `<span class="pk-emo" aria-hidden="true">${esc(p.emoji)}</span><b>${esc(R(p.title))}</b>${sug.place === p.id ? `<span class="wo-sug">${T("woSuggested")}</span>` : ""}`, F.place === p.id)).join("")}</div>
+    <p class="wo-hint">${esc(R(sug.text))}</p>`;
+  if (F.place === "home") h += `<h3 class="wo-q">${T("woGearQ")}</h3><div class="wo-chips">${opt("gear", "none", esc(T("woNoGear")), !F.gear.length, "chip")}${W.gear.map(g => opt("gear", g.id, `${esc(g.emoji)} ${esc(R(g.title))}`, F.gear.includes(g.id), "chip")).join("")}</div>
+    ${F.gear.length ? "" : `<p class="wo-hint">${esc(R(W.noGearTip))}</p>`}`;
+  const { workouts } = buildWorkouts(F);
+  return h + `<div class="wo-prev"><b>${T("woPreview")}</b>${Object.entries(workouts).map(([k, w]) => `<p><b>${esc(weekdayName(+k, "short"))} · ${esc(w.name)}</b><span>${w.exercises.map(e => esc(e.name)).join(", ")}</span></p>`).join("")}</div>`;
+}
+function renderWelcomeWorkout(el) {
+  el.innerHTML = `<div class="w-in wide pk-room"><h2>${T("woSetQ")}</h2><p>${T("woSetSub")}</p>${woSetupHTML(WEL.fit)}
+    <div class="pk-foot"><button class="btn" type="button" id="wWoNext">${T("next")}</button><div class="w-links one"><button class="linkish" type="button" id="wBack">${T("back")}</button></div></div></div>`;
+  el.querySelectorAll("[data-wo]").forEach(b => b.onclick = () => { woToggle(WEL.fit, b); const top = el.scrollTop; renderWelcome(); el.scrollTop = top; });
+  $("wWoNext").onclick = () => { WEL.step = 3; renderWelcome(); el.scrollTop = 0; };
+  $("wBack").onclick = () => { WEL.step = 2; renderWelcome(); el.scrollTop = 0; };
+}
+function renderWoSheet(keep) {
+  const body = $("shBody"), top = keep ? body.scrollTop : 0;
+  $("shHead").innerHTML = sheetHead("dumb", T("woSetQ"), T("woSetSub"), null, "--green");
+  $("shClose").onclick = closeSheet;
+  body.innerHTML = `<div class="pk-bar"><button class="btn" type="button" data-wosave>${T("woSave")}</button></div>${woSetupHTML(PK.fit)}<p class="wo-hint">${T("woLogsStay")}</p>`;
+  if (keep) body.scrollTop = top;
+}
+// Replace only the workouts the Workouts pack made; your own workouts and all logs stay.
+function applyFitness(base, fit) {
+  const r = clone(base); r.fitness = normFit(fit);
+  Object.keys(r.workouts || {}).forEach(k => { if (r.workouts[k].pack === "workout") delete r.workouts[k]; });
+  if (r.guide && Array.isArray(r.guide.sections)) r.guide.sections = r.guide.sections.filter(g => !(g.pack === "workout" && g.plan));
+  return addPacks(r, ["workout"]).r;
+}
+function saveWoSetup() {
+  const r = applyFitness(RAW, PK.fit);
+  const err = validateRoutine(r); if (err) { toast(esc(err), "x"); return; }
+  if (!saveRoutine(clampText(r))) return;
+  lastS = null; prevCleared = null; closeSheet(); refresh(true); sfx("clear"); toast(T("woSaved"), "check");
 }
 
 /* ================= Celebration screens ================= */
