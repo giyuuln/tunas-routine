@@ -21,10 +21,12 @@ A cute, gamified daily routine tracker that you can install on your phone. Tunas
 
 ## Install on your phone
 
-Open the app link (GitHub Pages) on your phone, then:
+Open **https://tunas.amkaz.dev** on your phone, then:
 
 - **Android (Chrome):** tap the **⋮** menu → **Install app** (or **Add to Home screen**)
 - **iPhone (Safari):** tap **Share** → **Add to Home Screen**
+
+> **Moved from `giyuuln.github.io/tunas-routine`?** Each web address keeps its own storage, so your data doesn't follow by itself. Open the old address, tap **Download backup** on the banner, then open tunas.amkaz.dev, tap **I have a Tunas backup** and pick the file.
 
 ## Make it yours
 

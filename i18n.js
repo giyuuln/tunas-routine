@@ -65,6 +65,11 @@ window.TUNAS_I18N = {
     updTitle: "New version ready!", updSub: "Refresh to get the latest Tunas. Your ticks stay safe.", updBtn: "Refresh", updLater: "Later",
     nudgeTitle: "Keep your progress safe", nudgeSub: n => n == null ? "You haven't saved a backup yet. One tap keeps your XP and streak safe if you change phones." : `Last backup was ${n} days ago. Save a fresh one in case you change phones.`,
     nudgeLater: "Not now", backupSaved: "Backup saved. Keep the file somewhere safe!",
+    moveTitle: h => `Tunas has moved to ${h}`, moveSub: "Same app, new home. Your data doesn't come along by itself, so bring it in 3 steps:",
+    moveSteps: h => ["Download your backup here.", `Open ${h} and install it.`, "Tap “I have a Tunas backup” there and pick the file."],
+    moveOpen: h => `Open ${h}`, moveFresh: "Download a fresh backup", moveReadyTitle: "Backup saved. Now open the new address",
+    moveReadySub: h => `Open ${h}, install it, then tap “I have a Tunas backup” (or Settings → Restore backup) and pick the file. Your data here stays until you're done.`,
+    wHaveBackup: "I have a Tunas backup",
     lastBackup: n => n == null ? "No backup yet." : n === 0 ? "Last backup: today." : n === 1 ? "Last backup: yesterday." : `Last backup: ${n} days ago.`,
     titles: ["Rookie","Starter","Consistent","Grinder","Disciplined","Glow-up","Locked in","Machine","Elite","Legend"],
     badge: {
@@ -262,6 +267,11 @@ window.TUNAS_I18N = {
     updTitle: "Versi baru dah sampai!", updSub: "Refresh untuk dapat Tunas terbaru. Tick kau semua selamat.", updBtn: "Refresh", updLater: "Nanti",
     nudgeTitle: "Jaga progress kau", nudgeSub: n => n == null ? "Kau belum simpan sandaran lagi. Satu tekan je, XP dan streak kau selamat kalau tukar telefon." : `Sandaran terakhir ${n} hari lepas. Simpan yang baru, manalah tahu tukar telefon nanti.`,
     nudgeLater: "Nanti dulu", backupSaved: "Sandaran disimpan. Simpan fail tu elok-elok!",
+    moveTitle: h => `Tunas dah pindah ke ${h}`, moveSub: "Aplikasi sama, rumah baru. Data kau tak ikut sendiri, jadi bawa dalam 3 langkah:",
+    moveSteps: h => ["Muat turun sandaran kau di sini.", `Buka ${h} dan pasang.`, "Tekan “Aku ada sandaran Tunas” di sana dan pilih fail itu."],
+    moveOpen: h => `Buka ${h}`, moveFresh: "Muat turun sandaran baru", moveReadyTitle: "Sandaran disimpan. Sekarang buka alamat baru",
+    moveReadySub: h => `Buka ${h}, pasang, kemudian tekan “Aku ada sandaran Tunas” (atau Tetapan → Pulihkan sandaran) dan pilih fail itu. Data kau di sini kekal sampai kau siap.`,
+    wHaveBackup: "Aku ada sandaran Tunas",
     lastBackup: n => n == null ? "Belum ada sandaran." : n === 0 ? "Sandaran terakhir: hari ini." : n === 1 ? "Sandaran terakhir: semalam." : `Sandaran terakhir: ${n} hari lepas.`,
     titles: ["Baru Mula","Pemula","Konsisten","Pejuang","Berdisiplin","Glow-up","Fokus Penuh","Mesin","Elit","Legenda"],
     badge: {
