@@ -87,7 +87,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.10.30h";
+const APP_VERSION = "2026.10.30i";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -202,6 +202,8 @@ function clampText(o) {
   if (o && typeof o === "object") { const out = {}; Object.keys(o).forEach(k => { if (k !== "__proto__" && k !== "constructor") out[k] = clampText(o[k]); }); return out; }
   return o;
 }
+// Count habits ("8 glasses of water"): a target of 2–99 turns a habit into tap-to-add +1. Anything else is a normal tick.
+function goalOf(v) { const n = parseInt(v, 10); return n >= 2 ? Math.min(n, 99) : 0; }
 function applyRoutine(r) {
   CFG = r;
   BLOCKS = r.blocks.map(b => {
@@ -209,7 +211,7 @@ function applyRoutine(r) {
     return { id: slug(b.id || b.title), title: b.title || "Section", icon: I[b.icon] ? b.icon : "star", range: b.from && b.to ? fmtRange(from, to) : (b.range || ""), from, to, remind: b.remind ? tm(b.remind, null) : null,
       say: Array.isArray(b.say) ? b.say : null,
       items: (b.items || []).map(i => ({ id: slug(i.id || i.title), t: i.title || "", n: i.note || "", time: i.time || "",
-        key: !!i.quest, alt: !!i.everyOtherDay, hide: Array.isArray(i.hideOnDays) && i.hideOnDays.length ? i.hideOnDays.map(Number) : null, dyn: !!i.useFocus, on: weekdays(i.onDays) })) };
+        key: !!i.quest, alt: !!i.everyOtherDay, hide: Array.isArray(i.hideOnDays) && i.hideOnDays.length ? i.hideOnDays.map(Number) : null, dyn: !!i.useFocus, on: weekdays(i.onDays), goal: goalOf(i.target) })) };
   });
   FOCUS = {};
   for (let k = 0; k < 7; k++) { const f = (r.focus || {})[k] || (r.focus || {})[String(k)] || {}; FOCUS[k] = { t: f.title || (LANG === "ms" ? "1 jam: fokus" : "1 hour: focus"), n: f.note || "" }; }
@@ -261,7 +263,7 @@ const titleOf = n => { const t = T("titles"); return t[Math.min(n - 1, t.length 
 
 /* ================= Progress storage ================= */
 let store = loadJSON(DATA_KEY, v => v && typeof v === "object" && v.days && typeof v.days === "object").value || { days:{}, weeks:{}, logs:{}, seen:{}, rest:{} };
-function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; }
+function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; }
 normStore();
 function save() { return storeSet(DATA_KEY, JSON.stringify(store)); }
 let soundOn = true; try { soundOn = localStorage.getItem(SND_KEY) !== "off"; } catch (e) {}
@@ -370,6 +372,7 @@ function sfx(kind) {
   try {
     if (kind === "ding") { tone(988,0,.12,.18,"triangle"); tone(1319,.08,.22,.18,"triangle"); }
     else if (kind === "undo") tone(440,0,.1,.12,"sine");
+    else if (kind === "pop") tone(880,0,.08,.14,"triangle");
     else if (kind === "clear") [523,659,784,1047].forEach((f,i) => tone(f,i*.09,.25,.18,"triangle"));
     else if (kind === "level") { [523,659,784,1047,1319].forEach((f,i) => tone(f,i*.1,.32,.2,"triangle")); tone(1568,.55,.5,.15,"sine"); }
     else if (kind === "beep") { tone(880,0,.18,.25,"square"); tone(880,.25,.18,.25,"square"); }
@@ -764,9 +767,18 @@ window.addEventListener("popstate", () => {
 document.addEventListener("click", e => { const row = e.target.closest(".sw-row"); if (!row || e.target.closest(".toggle, button, a, input, select, textarea")) return; const t = row.querySelector(".toggle"); if (t) t.click(); });
 window.addEventListener("beforeunload", e => { if (ED && ED.dirty) { e.preventDefault(); e.returnValue = ""; } });
 
-function taskHTML(i, checked, tag) {
+function taskHTML(i, checked, tag, dayKey) {
+  if (i.goal && dayKey) return countHTML(i, checked, tag, dayKey);
   return `<button class="task" type="button" role="checkbox" aria-checked="${checked}" data-task="${i.id}">
     <span class="ck">${I.check}</span><span class="tt"><b>${esc(i.t)}${tag}</b>${i.n ? `<span>${esc(i.n)}</span>` : ""}</span>${i.time ? `<span class="tm">${esc(i.time)}</span>` : ""}</button>`;
+}
+// How far a count habit got that day. A ticked one (also via Tick all) always shows full.
+const countOf = (i, dayKey, done) => done ? i.goal : Math.min(((store.counts[dayKey] || {})[i.id]) || 0, i.goal - 1);
+function countHTML(i, checked, tag, dayKey) {
+  const n = countOf(i, dayKey, checked), label = `${i.t} · ${T("countOf", n, i.goal)}`;
+  return `<div class="cnt-row"><button class="task cnt" type="button" role="checkbox" aria-checked="${checked}" data-task="${i.id}" aria-label="${esc(label)}${checked ? "" : ". " + T("countTap")}">
+    <span class="ck">${checked ? I.check : `<span class="ck-plus">${I.plus}</span>`}</span><span class="tt"><b>${esc(i.t)}${tag}</b>${i.n ? `<span>${esc(i.n)}</span>` : ""}<span class="cnt-bar" aria-hidden="true"><i style="${fillPct(100 * n / i.goal)}"></i></span></span>
+    <span class="tm cnt-n" aria-hidden="true">${n} / ${i.goal}</span></button>${n > 0 ? `<button class="cnt-minus" type="button" data-cminus="${i.id}" aria-label="${esc(T("countMinus", i.t))}">−</button>` : ""}</div>`;
 }
 function sheetHead(icon, title, sub, st, color) {
   return `<div class="grab"></div><div class="sh-row"><div class="sh-ico" style="background:var(${color || "--green"})">${I[icon] || I.star}</div><div><h2 id="shTitle">${title}</h2><p>${sub}</p></div><button class="x" id="shClose" type="button" aria-label="Close">${I.x}</button></div>` +
@@ -816,7 +828,7 @@ function renderSheet(keep) {
       if (i.alt && !isAltDay(d)) { h += `<div class="note">${esc(CFG.everyOtherDayNote || T("altNote"))}</div>`; return; }
       if (i.hide && i.hide.includes(d.getDay())) { h += `<div class="note">${esc(CFG.hideNote || T("hideNote"))}</div>`; return; }
       const tag = i.key ? `<span class="qtag">★ +${XP.key}</span>` : i.alt ? `<span class="qtag alt">${T("every2")}</span>` : "";
-      h += taskHTML(i, !!done[i.id], tag);
+      h += taskHTML(i, !!done[i.id], tag, today);
     });
   } else if (node.kind === "weekly") {
     const wd = store.weeks[wkey(d)] || {};
@@ -859,7 +871,7 @@ function renderDaySheet(key, keep) {
   BLOCKS.forEach(b => {
     const items = b.items.filter(i => shown(i, d)); if (!items.length && !(W && W.after === b.id)) return;
     h += `<h3 class="grp">${esc(b.title)}</h3>`;
-    items.forEach(i => { if (i.dyn) i = { ...i, ...FOCUS[d.getDay()] }; h += taskHTML(i, !!done[i.id], i.key ? `<span class="qtag">★</span>` : ""); });
+    items.forEach(i => { if (i.dyn) i = { ...i, ...FOCUS[d.getDay()] }; h += taskHTML(i, !!done[i.id], i.key ? `<span class="qtag">★</span>` : "", key); });
     if (W && W.after === b.id) h += taskHTML({ id: "wo-done", t: T("workoutOf", W.name), n: "" }, !!done["wo-done"], `<span class="qtag">★</span>`);
   });
   body.innerHTML = h; if (keep) body.scrollTop = top;
@@ -877,6 +889,23 @@ function tickAll() {
     const day = store.days[today]; if (!day) return; ticked.forEach(id => { delete day[id]; }); save(); sfx("undo"); lastS = null; prevCleared = null; refresh(true); });
 }
 
+const countItem = id => { for (const b of BLOCKS) { const i = b.items.find(x => x.id === id); if (i) return i.goal ? i : null; } return null; };
+// +1 or −1 on a count habit that isn't finished by this tap. −1 on a finished one unticks it.
+function countStep(id, step, el) {
+  const ci = countItem(id); if (!ci) return;
+  const dayKey = sheetId.startsWith("day:") ? sheetId.slice(4) : dkey(routineDate()), day = (store.days[dayKey] ||= {}), cBox = (store.counts[dayKey] ||= {});
+  const wasDone = day[id], wasN = cBox[id], n = Math.max(0, countOf(ci, dayKey, !!wasDone) + step);
+  if (wasDone) day[id] = false;
+  if (n) cBox[id] = n; else delete cBox[id];
+  if (!save()) return;
+  const rect = el.getBoundingClientRect();
+  if (step > 0) { sfx("pop"); buzz(8); floatXP(rect.right - 90, rect.top + rect.height / 2, `${n} / ${ci.goal}`);
+    offerUndo(T("countAdded", esc(itemTitle(ci, keyToDate(dayKey))), n, ci.goal), () => { if (wasN === undefined) delete cBox[id]; else cBox[id] = wasN; save(); sfx("undo"); lastS = null; prevCleared = null; refresh(true); }); }
+  else { sfx("undo"); dropUndo(); }
+  if (wasDone) { lastS = null; prevCleared = null; }
+  refresh(true);
+  const again = document.querySelector(`[data-task="${id}"]`); again && again.focus({ preventScroll: true });
+}
 $("shBody").addEventListener("click", e => {
   if (sheetId === "editor") return editorClick(e);
   const ra = e.target.closest("[data-remadd]"); if (ra) { store.rem[ra.dataset.remadd] = Date.now(); save(); setTimeout(() => { if (sheetId === "settings") renderSettings(true); }, 400); return; }
@@ -884,9 +913,14 @@ $("shBody").addEventListener("click", e => {
   const rd = e.target.closest("[data-restday]"); if (rd) return setRest(rd.dataset.restday, rd.dataset.v === "1");
   const act = e.target.closest("[data-act]"); if (act) return settingsAction(act.dataset.act, act);
   const r = e.target.closest("[data-rest]"); if (r) { startRest(+r.dataset.rest, r.dataset.label); return; }
+  const cm = e.target.closest("[data-cminus]"); if (cm) return countStep(cm.dataset.cminus, -1, cm);
   const t = e.target.closest("[data-task]"); if (!t) return;
   const id = t.dataset.task, dayKey = sheetId.startsWith("day:") ? sheetId.slice(4) : dkey(routineDate()), d = keyToDate(dayKey), v = t.getAttribute("aria-checked") !== "true";
   const box = sheetId === "weekly" ? (store.weeks[wkey(d)] ||= {}) : (store.days[dayKey] ||= {}), was = box[id];
+  const ci = sheetId !== "weekly" && countItem(id), cBox = ci ? (store.counts[dayKey] ||= {}) : null, cWas = ci ? cBox[id] : undefined;
+  // A count habit only ticks on its last tap; the taps before that just add one.
+  if (ci && v && countOf(ci, dayKey, false) + 1 < ci.goal) return countStep(id, 1, t);
+  if (ci) { if (v) delete cBox[id]; else cBox[id] = ci.goal - 1; }
   box[id] = v; save();
   const rect = t.getBoundingClientRect();
   if (v) { const xp = sheetId === "weekly" ? XP.weekly : xpFor(id, d); sfx("ding"); buzz(); floatXP(rect.right - 90, rect.top + rect.height/2, `+${xp} XP`); if (!sheetId.startsWith("day:")) flyXP(rect);
@@ -894,7 +928,8 @@ $("shBody").addEventListener("click", e => {
     const node = nodesFor(d).find(n => n.id === sheetId), nx = node && !sheetId.startsWith("day:") ? nextOpen(node, d) : null;
     say(`${pick(T("cheers"))} ${esc(it ? itemTitle(it, d) : "")} ✓`, nx ? T("sayThen", esc(nx.name || itemTitle(nx, d))) + ` · +${xp} XP` : `+${xp} XP`, "happy", 3200); jump($("mascot"));
     // A mis-tap is easy on a phone: offer Undo for 5 seconds, putting back exactly what was there before.
-    offerUndo(T("tickedOne", esc(it ? itemTitle(it, d) : "")), () => { if (was === undefined) delete box[id]; else box[id] = was; save(); sfx("undo"); lastS = null; prevCleared = null; refresh(true); }); }
+    offerUndo(T("tickedOne", esc(it ? itemTitle(it, d) : "")), () => { if (was === undefined) delete box[id]; else box[id] = was;
+      if (ci) { if (cWas === undefined) delete cBox[id]; else cBox[id] = cWas; } save(); sfx("undo"); lastS = null; prevCleared = null; refresh(true); }); }
   else { sfx("undo"); dropUndo(); }
   refresh(true);
   const again = document.querySelector(`[data-task="${id}"]`); again && again.focus({ preventScroll: true });
@@ -1352,6 +1387,8 @@ function renderEditor(keep) {
             ${it.useFocus ? `<p>${T("edFocusEdit")}</p>${[1,2,3,4,5,6,0].map(k => `<label class="ed-flabel">${weekdayName(k, "short")}<input class="field" data-path="focus.${k}.title" value="${esc(((D.focus || {})[k] || {}).title || "")}" placeholder="${T("edFocusPh")}"></label>`).join("")}`
               : `<input class="field" data-path="${p}.note" value="${esc(it.note || "")}" placeholder="${T("edNotePh")}">`}
             ${weekdays(it.onDays) ? `<label class="ed-check"><input type="checkbox" data-ed-check="ondays" data-bi="${bi}" data-ii="${ii}" checked>${T("edOnDays", weekdays(it.onDays).map(k => weekdayName(k, "short")).join(", "))}</label>` : ""}
+            <label class="ed-count">${T("edCount")}<input class="field" type="number" inputmode="numeric" min="0" max="99" step="1" data-path="${p}.target" value="${goalOf(it.target) || ""}" placeholder="–"></label>
+            <p class="ed-count-help">${T("edCountHelp")}</p>
             <label class="ed-check"><input type="checkbox" data-ed-check="alt" data-bi="${bi}" data-ii="${ii}" ${it.everyOtherDay ? "checked" : ""}>${T("edAlt")}</label>
             <label class="ed-check"><input type="checkbox" data-ed-check="skip" data-bi="${bi}" data-ii="${ii}" ${it.hideOnDays && it.hideOnDays.length ? "checked" : ""} ${woDays ? "" : "disabled"}>${T("edSkipWo")}</label>
             <div class="ed-row">${edBtn("itemUp", `data-bi="${bi}" data-ii="${ii}"`, I.up, T("edUp"))}${edBtn("itemDown", `data-bi="${bi}" data-ii="${ii}"`, I.down, T("edDown"))}${delBtn(`item.${bi}.${ii}`, `data-bi="${bi}" data-ii="${ii}"`)}</div>
@@ -1424,6 +1461,7 @@ function editorInput(e) {
   const t = e.target, path = t.dataset && t.dataset.path; if (!path || !ED) return;
   if (t.tagName === "TEXTAREA" && t.classList.contains("ed-name")) { if (/[\r\n]/.test(t.value)) t.value = t.value.replace(/[\r\n]+/g, " "); fitName(t); }
   setPath(ED.draft, path, String(t.value).slice(0, LIMITS.text));
+  if (/^blocks\.\d+\.items\.\d+\.target$/.test(path)) { const ks = path.split("."), it = ED.draft.blocks[+ks[1]].items[+ks[3]], g = goalOf(t.value); if (g) it.target = g; else delete it.target; }
   let m = /^blocks\.(\d+)\.(from|to)$/.exec(path); if (m) ED.draft.blocks[+m[1]]._rangeDirty = true;
   m = /^workouts\.(\d+)\.from$/.exec(path); if (m) ED.draft.workouts[m[1]]._timeDirty = true;
   markDirty();
@@ -1664,7 +1702,7 @@ function addPacks(base, ids) {
       if (r.blocks.some(x => x.items.some(i => i.id === hb.id))) return;
       if (b.items.length >= LIMITS.items) { skipped++; return; }
       const it = { id: hb.id, title: hb.title, pack: id };
-      if (hb.note) it.note = hb.note; if (hb.quest) it.quest = true; if (hb.everyOtherDay) it.everyOtherDay = true; if (hb.onDays) it.onDays = hb.onDays;
+      if (hb.note) it.note = hb.note; if (hb.quest) it.quest = true; if (hb.everyOtherDay) it.everyOtherDay = true; if (hb.onDays) it.onDays = hb.onDays; if (hb.target) it.target = hb.target;
       if (hb.at != null) { const m = anchorOf(b, hb.slot) + hb.at; it.time = clock12(m); if (made.has(b)) it._m = dayWrap(m); }
       b.items.push(it);
     });

@@ -192,6 +192,20 @@ button:focus-visible,summary:focus-visible,input:focus-visible{outline:3px solid
 .task[aria-checked="true"] .ck{background:var(--green);border-color:var(--green);animation:ckpop .35s cubic-bezier(.2,1.6,.4,1)}
 .task[aria-checked="true"] .ck svg{opacity:1}
 .task[aria-checked="true"] .tt b{color:var(--green-ink)}
+/* Count habits: tap +1 until the target, a thin bar shows how far, and − takes one off. */
+.cnt-row{display:flex;align-items:stretch;gap:8px}
+.cnt-row .task{flex:1;min-width:0}
+.task .ck-plus{display:grid;place-items:center}
+.task .ck-plus svg{width:18px;height:18px;fill:var(--green-ink);opacity:1}
+.cnt-bar{display:block;height:8px;margin-top:6px;border-radius:99px;background:var(--soft);overflow:hidden}
+.cnt-bar{position:relative}
+.cnt-bar i{position:absolute;inset:0;border-radius:99px;background:var(--green);transform:translateX(-100%);transition:transform .25s cubic-bezier(.16,1,.3,1)}
+.task .cnt-n{font-size:14px;color:var(--ink)}
+.task[aria-checked="true"] .cnt-n{color:var(--green-ink)}
+.cnt-minus{flex:none;width:48px;border-radius:16px;border:2px solid var(--line);background:var(--card);box-shadow:0 4px 0 var(--line);font:900 24px/1 var(--display);color:var(--muted);transition:transform .08s,box-shadow .08s}
+.cnt-minus:active{transform:translateY(4px);box-shadow:0 0 0 var(--line)}
+.ed-count{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13.5px;font-weight:800;color:var(--ink);min-height:44px}
+.ed-count .field{width:88px;flex:none;text-align:center}
 @keyframes ckpop{0%{transform:scale(.6)}100%{transform:scale(1)}}
 .qtag{display:inline-block;font-size:12px;font-weight:900;padding:2px 8px;border-radius:99px;background:var(--gold);color:#4a3600;margin-left:6px;vertical-align:2px;letter-spacing:.02em}
 .qtag.alt{background:var(--green-soft);color:var(--green-ink)}

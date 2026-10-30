@@ -211,7 +211,7 @@
       { id: "day", remind: "08:00", title: t("Daytime", "Siang"), icon: "sun", from: "05:00", to: "21:00", range: t("all day", "sepanjang hari"),
         say: [t("Just 5 small habits today.", "Hanya 5 tabiat kecil hari ini."), t("Start with the easiest one.", "Mula dengan yang paling senang.")],
         items: [
-          { id: "water", title: t("Drink 8 glasses of water", "Minum 8 gelas air") },
+          { id: "water", title: t("Drink 8 glasses of water", "Minum 8 gelas air"), target: 8 },
           { id: "move", title: t("Move for 20 minutes", "Bergerak 20 minit"), quest: true },
           { id: "read", title: t("Read 10 pages", "Baca 10 muka surat"), quest: true },
           { id: "tidy", title: t("Tidy up for 5 minutes", "Kemas 5 minit") }
