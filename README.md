@@ -10,6 +10,7 @@ A cute, gamified daily routine tracker that you can install on your phone. Tunas
 - **History calendar:** tap any past day to see it or fix a tick you forgot
 - **Phone reminders:** add each section to Google Calendar in one tap, or download an `.ics` file
 - **Tick all:** finish a whole section in one tap
+- **Count habits:** give a habit a target like 8 glasses of water and tap +1 each time
 - **Rest days:** protect your streak when you're sick or busy (2 per month)
 - **Continue button and home-screen shortcuts:** long-press the app icon for Today, Workout, Night or History
 - **Routine editor:** add, rename, reorder and delete sections, habits, workouts and weekly tasks right in the app
@@ -82,6 +83,7 @@ The easiest way to get a routine file is **Gear → Download my routine** after 
 | `from` / `to` | When the section is "now" (24h). If `to` is earlier than `from`, it runs past midnight |
 | `quest: true` | A ★ habit: worth more XP and part of the daily quest |
 | `everyOtherDay: true` | Shows only every second day |
+| `target: 8` | A count habit: tap +1 each time (with a − button to take one off); it ticks when it reaches the target (2–99) |
 | `pack` | On habits, weekly tasks, workouts and guide sections: which pack added it, so removing the pack removes it. Leave it out for your own items |
 | `packs` / `day` | Packs in use, and the wake/sleep/busy hours used to place habits from new packs (see [`packs.js`](packs.js)) |
 | `fitness` | Workout setup: `level` `new`/`mid`/`pro`, `place` `home`/`gym`, `gear` any of `db`, `band`, `bar`. **Gear → Habit packs → Change workout setup** rebuilds the pack's workouts; logs stay |
