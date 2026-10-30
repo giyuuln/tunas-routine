@@ -147,22 +147,22 @@
   window.TUNAS_SKIN = {
     types: [
       { id: "oily", title: t("Oily", "Berminyak"), desc: t("Shiny all over by midday", "Berkilat seluruh muka menjelang tengah hari"),
-        cleanser: t("Gel or foam cleanser", "Pencuci gel atau buih"), moist: t("Light gel moisturiser", "Pelembap gel ringan"), spf: t("Gel or fluid SPF 30+", "SPF 30+ jenis gel atau cecair"),
+        cleanser: t("Gel or foam", "Gel atau buih"), moist: t("Light gel", "Gel ringan"), spf: t("Gel or fluid SPF 30+", "SPF 30+ jenis gel atau cecair"),
         tip: t("**Oily skin still needs moisturiser.** Skipping it can make you shinier.", "**Kulit berminyak tetap perlu pelembap.** Tak pakai boleh buat lagi berminyak.") },
       { id: "dry", title: t("Dry", "Kering"), desc: t("Feels tight, can flake", "Rasa tegang, boleh mengelupas"),
-        cleanser: t("Cream or milky cleanser; water is fine in the morning", "Pencuci krim atau susu; air pun cukup waktu pagi"), moist: t("Rich cream moisturiser", "Pelembap krim pekat"), spf: t("Cream SPF 30+", "SPF 30+ jenis krim"),
+        cleanser: t("Cream or milky; water is fine in the morning", "Krim atau susu; air pun cukup waktu pagi"), moist: t("Rich cream", "Krim pekat"), spf: t("Cream SPF 30+", "SPF 30+ jenis krim"),
         tip: t("**Moisturise on damp skin** and keep showers warm, not hot.", "**Pakai pelembap masa kulit masih lembap** dan mandi air suam, bukan panas.") },
       { id: "combo", title: t("Combination", "Kombinasi"), desc: t("Oily T-zone, dry cheeks", "Zon-T berminyak, pipi kering"),
-        cleanser: t("Gentle gel cleanser", "Pencuci gel lembut"), moist: t("Light lotion; a bit extra on dry areas", "Losyen ringan; lebih sikit di kawasan kering"), spf: t("Light SPF 30+", "SPF 30+ ringan"),
+        cleanser: t("Gentle gel", "Gel lembut"), moist: t("Light lotion; a bit extra on dry areas", "Losyen ringan; lebih sikit di kawasan kering"), spf: t("Light SPF 30+", "SPF 30+ ringan"),
         tip: t("**Treat zones differently.** Lighter products on the T-zone, more moisture on the cheeks.", "**Rawat ikut zon.** Produk ringan di zon-T, lebih lembap di pipi.") },
       { id: "normal", title: t("Normal", "Normal"), desc: t("Comfortable most days", "Selesa kebanyakan hari"),
-        cleanser: t("Gentle cleanser", "Pencuci lembut"), moist: t("Lotion moisturiser", "Pelembap losyen"), spf: t("SPF 30+", "SPF 30+"),
+        cleanser: t("Mild and low-foam, about 30 seconds", "Lembut dan kurang buih, lebih kurang 30 saat"), moist: t("A light lotion is enough", "Losyen ringan pun cukup"), spf: t("SPF 30+", "SPF 30+"),
         tip: t("**Keep it simple.** Normal skin mostly needs gentle cleansing and daily sunscreen.", "**Buat ringkas.** Kulit normal kebanyakannya cuma perlu cuci lembut dan pelindung matahari setiap hari.") },
       { id: "sensitive", title: t("Sensitive", "Sensitif"), desc: t("Stings or reddens easily", "Mudah pedih atau merah"),
-        cleanser: t("Fragrance-free gentle cleanser", "Pencuci lembut tanpa pewangi"), moist: t("Fragrance-free moisturiser", "Pelembap tanpa pewangi"), spf: t("Mineral SPF 30+ (zinc or titanium)", "SPF 30+ mineral (zink atau titanium)"),
+        cleanser: t("Fragrance-free", "Tanpa pewangi"), moist: t("Fragrance-free", "Tanpa pewangi"), spf: t("Mineral SPF 30+ (zinc or titanium)", "SPF 30+ mineral (zink atau titanium)"),
         tip: t("**Fewer products, fragrance-free.** Patch test anything new for 2 days.", "**Kurang produk, tanpa pewangi.** Uji tampal produk baru selama 2 hari.") },
       { id: "unsure", title: t("Not sure", "Tak pasti"), desc: t("We'll start gentle", "Kita mula dengan lembut"),
-        cleanser: t("Gentle cleanser", "Pencuci lembut"), moist: t("Lotion moisturiser", "Pelembap losyen"), spf: t("SPF 30+", "SPF 30+"),
+        cleanser: t("Mild and low-foam, about 30 seconds", "Lembut dan kurang buih, lebih kurang 30 saat"), moist: t("A light lotion is enough", "Losyen ringan pun cukup"), spf: t("SPF 30+", "SPF 30+"),
         tip: t("**Find your type:** wash, wait 1 hour. Shiny all over = oily, tight = dry, shiny T-zone only = combination.", "**Kenal jenis kulit:** cuci muka, tunggu 1 jam. Berkilat semua = berminyak, tegang = kering, zon-T sahaja berkilat = kombinasi.") }
     ],
     levels: [

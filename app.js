@@ -72,6 +72,9 @@ const uid = () => "h" + Date.now().toString(36) + Math.random().toString(36).sli
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const reduced = () => window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const clone = o => JSON.parse(JSON.stringify(o));
+// Progress fills slide in with transform (never width), so they animate on the compositor.
+const fillPct = p => `transform:translateX(${Math.max(0, Math.min(100, +p || 0)) - 100}%)`;
+const setFill = (el, p) => { if (el) el.style.transform = `translateX(${Math.max(0, Math.min(100, +p || 0)) - 100}%)`; };
 function tm(s, fallback) {
   if (typeof s === "number") return s;
   const m = /^(\d{1,2}):(\d{2})$/.exec(String(s || "").trim());
@@ -83,7 +86,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.10.30f";
+const APP_VERSION = "2026.10.30g";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -517,7 +520,7 @@ let restT = null, restEnd = 0, restTotal = 0, wake = null;
 const fmtTime = ms => { const s = Math.ceil(ms/1000); return `${Math.floor(s/60)}:${pad(s%60)}`; };
 async function holdWake() { try { if (!wake && navigator.wakeLock) { wake = await navigator.wakeLock.request("screen"); wake.addEventListener("release", () => { wake = null; }); } } catch (e) {} }
 function startRest(sec, label) { restTotal = sec; restEnd = Date.now() + sec*1000; $("restLabel").textContent = T("rest") + " · " + label; $("restbar").hidden = false; audio(); holdWake(); clearInterval(restT); restT = setInterval(tickRest, 250); tickRest(); }
-function tickRest() { const left = Math.max(0, restEnd - Date.now()); $("restTime").textContent = left > 0 ? fmtTime(left) : "Go!"; $("restFill").style.width = (100 * (1 - left/(restTotal*1000))) + "%";
+function tickRest() { const left = Math.max(0, restEnd - Date.now()); $("restTime").textContent = left > 0 ? fmtTime(left) : "Go!"; setFill($("restFill"), 100 * (1 - left/(restTotal*1000)));
   if (left <= 0) { clearInterval(restT); restT = null; sfx("beep"); buzz([200,100,200]); setTimeout(() => { if (!restT) $("restbar").hidden = true; }, 2500); } }
 $("restSkip").onclick = () => { clearInterval(restT); restT = null; $("restbar").hidden = true; };
 $("restPlus").onclick = () => { if (!restT) return startRest(15, $("restLabel").textContent.split(" · ").slice(1).join(" · ")); restEnd += 15000; restTotal += 15; };
@@ -542,7 +545,7 @@ function renderTop(S) {
   $("stSnd").innerHTML = soundOn ? I.sndOn : I.sndOff; $("stSnd").setAttribute("aria-label", T("sound"));
   $("stCog").innerHTML = I.cog;
   $("lvName").innerHTML = `${T("level", S.L.n)} · <span>${titleOf(S.L.n)}</span>`;
-  $("lvFill").style.width = (100 * S.L.cur / S.L.span) + "%"; $("lvBar").textContent = T("xpOf", S.L.cur, S.L.span);
+  setFill($("lvFill"), 100 * S.L.cur / S.L.span); $("lvBar").textContent = T("xpOf", S.L.cur, S.L.span);
   $("progStreak").className = "prog-fl" + (S.streak ? "" : " off"); $("progStreak").innerHTML = `${I.flame}<b>${T("streakShort", S.streak)}</b>`;
   $("progressCard").setAttribute("aria-label", `${T("streakDays", S.streak)}. ${T("level", S.L.n)}, ${T("xpOf", S.L.cur, S.L.span)}. ${T("history")}`);
 }
@@ -558,7 +561,7 @@ function renderQuests(S) {
   if (homeVisible() || !prevOn) renderQuests.on = QS.map(q => q.n >= q.of);
   $("questCount").textContent = T("of", wonN, QS.length);
   $("quests").innerHTML = QS.map(q => { const won = q.n >= q.of;
-    return `<div class="quest${won ? " won" : ""}"><div class="q-ico">${I[q.ico]}</div><div class="q-main"><div class="q-t">${q.t}</div><div class="bar${won ? " green" : ""}"><i style="width:${100*q.n/q.of}%"></i><b>${q.n} / ${q.of}</b></div></div><span class="q-rew${!won && !q.rew ? " chest" : ""}">${won ? T("done") : q.rew ? "+" + q.rew : I.chest + T("chestTag")}</span></div>`; }).join("");
+    return `<div class="quest${won ? " won" : ""}"><div class="q-ico">${I[q.ico]}</div><div class="q-main"><div class="q-t">${q.t}</div><div class="bar${won ? " green" : ""}"><i style="${fillPct(100*q.n/q.of)}"></i><b>${q.n} / ${q.of}</b></div></div><span class="q-rew${!won && !q.rew ? " chest" : ""}">${won ? T("done") : q.rew ? "+" + q.rew : I.chest + T("chestTag")}</span></div>`; }).join("");
 }
 /* ================= Today: game-level strip ================= */
 // Each section is a level. Stars show progress in thirds; the little Tunas stands on the level to play next.
@@ -694,7 +697,7 @@ function renderBadges(S) {
   const list = BADGES.map((b, i) => ({ b, i, ok: b.test(S), p: near(b) })).sort((x, y) => (y.ok - x.ok) || (y.p - x.p) || (x.i - y.i));
   grid.innerHTML = list.map(({ b, i, ok }) => { const c = COLORS[i % COLORS.length];
     const [have, need] = (BADGE_GOAL[b.id] || (() => [0, 1]))(S), pct = Math.min(100, 100 * have / need);
-    const prog = ok ? `<div class="bp done">${I.check}${T("earned")}</div>` : `<div class="bp"><span class="bar"><i style="width:${pct}%"></i></span><b>${Math.min(have, need)} / ${need}</b></div>`;
+    const prog = ok ? `<div class="bp done">${I.check}${T("earned")}</div>` : `<div class="bp"><span class="bar"><i style="${fillPct(pct)}"></i></span><b>${Math.min(have, need)} / ${need}</b></div>`;
     return `<div class="badge${ok ? "" : " locked"}" style="--c:var(${c[0]});--cd:var(${c[1]})"><div class="medal"><span>${I[b.ic] || I.star}${b.n ? `<small>${b.n}</small>` : ""}</span></div><div class="bn">${badgeName(b.id)}</div><div class="bh">${badgeHow(b.id)}</div>${prog}</div>`; }).join("");
   return got;
 }
@@ -768,7 +771,7 @@ function taskHTML(i, checked, tag) {
 }
 function sheetHead(icon, title, sub, st, color) {
   return `<div class="grab"></div><div class="sh-row"><div class="sh-ico" style="background:var(${color || "--green"})">${I[icon] || I.star}</div><div><h2 id="shTitle">${title}</h2><p>${sub}</p></div><button class="x" id="shClose" type="button" aria-label="Close">${I.x}</button></div>` +
-    (st ? `<div class="bar green"><i style="width:${st.total ? 100*st.n/st.total : 0}%"></i><b>${st.n} / ${st.total}</b></div>` : "");
+    (st ? `<div class="bar green"><i style="${fillPct(st.total ? 100*st.n/st.total : 0)}"></i><b>${st.n} / ${st.total}</b></div>` : "");
 }
 // Star meter: the sheet's progress bar shows where each of the level's 3 stars is earned.
 const sheetStars = {};
@@ -1873,7 +1876,8 @@ const dayList = a => a.map(k => weekdayName(k, "short")).join(", ");
 function skinPlan(fitIn) {
   const S = window.TUNAS_SKIN, f = normSkin(fitIn), ty = S.types.find(x => x.id === f.type), C = f.concerns.map(id => S.concerns.find(c => c.id === id));
   const soft = f.type === "sensitive", std = f.level !== "basic", full = f.level === "full", H = [];
-  const add = (id, slot, title, note, at, o) => H.push({ id, slot, title, note, ...(at != null ? { at } : {}), ...(o || {}) });
+  // A note that only repeats its title is dropped (gate 69, the echo).
+  const add = (id, slot, title, note, at, o) => H.push({ id, slot, title, ...(note && note.toLowerCase() !== String(title).toLowerCase() ? { note } : {}), ...(at != null ? { at } : {}), ...(o || {}) });
   const base = f.type === "oily" ? "nia" : "hya", ok = k => (S.serums[k] ? k : base);
   const amS = ok((C[0] || {}).am), pmS = ok((C.find(c => c.pm !== amS) || C[0] || {}).pm);
   add("sk-am-clean", "morning", f.type === "dry" || soft ? T("skRinse") : T("skCleanser"), R(ty.cleanser), 15);
@@ -2037,7 +2041,7 @@ function refresh(keepSheet) {
   const got = renderBadges(S);
   if (sheetId && sheetId !== "editor" && keepSheet !== false) renderSheet(true);
   else if (sheetId && keepSheet === false && !["settings", "editor"].includes(sheetId) && !sheetId.startsWith("day:")) {
-    const node = nodesFor(d).find(n => n.id === sheetId); if (node) { const st = nodeState(node, d), bar = $("shHead").querySelector(".bar"); if (bar) { bar.querySelector("i").style.width = (100*st.n/st.total) + "%"; bar.querySelector("b").textContent = `${st.n} / ${st.total}`; } }
+    const node = nodesFor(d).find(n => n.id === sheetId); if (node) { const st = nodeState(node, d), bar = $("shHead").querySelector(".bar"); if (bar) { setFill(bar.querySelector("i"), 100*st.n/st.total); bar.querySelector("b").textContent = `${st.n} / ${st.total}`; } }
   }
   const states = {}; nodesFor(d).forEach(n => states[n.id] = nodeState(n, d));
   const fresh = got.filter(b => !store.seen[b.id]);
