@@ -83,7 +83,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.10.29d";
+const APP_VERSION = "2026.10.30a";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -117,7 +117,7 @@ function loadJSON(key, check) {
   try { const v = JSON.parse(raw); if (check(v)) return { value: v }; throw new Error("unexpected shape"); }
   catch (e) { try { localStorage.setItem(`${key}-corrupt-${Date.now()}`, raw); } catch (_) {} logError("load:" + key, e); notices.push("errCorrupt"); return { value: null, corrupt: true }; }
 }
-const LIMITS = { routineBytes: 1000000, backupBytes: 4000000, sections: 30, items: 80, exercises: 30, weekly: 30, text: 300 };
+const LIMITS = { routineBytes: 1000000, backupBytes: 4000000, lockedBytes: 6000000, sections: 30, items: 80, exercises: 30, weekly: 30, text: 300 };
 
 /* ================= Language ================= */
 const LANG_KEY = "tunas-lang";
@@ -703,12 +703,12 @@ $("progressCard").onclick = () => { audio(); openSheet("history"); };
 $("openBadges").onclick = () => { audio(); openSheet("badges"); };
 
 /* ================= Bottom sheet ================= */
-let sheetId = null, lastFocus = null;
+let sheetId = null, lastFocus = null, lockedFile = null;
 function openSheet(id) {
   // Phone back button closes the sheet instead of leaving the app.
   if (!sheetId && !(history.state && history.state.tunasSheet)) { try { history.pushState({ tunasSheet: 1 }, ""); } catch (e) {} }
-  // A day opened from History goes back to History when closed.
-  parentSheet = sheetId === "history" && id.startsWith("day:") ? "history" : null;
+  // A day opened from History goes back to History when closed; a locked-backup sheet goes back to Settings.
+  parentSheet = (sheetId === "history" && id.startsWith("day:")) || (sheetId === "settings" && id.startsWith("lock:")) ? sheetId : null;
   if (!parentSheet) lastFocus = document.activeElement;
   sheetId = id;
   $("scrim").hidden = false; $("sheet").hidden = false; document.body.classList.add("locked");
@@ -718,6 +718,7 @@ function openSheet(id) {
 let parentSheet = null;
 function closeSheet(fromBack) {
   if (!sheetId) return;
+  lockedFile = null;
   if (parentSheet) { const p = parentSheet; parentSheet = null;
     if (fromBack) { try { history.pushState({ tunasSheet: 1 }, ""); } catch (e) {} }
     sheetId = p; renderSheet(false); const x = $("shClose"); x && x.focus({ preventScroll: true }); return; } sheetId = null; ED = null;
@@ -768,6 +769,7 @@ function renderSheet(keep) {
   if (!sheetId) return;
   if (sheetId === "settings") return renderSettings(keep);
   if (sheetId === "editor") return renderEditor(keep);
+  if (sheetId.startsWith("lock:")) return renderLockSheet(keep);
   if (sheetId.startsWith("day:")) return renderDaySheet(sheetId.slice(4), keep);
   if (sheetId === "history" || sheetId === "badges") return renderProgressSheet(sheetId, keep);
   const d = routineDate(), today = dkey(d), node = nodesFor(d).find(n => n.id === sheetId); if (!node) { closeSheet(); return; }
@@ -960,10 +962,97 @@ function renderNudge() {
   el.hidden = false;
 }
 function askPersist() { try { const s = navigator.storage; if (s && s.persist) s.persisted().then(p => p || s.persist()).catch(() => {}); } catch (e) {} }
+const backupData = () => ({ app: "tunas", type: "backup", savedAt: new Date().toISOString(), data: store, routine: RAW_IS_DEFAULT ? null : RAW });
+function backupDone() { delete store.backupSnooze; save(); askPersist(); renderNudge(); toast(T("backupSaved"), "check", 3500); }
 function saveBackup() {
-  const ok = download(`tunas-backup-${dkey(new Date())}.json`, { app: "tunas", type: "backup", savedAt: new Date().toISOString(), data: store, routine: RAW_IS_DEFAULT ? null : RAW });
-  if (!ok) return false;
-  delete store.backupSnooze; save(); askPersist(); renderNudge(); toast(T("backupSaved"), "check", 3500); return true;
+  if (!download(`tunas-backup-${dkey(new Date())}.json`, backupData())) return false;
+  backupDone(); return true;
+}
+
+/* ================= Locked backups (password-protected) ================= */
+// The same backup JSON, encrypted on the phone: PBKDF2-SHA256 → AES-GCM 256. The password is never stored;
+// it's read from the field, turned into bytes for the key, and the field and bytes are cleared straight away.
+const LOCK_ITER = 600000;
+const hasCrypto = () => !!(window.crypto && crypto.subtle && window.TextEncoder && window.TextDecoder);
+function b64(u8) { let s = ""; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); }
+function unb64(s) {
+  if (typeof s !== "string") return null;
+  try { const t = atob(s), u = new Uint8Array(t.length); for (let i = 0; i < t.length; i++) u[i] = t.charCodeAt(i); return u; } catch (e) { return null; }
+}
+async function lockKey(pwBytes, salt, iter) {
+  try {
+    const base = await crypto.subtle.importKey("raw", pwBytes, "PBKDF2", false, ["deriveKey"]);
+    return await crypto.subtle.deriveKey({ name: "PBKDF2", hash: "SHA-256", salt, iterations: iter }, base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+  } finally { pwBytes.fill(0); }
+}
+// Check a locked file's envelope before asking for the password. The iteration cap stops a crafted file from freezing the phone.
+function readEnvelope(b) {
+  const k = b.kdf || {};
+  if (b.v !== 1 || k.name !== "PBKDF2" || k.hash !== "SHA-256" || !Number.isInteger(k.iter) || k.iter < 100000 || k.iter > 2000000) return null;
+  const salt = unb64(k.salt), iv = unb64(b.iv), ct = unb64(b.ct);
+  return salt && salt.length === 16 && iv && iv.length === 12 && ct && ct.length > 16 ? { iter: k.iter, salt, iv, ct } : null;
+}
+function openLocked(b) {
+  if (!hasCrypto()) return void toast(T("lockNoCrypto"), "x");
+  const env = readEnvelope(b); if (!env) return void toast(T("notBackup"), "x");
+  if (env.ct.length - 16 > LIMITS.backupBytes) return void toast(T("errFileTooBig", LIMITS.backupBytes / 1e6), "x"); // 16 = GCM tag
+  lockedFile = env; openSheet("lock:open");
+}
+let lockBusy = false;
+function renderLockSheet(keep) {
+  const open = sheetId === "lock:open", f = $("lockForm");
+  if (keep && f && f.dataset.mode === sheetId) return; // a background refresh must not wipe a half-typed password
+  if (open && !lockedFile) return closeSheet();
+  $("shHead").innerHTML = sheetHead("shield", T(open ? "unlockTitle" : "lockTitle"), T(open ? "unlockSub" : "lockSub"), null, "--green");
+  $("shClose").onclick = closeSheet;
+  const pwField = (id, label, ac) => `<label for="${id}">${label}</label><input class="field" id="${id}" type="password" autocomplete="${ac}" maxlength="256" spellcheck="false" autocapitalize="off">`;
+  $("shBody").innerHTML = `<form class="lk-form" id="lockForm" data-mode="${sheetId}" novalidate>
+    ${open ? pwField("lockPw", T("unlockPw"), "current-password") : pwField("lockPw", T("lockPw"), "new-password") + pwField("lockPw2", T("lockPw2"), "new-password")}
+    <p class="lk-err" id="lockErr" role="alert" hidden></p>
+    ${open ? `<p class="lk-note">${T("unlockNote")}</p>` : `<div class="lk-warn" role="note"><i aria-hidden="true">${I.warn}</i><span>${T("lockWarn")}</span></div>`}
+    <div class="row"><button class="btn small${open ? " danger" : ""}" type="submit" id="lockGo">${T(open ? "unlockGo" : "lockGo")}</button>
+      <button class="btn ghost small" type="button" id="lockCancel">${T("cancel")}</button></div></form>`;
+  $("lockCancel").onclick = () => closeSheet();
+  $("lockForm").onsubmit = e => { e.preventDefault(); if (open) unlockSubmit(); else lockSubmit(); };
+  setTimeout(() => { const p = $("lockPw"); if (p && sheetId && sheetId.startsWith("lock:")) p.focus({ preventScroll: true }); }, 350);
+}
+function lockError(msg, field) { const p = $("lockErr"); p.textContent = msg; p.hidden = false; field.setAttribute("aria-invalid", "true"); field.focus(); }
+function lockWorking(on, label) { const b = $("lockGo"); if (!b) return; b.disabled = on; if (on) { b.dataset.label = b.textContent; b.textContent = label; } else if (b.dataset.label) b.textContent = b.dataset.label; }
+async function lockSubmit() {
+  if (lockBusy) return;
+  const a = $("lockPw"), b = $("lockPw2");
+  if (a.value.length < 8) return lockError(T("lockShort"), a);
+  if (a.value !== b.value) return lockError(T("lockMismatch"), b);
+  const plain = new TextEncoder().encode(JSON.stringify(backupData(), null, 2));
+  if (plain.length > LIMITS.backupBytes) { plain.fill(0); return void toast(T("errFileTooBig", LIMITS.backupBytes / 1e6), "x"); }
+  const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+  const keyP = lockKey(new TextEncoder().encode(a.value), salt, LOCK_ITER); a.value = b.value = "";
+  lockBusy = true; lockWorking(true, T("lockWorking"));
+  try {
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, await keyP, plain));
+    if (sheetId !== "lock:save") return; // closed while it was working: don't download
+    if (!download(`tunas-backup-locked-${dkey(new Date())}.json`, { tunas: "enc-backup", v: 1, kdf: { name: "PBKDF2", hash: "SHA-256", iter: LOCK_ITER, salt: b64(salt) }, iv: b64(iv), ct: b64(ct) })) return;
+    backupDone(); closeSheet();
+  } catch (e) { reportError("lockBackup", e, "errLock"); }
+  finally { plain.fill(0); lockBusy = false; lockWorking(false); }
+}
+async function unlockSubmit() {
+  if (lockBusy || !lockedFile) return;
+  const a = $("lockPw"); if (!a.value) return lockError(T("unlockEmpty"), a);
+  const env = lockedFile, keyP = lockKey(new TextEncoder().encode(a.value), env.salt, env.iter); a.value = "";
+  lockBusy = true; lockWorking(true, T("unlockWorking"));
+  let text;
+  try {
+    const key = await keyP; let plain;
+    // AES-GCM checks the file is untouched: a wrong password or an edited file both fail here, before anything changes.
+    try { plain = new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: env.iv }, key, env.ct)); }
+    catch (e) { toast(T("lockWrong"), "x", 5000); a.focus(); return; }
+    if (sheetId !== "lock:open" || lockedFile !== env) { plain.fill(0); return; }
+    if (plain.length > LIMITS.backupBytes) { plain.fill(0); return void toast(T("errFileTooBig", LIMITS.backupBytes / 1e6), "x"); }
+    text = new TextDecoder().decode(plain); plain.fill(0);
+  } catch (e) { return void reportError("unlockBackup", e, "errLock"); }
+  finally { lockBusy = false; lockWorking(false); }
+  closeSheet(); restoreBackupText(text);
 }
 $("nudge").addEventListener("click", e => {
   const b = e.target.closest("[data-nudge]"); if (!b) return;
@@ -1005,8 +1094,9 @@ function renderSettings(keep) {
       <div class="row"><button class="btn ghost small" type="button" data-act="ics">${T("icsAll")}</button></div>
       <p>${T("icsHelp")}</p></div>
     <div class="set-group"><h3>${T("share")}</h3><p>${T("shareHelp")}</p><div class="row"><button class="btn small" type="button" data-act="share">${T("shareBtn")}</button></div></div>
-    <div class="set-group"><h3>${T("backup")}</h3><p>${T("backupHelp")}</p><p class="bk-last">${T("lastBackup", backupAge())}</p>
+    <div class="set-group"><h3>${T("backup")}</h3><p>${T("backupHelp")}</p><p>${T("lockHelp")}</p><p class="bk-last">${T("lastBackup", backupAge())}</p>
       <div class="row"><button class="btn small" type="button" data-act="backup">${T("downloadBackup")}</button>
+        <button class="btn ghost small" type="button" data-act="lockBackup">${T("downloadLocked")}</button>
         <button class="btn ghost small danger-ghost" type="button" data-act="restore">${T("restoreBackup")}</button></div></div>
     <div class="set-group"><h3>${T("sound")}</h3><div class="row"><button class="btn ghost small" type="button" data-act="sound">${soundOn ? T("soundOff") : T("soundOn")}</button></div></div>
     <div class="set-group"><h3>${T("errLog")}</h3><p>${T("errLogHelp")}</p>${errLogHTML()}</div>
@@ -1075,6 +1165,7 @@ function settingsAction(act) {
   if (act === "ics") return downloadText("tunas-reminders.ics", buildICS(), "text/calendar");
   if (act === "share") return shareApp();
   if (act === "backup") { saveBackup(); return renderSettings(true); }
+  if (act === "lockBackup") return hasCrypto() ? openSheet("lock:save") : void toast(T("lockNoCrypto"), "x");
   if (act === "restore") return $("fileBackup").click();
   if (act === "sound") { toggleSound(); return renderSettings(true); }
 }
@@ -1089,7 +1180,9 @@ function readFile(input, cb, maxBytes) {
   r.readAsText(f);
 }
 $("fileRoutine").addEventListener("change", e => readFile(e.target, loadRoutineText, LIMITS.routineBytes));
-$("fileBackup").addEventListener("change", e => readFile(e.target, text => {
+// Plain backups and unlocked ones both end up here, so they get the same checks and limits.
+function restoreBackupText(text) {
+  if (new TextEncoder().encode(text).length > LIMITS.backupBytes) return void toast(T("errFileTooBig", LIMITS.backupBytes / 1e6), "x");
   let b; try { b = JSON.parse(text); } catch (err) { return toast(T("notBackup"), "x"); }
   if (!b || b.app !== "tunas" || !b.data || typeof b.data.days !== "object") return toast(T("notBackup"), "x");
   // Restore only if it can actually be saved; otherwise keep the current data untouched.
@@ -1097,7 +1190,13 @@ $("fileBackup").addEventListener("change", e => readFile(e.target, text => {
   if (!save()) { store = prevStore; return; }
   if (b.routine && !validateRoutine(b.routine)) { if (saveRoutine(clampText(b.routine))) renderGuide(); }
   lastS = null; prevCleared = null; refresh(true); toast(T("restored"), "check");
-}, LIMITS.backupBytes));
+}
+// Locked files are bigger (base64), so the file limit here is higher; plain ones are held to 4 MB in restoreBackupText.
+$("fileBackup").addEventListener("change", e => readFile(e.target, text => {
+  let b = null; try { b = JSON.parse(text); } catch (err) {}
+  if (b && b.tunas === "enc-backup") return openLocked(b);
+  restoreBackupText(text);
+}, LIMITS.lockedBytes));
 $("stCog").onclick = () => { settingsPane = ""; openSheet("settings"); };
 
 /* ================= Routine editor ================= */
@@ -1379,7 +1478,7 @@ const celeQ = [];
 function queueCele(c) { celeQ.push(c); if ($("cele").hidden) nextCele(); }
 function nextCele() {
   const c = celeQ.shift(); if (!c) { $("cele").hidden = true; contextSay(); setTimeout(playHome, 150); return; }
-  if (sheetId && sheetId !== "settings" && sheetId !== "editor" && !sheetId.startsWith("day:")) closeSheet();
+  if (sheetId && sheetId !== "settings" && sheetId !== "editor" && !sheetId.startsWith("day:") && !sheetId.startsWith("lock:")) closeSheet();
   const el = $("cele"); el.hidden = false;
   el.innerHTML = `${c.art || `<div class="mascot cheer" id="celeMascot">${MASCOT}</div>`}<h2 class="${c.color || ""}">${c.title}</h2><p>${c.sub}</p>
     ${c.tiles.length ? `<div class="tiles">${c.tiles.map(t => `<div class="tile" style="--c:var(${t.c})"><small>${t.k}</small><b>${t.i ? I[t.i] : ""}${t.v}</b></div>`).join("")}</div>` : ""}
