@@ -3,6 +3,7 @@
 
 /* ================= Icons ================= */
 const I = {
+  home:'<svg class="ico" viewBox="0 0 24 24"><path d="M12 3.2 2.5 11.1l1.3 1.5L5 11.6V20a1 1 0 0 0 1 1h4.5v-6h3v6H18a1 1 0 0 0 1-1v-8.4l1.2 1 1.3-1.5z"/></svg>',
   sun:'<svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M11 1h2v4h-2zM11 19h2v4h-2zM1 11h4v2H1zM19 11h4v2h-4zM4.2 5.6l1.4-1.4 2.8 2.8-1.4 1.4zM15.6 17l1.4-1.4 2.8 2.8-1.4 1.4zM4.2 18.4 7 15.6 8.4 17l-2.8 2.8zM15.6 7 18.4 4.2l1.4 1.4L17 8.4z"/></svg>',
   walk:'<svg class="ico" viewBox="0 0 24 24"><circle cx="13.5" cy="4" r="2.2"/><path d="M10.6 7.4 7 9.2V13h2v-2.5l1.6-.8-1.9 9.8 2 .4 1.2-5.6 2.1 2V22h2v-5.5l-2.4-2.3.7-3.4c1 1.3 2.5 2.2 4.2 2.2v-2c-1.4 0-2.6-.8-3.2-2l-.9-1.7a2.3 2.3 0 0 0-2.8-1.1z"/></svg>',
   dumb:'<svg class="ico" viewBox="0 0 24 24"><path d="M2 10h2V8h2v8H4v-2H2zM18 8h2v2h2v4h-2v2h-2zM7 6h3v12H7zM14 6h3v12h-3zM10 11h4v2h-4z"/></svg>',
@@ -86,7 +87,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.10.30g";
+const APP_VERSION = "2026.10.30h";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -137,7 +138,7 @@ const locale = () => T("locale");
 function applyStatic() {
   document.documentElement.lang = LANG === "ms" ? "ms" : "en";
   document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = T(el.dataset.i18n); });
-  $("stStreak").setAttribute("aria-label", T("streakTip")); $("stXP").setAttribute("aria-label", T("xpToday")); $("stLv").setAttribute("aria-label", T("levelTip")); $("stCog").setAttribute("aria-label", T("settings"));
+  $("stStreak").setAttribute("aria-label", T("streakTip")); $("stXP").setAttribute("aria-label", T("xpToday")); $("stLv").setAttribute("aria-label", T("levelTip"));
 }
 
 /* ================= Colour themes ================= */
@@ -414,7 +415,7 @@ function confetti() {
 
 /* ================= Mascot ================= */
 $("mascot").innerHTML = MASCOT;
-$("questIco").innerHTML = I.star; $("histIco").innerHTML = I.cal; $("badgeIco").innerHTML = I.trophy;
+$("questIco").innerHTML = I.star;
 let mascotTimer = null;
 function setMood(el, mood) { el.classList.remove("happy","cheer","sleepy","think"); if (mood && mood !== "idle") el.classList.add(mood); }
 function jump(el) { if (!el || reduced()) return; el.classList.remove("jump"); void el.offsetWidth; el.classList.add("jump"); setTimeout(() => el.classList.remove("jump"), 600); }
@@ -543,7 +544,7 @@ function renderTop(S) {
   $("stStreak").className = "stat fire" + (S.streak ? "" : " off"); setStat($("stStreak"), I.flame, S.streak, v => v);
   setStat($("stXP"), I.bolt, S.todayXP, v => v); setStat($("stLv"), I.shield, S.level, v => T("lv", v));
   $("stSnd").innerHTML = soundOn ? I.sndOn : I.sndOff; $("stSnd").setAttribute("aria-label", T("sound"));
-  $("stCog").innerHTML = I.cog;
+
   $("lvName").innerHTML = `${T("level", S.L.n)} · <span>${titleOf(S.L.n)}</span>`;
   setFill($("lvFill"), 100 * S.L.cur / S.L.span); $("lvBar").textContent = T("xpOf", S.L.cur, S.L.span);
   $("progStreak").className = "prog-fl" + (S.streak ? "" : " off"); $("progStreak").innerHTML = `${I.flame}<b>${T("streakShort", S.streak)}</b>`;
@@ -691,7 +692,7 @@ $("shBody").addEventListener("click", e => {
   const c = e.target.closest("[data-day]"); if (c && !c.disabled) openSheet("day:" + c.dataset.day);
 });
 function renderBadges(S) {
-  const got = BADGES.filter(b => b.test(S)); $("badgeMeta").textContent = `${got.length}/${BADGES.length}`;
+  const got = BADGES.filter(b => b.test(S)); $("badgeMeta").textContent = got.length ? String(got.length) : ""; $("badgeMeta").setAttribute("aria-label", `${got.length}/${BADGES.length}`);
   const grid = $("bgrid"); if (!grid) return got;
   const near = b => { const [h, n] = (BADGE_GOAL[b.id] || (() => [0, 1]))(S); return Math.min(1, h / n); };
   const list = BADGES.map((b, i) => ({ b, i, ok: b.test(S), p: near(b) })).sort((x, y) => (y.ok - x.ok) || (y.p - x.p) || (x.i - y.i));
@@ -722,9 +723,7 @@ function renderProgressSheet(kind, keep) {
   $("shClose").onclick = closeSheet;
   if (keep) body.scrollTop = top;
 }
-$("openHistory").onclick = () => { audio(); openSheet("history"); };
 $("progressCard").onclick = () => { audio(); openSheet("history"); };
-$("openBadges").onclick = () => { audio(); openSheet("badges"); };
 
 /* ================= Bottom sheet ================= */
 let sheetId = null, lastFocus = null, lockedFile = null;
@@ -747,7 +746,7 @@ function closeSheet(fromBack) {
   lockedFile = null;
   if (parentSheet) { const p = parentSheet; parentSheet = null;
     if (fromBack) { try { history.pushState({ tunasSheet: 1 }, ""); } catch (e) {} }
-    sheetId = p; renderSheet(false); const x = $("shClose"); x && x.focus({ preventScroll: true }); return; } sheetId = null; ED = null;
+    sheetId = p; renderSheet(false); const x = $("shClose"); x && x.focus({ preventScroll: true }); return; } sheetId = null; ED = null; syncTabs();
   if (!fromBack && history.state && history.state.tunasSheet) { try { history.back(); } catch (e) {} }
   $("scrim").classList.remove("show"); $("sheet").classList.remove("show"); if ($("welcome").hidden) document.body.classList.remove("locked");
   setTimeout(() => { if (!sheetId) { $("scrim").hidden = true; $("sheet").hidden = true; document.body.classList.remove("sheet-top"); } }, 320);
@@ -792,6 +791,7 @@ function starMeter(id, st) {
   if (prev != null && k > prev) for (let i = prev; i < k; i++) setTimeout(() => { sfx("star" + (i + 1)); buzz(10); }, (i - prev) * 140 + 60);
 }
 function renderSheet(keep) {
+  syncTabs();
   if (!sheetId) return;
   if (sheetId === "settings") return renderSettings(keep);
   if (sheetId === "editor") return renderEditor(keep);
@@ -1257,7 +1257,27 @@ $("fileBackup").addEventListener("change", e => readFile(e.target, text => {
   if (b && b.tunas === "enc-backup") return openLocked(b);
   restoreBackupText(text);
 }, LIMITS.lockedBytes));
-$("stCog").onclick = () => { settingsPane = ""; openSheet("settings"); };
+/* ================= Bottom navigation ================= */
+// Today, History, Badges and Settings are one tap away, even with a sheet open; the tab bar sits above sheets.
+const SETTINGS_SHEETS = ["settings", "editor", "packs", "wosetup", "skinsetup"];
+const tabOf = id => !id ? "home" : id === "history" || id.startsWith("day:") ? "history" : id === "badges" ? "badges"
+  : SETTINGS_SHEETS.includes(id) || id.startsWith("lock:") ? "settings" : "home";
+function syncTabs() {
+  const cur = tabOf(sheetId);
+  document.querySelectorAll("#tabbar [data-tab]").forEach(b => { if (b.dataset.tab === cur) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
+}
+function goTab(tab) {
+  if (sheetId === "editor" && ED && ED.dirty) return requestCloseEditor(); // unsaved edits ask first
+  if (tab === "home") { if (sheetId) closeSheet(); else window.scrollTo({ top: 0, behavior: reduced() ? "auto" : "smooth" }); return; }
+  if (sheetId === tab) { $("shBody").scrollTo({ top: 0, behavior: reduced() ? "auto" : "smooth" }); return; }
+  audio(); if (tab === "settings") settingsPane = "";
+  if (!sheetId) return openSheet(tab);
+  // Switch the open sheet in place: no close-and-reopen animation, back button still closes it.
+  parentSheet = null; ED = null; lockedFile = null; sheetId = tab; renderSheet(false); $("shBody").scrollTop = 0;
+  const x = $("shClose"); x && x.focus({ preventScroll: true });
+}
+$("tabbar").addEventListener("click", e => { const b = e.target.closest("[data-tab]"); if (b) goTab(b.dataset.tab); });
+["Home", "History", "Badges", "Settings"].forEach((k, n) => { $("tb" + k).innerHTML = I[["home", "cal", "trophy", "cog"][n]]; });
 
 /* ================= Routine editor ================= */
 let ED = null, draftTimer = null;

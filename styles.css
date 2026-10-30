@@ -236,14 +236,14 @@ button:focus-visible,summary:focus-visible,input:focus-visible{outline:3px solid
 @keyframes tin{from{transform:translateY(-18px) scale(.9);opacity:0}}
 @keyframes tout{to{transform:translateY(-12px);opacity:0}}
 #confetti{position:fixed;inset:0;z-index:75;pointer-events:none;width:100%;height:100%}
-.restbar{position:fixed;z-index:60;left:0;right:0;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));background:var(--card);border-top:2px solid var(--line)}
+.restbar{position:fixed;z-index:60;left:0;right:0;bottom:var(--tab-h);padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));background:var(--card);border-top:2px solid var(--line)}
 .restbar .in{max-width:520px;margin:0 auto;display:flex;align-items:center;gap:10px}
 .restbar .rt{font-family:var(--display);font-weight:700;font-size:30px;font-variant-numeric:tabular-nums;min-width:78px;color:var(--green-ink)}
 .restbar .rl{flex:1;min-width:0;font-size:13px;color:var(--muted)}
 .restbar .rl b{display:block;color:var(--ink);font-size:14px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .restbar .bar{height:10px;margin-top:6px} .restbar .bar i{background:var(--green)} .restbar .bar i::after{display:none}
 /* "New version ready" banner */
-.updbar{position:fixed;z-index:65;left:0;right:0;bottom:0;padding:0 12px calc(12px + env(safe-area-inset-bottom,0px));pointer-events:none}
+.updbar{position:fixed;z-index:65;left:0;right:0;bottom:var(--tab-h);padding:0 12px calc(12px + env(safe-area-inset-bottom,0px));pointer-events:none}
 .updbar .in{pointer-events:auto;max-width:520px;margin:0 auto;display:flex;align-items:center;gap:10px;background:var(--card);border:2px solid var(--line);box-shadow:0 4px 0 var(--line);border-radius:18px;padding:10px 10px 10px 12px;animation:upin .4s cubic-bezier(.2,1.4,.4,1)}
 .updbar .ui{flex:none;width:36px;height:36px;border-radius:11px;background:var(--green);display:grid;place-items:center}
 .updbar .ui svg{width:22px;height:22px;fill:var(--on-color)}
@@ -256,7 +256,6 @@ button:focus-visible,summary:focus-visible,input:focus-visible{outline:3px solid
 @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
 
 /* Settings */
-.stat.cog{color:var(--muted)} .stat.cog svg{fill:currentColor}
 .set-group{display:flex;flex-direction:column;gap:10px;padding:14px;border:2px solid var(--line);border-radius:16px;background:var(--card)}
 .set-group h3{margin:0;font-family:var(--display);font-weight:700;font-size:18px}
 .set-group p{margin:0;font-size:13.5px;color:var(--muted);font-weight:700}
@@ -568,7 +567,6 @@ body.sheet-top .scrim{z-index:74} body.sheet-top .sheet{z-index:75}
 .pips i{width:9px;height:9px;border-radius:50%;background:var(--line)}
 .pips i.on{background:var(--gold)}
 .qfold .quests{padding:0 16px 4px;border-top:2px solid var(--line)}
-.foot-links{display:flex;gap:10px}
 .row-link{flex:1;min-width:0;width:100%;text-align:left;font:inherit;color:inherit;border:2px solid var(--line);border-radius:20px;background:var(--card);box-shadow:0 4px 0 var(--line)}
 .row-link:active{transform:translateY(3px);box-shadow:0 1px 0 var(--line)}
 .row-link .ri{background:var(--green-soft)} .row-link .ri svg{fill:var(--green-ink)}
@@ -582,7 +580,6 @@ body.sheet-top .scrim{z-index:74} body.sheet-top .sheet{z-index:75}
 .set-group .guide summary{padding:13px 2px}
 .set-group .guide .g{padding:0 2px 12px}
 @media (prefers-reduced-motion: reduce){.lvl-node.go::before{display:none}}
-.foot-links .row-link{gap:10px;padding-inline:12px}
 .row-link b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media (max-width:380px){.foot-links .row-link .chev{display:none}}
 
@@ -731,3 +728,19 @@ details.set-group.fold[open] > summary{padding:4px 0}
 .pk-row-t .linkish{align-self:flex-start;margin-top:2px;font-size:13.5px}
 
 .wo-opt .pk-emo{font-size:26px;color:inherit;line-height:1.1}
+
+/* Bottom navigation: one tap to Today, History, Badges or Settings; it stays above sheets so they switch in place */
+:root{--tab-h:calc(62px + env(safe-area-inset-bottom,0px))}
+.tabbar{position:fixed;z-index:58;left:0;right:0;bottom:0;height:var(--tab-h);display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding:4px 8px env(safe-area-inset-bottom,0px);background:var(--card);border-top:2px solid var(--line)}
+.tabbar button{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:48px;padding:0 4px;border:0;border-radius:14px;background:none;color:var(--muted);font:inherit;font-size:12.5px;font-weight:800;white-space:nowrap;cursor:pointer}
+.tabbar .tb-ico{display:grid;place-items:center;width:44px;height:28px;border-radius:999px;transition:background-color .15s ease-out}
+.tabbar svg{width:22px;height:22px;fill:currentColor}
+.tabbar [aria-current="page"]{color:var(--green-ink)}
+.tabbar [aria-current="page"] .tb-ico{background:var(--green-soft)}
+.tabbar .tb-count{position:absolute;top:2px;left:calc(50% + 12px);min-width:20px;padding:0 4px;border-radius:999px;background:var(--gold-soft);color:var(--gold-ink);font-size:11px;font-weight:900;line-height:16px;text-align:center}
+.tabbar button:focus-visible{outline:3px solid var(--green-ink);outline-offset:-3px}
+.sheet{bottom:var(--tab-h);max-height:calc(100dvh - var(--tab-h) - 32px)}
+body.sheet-top .sheet{bottom:0;max-height:88dvh}
+body{padding-bottom:calc(var(--tab-h) + 40px)}
+@media (prefers-reduced-motion: reduce){.tabbar .tb-ico{transition:none}}
+.tabbar .tb-count:empty{display:none}
