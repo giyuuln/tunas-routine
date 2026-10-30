@@ -682,3 +682,31 @@ details.set-group.fold[open] > summary{padding:4px 0}
 .ed-subh{margin:18px 0 0;font-family:var(--display);font-weight:700;font-size:17px}
 .ed-gline{align-items:flex-start}
 .ed-row textarea.ed-line{font-weight:600;font-size:14.5px}
+
+/* Habit packs: picker (welcome + Add packs sheet) and Settings rows */
+.pk-cat{align-self:flex-start;margin:6px 0 -6px;font-family:var(--display);font-weight:700;font-size:17px}
+#shBody .pk-cat{margin:14px 0 8px}
+.pk-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:100%}
+.pk{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;padding:12px;min-height:44px;border-radius:18px;border:2px solid var(--line);background:var(--card);box-shadow:0 4px 0 var(--line);color:var(--ink);font:inherit;cursor:pointer}
+.pk b{font-family:var(--display);font-weight:700;font-size:16px;line-height:1.2;padding-right:28px}
+.pk span:not(.pk-emo):not(.tpl-tick){font-size:12.5px;color:var(--muted);font-weight:700;line-height:1.3}
+.pk small{font-size:12.5px;font-weight:900;color:var(--green-ink)}
+.pk-emo{font-size:26px;line-height:1}
+.pk[aria-pressed="true"]{border-color:var(--green);background:var(--green-soft);box-shadow:0 4px 0 var(--green)}
+.pk[aria-pressed="true"] .tpl-tick{background:var(--green);border-color:var(--green)}
+.pk[aria-pressed="true"] .tpl-tick svg{opacity:1}
+.pk-foot{position:fixed;z-index:3;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));background:var(--bg);box-shadow:0 -2px 0 var(--line)}
+.pk-foot > *{width:min(100%,520px)}
+.w-in.pk-room{padding-bottom:150px}
+.pk-foot .w-mix{margin:0;text-align:center}
+.pk-bar{position:sticky;top:-14px;z-index:2;margin:-14px -16px 0;padding:10px 16px;background:var(--bg);box-shadow:0 2px 0 var(--line)}
+.pk-bar .btn{width:100%}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.pk-row{display:flex;align-items:center;gap:12px;padding:8px 0;border-top:2px solid var(--line)}
+.pk-row .pk-emo{font-size:24px}
+.pk-row-t{flex:1;min-width:0;display:flex;flex-direction:column}
+.pk-row-t span{font-size:13px;color:var(--muted)}
+.w-times{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%}
+.w-time{display:flex;flex-direction:column;gap:4px;font-size:13.5px;font-weight:900;color:var(--muted)}
+.w-time .field{width:100%;font-size:16px}
+@media (max-width:360px){.pk-grid{grid-template-columns:1fr}}

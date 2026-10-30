@@ -83,7 +83,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.10.30c";
+const APP_VERSION = "2026.10.30d";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -168,6 +168,8 @@ function validateRoutine(r) {
   }
   for (const w of Object.values(r.workouts || {})) if (w && Array.isArray(w.exercises) && w.exercises.length > LIMITS.exercises) return T("errTooBig");
   if (Array.isArray(r.weekly) && r.weekly.length > LIMITS.weekly) return T("errTooBig");
+  if (r.packs != null && (!Array.isArray(r.packs) || r.packs.length > 60 || !r.packs.every(x => typeof x === "string"))) return T("badFile");
+  if (r.day != null && (typeof r.day !== "object" || Array.isArray(r.day))) return T("badFile");
   return guideError(r);
 }
 // Guide and tips are shown with md(), which escapes first; here we only check shape and size.
@@ -723,7 +725,7 @@ function openSheet(id) {
   // Phone back button closes the sheet instead of leaving the app.
   if (!sheetId && !(history.state && history.state.tunasSheet)) { try { history.pushState({ tunasSheet: 1 }, ""); } catch (e) {} }
   // A day opened from History goes back to History when closed; a locked-backup sheet goes back to Settings.
-  parentSheet = (sheetId === "history" && id.startsWith("day:")) || (sheetId === "settings" && id.startsWith("lock:")) ? sheetId : null;
+  parentSheet = (sheetId === "history" && id.startsWith("day:")) || (sheetId === "settings" && (id.startsWith("lock:") || id === "packs")) ? sheetId : null;
   if (!parentSheet) lastFocus = document.activeElement;
   // Restoring a backup from the welcome screen opens a sheet on top of it.
   document.body.classList.toggle("sheet-top", !$("welcome").hidden);
@@ -787,6 +789,7 @@ function renderSheet(keep) {
   if (sheetId === "settings") return renderSettings(keep);
   if (sheetId === "editor") return renderEditor(keep);
   if (sheetId.startsWith("lock:")) return renderLockSheet(keep);
+  if (sheetId === "packs") return renderPackSheet(keep);
   if (sheetId.startsWith("day:")) return renderDaySheet(sheetId.slice(4), keep);
   if (sheetId === "history" || sheetId === "badges") return renderProgressSheet(sheetId, keep);
   const d = routineDate(), today = dkey(d), node = nodesFor(d).find(n => n.id === sheetId); if (!node) { closeSheet(); return; }
@@ -1120,6 +1123,7 @@ function renderSettings(keep) {
         <button class="btn ghost small" type="button" data-act="exportRoutine">${T("downloadRoutine")}</button></div>
       ${settingsPane === "paste" ? `<textarea class="field" id="pasteBox" placeholder="${T("pastePh")}"></textarea><div class="row"><button class="btn small danger" type="button" data-act="pasteApply">${T("useThis")}</button></div>` : ""}
     </div>
+    ${packsSettingsHTML()}
     ${guideHTML()}
     <div class="set-group"><h3>${T("reminders")}</h3><p>${T("remShort")}</p><details class="more-help"><summary>${T("remHow")}</summary><p>${T("remHelp")}</p></details>
       ${(() => { const L = reminderList(), n = L.filter(r => store.rem[remSig(r)]).length; return (n ? `<p class="rem-count">${T("remCount", n, L.length)}</p>` : "") + L.map(remRow).join(""); })()}
@@ -1145,7 +1149,7 @@ function foldSettings(body) {
   body.querySelectorAll(":scope > .set-group").forEach(g => {
     const h = g.querySelector(":scope > h3"); if (!h) return;
     const key = h.textContent, d = document.createElement("details"); d.className = g.className + " fold";
-    if (setOpen.has(key) || (key === T("routine") && settingsPane === "paste")) d.open = true;
+    if (setOpen.has(key) || (key === T("routine") && settingsPane === "paste") || (key === T("packsTitle") && settingsPane.startsWith("rm:"))) d.open = true;
     const sm = document.createElement("summary"); sm.appendChild(h); sm.insertAdjacentHTML("beforeend", '<span class="chev" aria-hidden="true"></span>');
     d.appendChild(sm); while (g.firstChild) d.appendChild(g.firstChild); g.replaceWith(d);
     d.addEventListener("toggle", () => { if (d.open) setOpen.add(key); else setOpen.delete(key); });
@@ -1184,7 +1188,11 @@ function setLang(l) {
   if (RAW_IS_DEFAULT) { RAW = defaultRoutine(); applyRoutine(RAW); }
   applyStatic(); renderGuide(); lastS = null; prevCleared = null; refresh(true);
 }
-function settingsAction(act) {
+function settingsAction(act, el) {
+  if (act === "addPacks") { PK.sel = new Set(); return openSheet("packs"); }
+  if (act === "rmPack") { const id = el && el.dataset.pack; if (!id) return;
+    if (settingsPane !== "rm:" + id) { settingsPane = "rm:" + id; return renderSettings(true); }
+    settingsPane = ""; return removePackNow(id); }
   if (act === "tickAll") return tickAll();
   if (act === "toggleWo") { const r = { ...RAW, showWorkouts: CFG.showWorkouts === false }; if (!saveRoutine(r)) return renderSettings(true); lastS = null; prevCleared = null; refresh(true); toast(r.showWorkouts ? T("woShown") : T("woHidden"), "check"); return; }
   if (act === "edit") return openEditor();
@@ -1202,7 +1210,9 @@ function settingsAction(act) {
   if (act === "restore") return $("fileBackup").click();
   if (act === "sound") { toggleSound(); return renderSettings(true); }
 }
-$("sheet").addEventListener("click", e => { const b = e.target.closest("[data-lang]"); if (b) { setLang(b.dataset.lang); return; }
+$("sheet").addEventListener("click", e => { if (sheetId === "packs") { const pk = e.target.closest("[data-pack]"); if (pk) { togglePack(PK.sel, pk.dataset.pack); return renderPackSheet(true); }
+    if (e.target.closest("[data-packgo]")) return addPacksNow(); }
+  const b = e.target.closest("[data-lang]"); if (b) { setLang(b.dataset.lang); return; }
   const t = e.target.closest("[data-theme-pick]"); if (t) { pickTheme(t.dataset.themePick); if (sheetId === "settings") renderSettings(true); } });
 function readFile(input, cb, maxBytes) {
   const f = input.files && input.files[0]; if (!f) return;
@@ -1482,10 +1492,12 @@ function saveEditor() {
 }
 
 /* ================= Welcome ================= */
-let WEL = { step: 1, tpls: new Set(["worker"]), includeWo: true, switching: false, name: "" };
+const newWel = (step, switching) => ({ step: step || 1, tpls: new Set(["worker"]), includeWo: true, switching: !!switching, name: switching ? (CFG.name || "") : "",
+  packs: new Set(), wake: (RAW.day && RAW.day.wake) || "06:30", sleep: (RAW.day && RAW.day.sleep) || "23:00", busy: true, busyFrom: "08:30", busyTo: "17:00" });
+let WEL = newWel(1);
 function countHabits(r) { return (r.blocks || []).reduce((s, b) => s + (b.items || []).length, 0); }
 function openWelcome(step, switching) {
-  WEL = { step: step || 1, tpls: new Set(["worker"]), includeWo: true, switching: !!switching, name: switching ? (CFG.name || "") : "" };
+  WEL = newWel(step, switching);
   $("welcome").hidden = false; document.body.classList.add("locked"); renderWelcome();
 }
 function closeWelcome() { $("welcome").hidden = true; document.body.classList.remove("locked"); }
@@ -1503,6 +1515,8 @@ function renderWelcome() {
     $("wName").addEventListener("keydown", e => { if (e.key === "Enter") $("wNext").click(); });
     $("wNext").onclick = () => { WEL.step = 2; renderWelcome(); };
     jump($("wMascot"));
+  } else if (WEL.step === 2) { renderWelcomePacks(el);
+  } else if (WEL.step === 3) { renderWelcomeDay(el);
   } else {
     const anyWo = [...WEL.tpls].some(id => Object.keys((window.TUNAS_TEMPLATES.find(t => t.id === id) || {}).routine?.workouts || {}).length);
     el.innerHTML = `<div class="w-in wide"><h2>${T("wPick")}</h2><p>${T("wPickMulti")}</p>
@@ -1511,12 +1525,12 @@ function renderWelcome() {
       <p class="w-mix">${T("wMixNote", WEL.tpls.size)}</p>
       ${anyWo ? `<div class="sw-row w-wo"><div><b>${T("wIncludeWo")}</b><span>${T("wIncludeWoHelp")}</span></div><button class="toggle" type="button" role="switch" id="wWo" aria-checked="${WEL.includeWo}" aria-label="${T("wIncludeWo")}"><i></i></button></div>` : ""}
       <button class="btn" type="button" id="wGo">${T("wGo")}</button>
-      <div class="w-links"><button class="linkish" type="button" id="wBack">${WEL.switching ? T("cancel") : T("back")}</button>${WEL.switching ? "" : `<button class="linkish" type="button" id="wFile">${T("wHaveFile")}</button>`}</div></div>`;
+      <div class="w-links"><button class="linkish" type="button" id="wBack">${T("back")}</button>${WEL.switching ? "" : `<button class="linkish" type="button" id="wFile">${T("wHaveFile")}</button>`}</div></div>`;
     el.querySelectorAll("[data-tpl]").forEach(b => b.onclick = () => { const id = b.dataset.tpl;
       if (WEL.tpls.has(id)) { if (WEL.tpls.size > 1) WEL.tpls.delete(id); } else WEL.tpls.add(id);
       const top = el.scrollTop; renderWelcome(); el.scrollTop = top; });
     if ($("wWo")) $("wWo").onclick = () => { WEL.includeWo = !WEL.includeWo; $("wWo").setAttribute("aria-checked", WEL.includeWo); };
-    $("wBack").onclick = () => { if (WEL.switching) closeWelcome(); else { WEL.step = 1; renderWelcome(); } };
+    $("wBack").onclick = () => { WEL.step = 2; renderWelcome(); el.scrollTop = 0; };
     if ($("wFile")) $("wFile").onclick = () => $("fileRoutine").click();
     $("wGo").onclick = finishWelcome;
   }
@@ -1546,11 +1560,177 @@ function finishWelcome() {
   const order = window.TUNAS_TEMPLATES.map(t => t.id); ids.sort((x, y) => order.indexOf(x) - order.indexOf(y));
   const r = mergeRoutines(ids.map(id => window.resolveTemplate(window.TUNAS_TEMPLATES.find(t => t.id === id).routine, LANG)));
   r.showWorkouts = !!WEL.includeWo;
+  welcomeDone(r);
+}
+function welcomeDone(r) {
   r.name = String(WEL.name || "").trim().slice(0, 30) || (LANG === "ms" ? "Kawan" : "Friend");
-  if (!saveRoutine(r)) return;
+  const err = validateRoutine(r); if (err) { toast(esc(err), "x"); return; }
+  if (!saveRoutine(clampText(r))) return;
   store.welcomed = true; save(); lastS = null; prevCleared = null;
   closeWelcome(); renderGuide(); refresh(); confetti(); sfx("clear"); askPersist();
   say(T("wWelcome", firstName()), "", "cheer", 5000); jump($("mascot"));
+}
+
+/* ================= Habit packs ================= */
+// A pack adds habits, weekly tasks, tips and guide topics, each tagged with the pack id so it can be removed again.
+const DEFAULT_DAY = { wake: "06:30", sleep: "23:00", busy: null };
+const R = x => window.resolveTemplate(x, LANG);
+const packById = id => (window.TUNAS_PACKS || []).find(p => p.id === id);
+const packOrder = ids => (window.TUNAS_PACKS || []).map(p => p.id).filter(id => ids.includes(id));
+const clock12 = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m / 60); return `${(h % 12) || 12}:${pad(m % 60)}`; };
+const dayWrap = m => { m = ((m % 1440) + 1440) % 1440; return m < 240 ? m + 1440 : m; }; // the routine day starts at 4am
+function togglePack(set, id) { if (set.has(id)) set.delete(id); else if (packById(id)) set.add(id); }
+// Wake, sleep and fixed (work/class) hours → the four parts of the day, in minutes.
+function dayPlan(day) {
+  const d = { ...DEFAULT_DAY, ...(day && typeof day === "object" ? day : {}) };
+  const W = Math.max(270, tm(d.wake, 390)); let S = tm(d.sleep, 1380); if (S <= W + 360) S += 1440;
+  let B1 = Array.isArray(d.busy) ? tm(d.busy[0], null) : null, B2 = Array.isArray(d.busy) ? tm(d.busy[1], null) : null;
+  if (B1 == null || B2 == null || B1 === B2) B1 = B2 = null; else if (B2 < B1) B2 += 1440;
+  const mFrom = W - 30, mTo = B1 != null && B1 > W + 30 && B1 < W + 300 ? B1 : W + 150;
+  const dTo = B2 != null && B2 > mTo + 60 ? Math.min(B2, 1320) : Math.max(17 * 60, mTo + 180);
+  const nFrom = Math.min(1410, Math.max(dTo + 60, S - 60));
+  return { morning: { from: mFrom, to: mTo, anchor: W }, day: { from: mTo, to: dTo, anchor: Math.min(Math.max(750, mTo), dTo - 30) },
+    evening: { from: dTo, to: nFrom, anchor: dTo }, night: { from: nFrom, to: mFrom + 1440, anchor: nFrom } };
+}
+const blockSpan = b => { const f = dayWrap(tm(b.from, 0)); let t = dayWrap(tm(b.to, 0)); if (t <= f) t += 1440; return [f, t]; };
+// The section a pack habit goes into: same id, else the one covering that time, else a new one that doesn't overlap.
+function slotBlock(r, slot, plan, made) {
+  let b = r.blocks.find(x => x.id === slot); if (b) return b;
+  const P = plan[slot], a = dayWrap(P.anchor);
+  b = r.blocks.find(x => { const [f, t] = blockSpan(x); return a >= f && a < t; }); if (b) return b;
+  let from = dayWrap(P.from), to = dayWrap(P.to); if (to <= from) to += 1440;
+  r.blocks.forEach(x => { const [f, t] = blockSpan(x); if (f > from && f < to) to = f; if (from >= f && from < t) from = t; });
+  if (r.blocks.length && (to - from < 30 || r.blocks.length >= LIMITS.sections))
+    return r.blocks.reduce((best, x) => Math.abs(blockSpan(x)[0] - a) < Math.abs(blockSpan(best)[0] - a) ? x : best);
+  const S = R(window.TUNAS_SLOTS[slot]), rem = Math.min(Math.max(a, from), to - 15);
+  b = { id: r.blocks.some(x => x.id === slot) ? uid() : slot, title: S.title, icon: S.icon, from: hhmm(from), to: hhmm(to), remind: hhmm(rem), say: S.say, items: [] };
+  r.blocks.push(b); made.add(b); return b;
+}
+function addPacks(base, ids) {
+  const r = clone(base); r.blocks ||= []; r.weekly ||= []; r.tips ||= []; r.workouts ||= {};
+  const plan = dayPlan(r.day), made = new Set(); let skipped = 0;
+  const anchorOf = (b, slot) => made.has(b) ? plan[slot].anchor : dayWrap(tm(b.remind, tm(b.from, plan[slot].anchor)));
+  packOrder(ids).forEach(id => {
+    const P = R(packById(id));
+    P.habits.forEach(hb => {
+      const b = slotBlock(r, hb.slot, plan, made);
+      if (r.blocks.some(x => x.items.some(i => i.id === hb.id))) return;
+      if (b.items.length >= LIMITS.items) { skipped++; return; }
+      const it = { id: hb.id, title: hb.title, pack: id };
+      if (hb.note) it.note = hb.note; if (hb.quest) it.quest = true; if (hb.everyOtherDay) it.everyOtherDay = true;
+      if (hb.at != null) { const m = anchorOf(b, hb.slot) + hb.at; it.time = clock12(m); if (made.has(b)) it._m = dayWrap(m); }
+      b.items.push(it);
+    });
+    (P.weekly || []).forEach(x => { if (r.weekly.some(y => y.id === x.id)) return; if (r.weekly.length >= LIMITS.weekly) { skipped++; return; } r.weekly.push({ id: x.id, title: x.title, pack: id }); });
+    (P.tips || []).forEach(x => { if (!r.tips.includes(x) && r.tips.length < LIMITS.tips) r.tips.push(x); });
+    (P.guide || []).forEach(g => {
+      if (!r.guide || typeof r.guide !== "object") r.guide = { title: T("packGuide"), sections: [] };
+      r.guide.sections ||= [];
+      if (r.guide.sections.length < LIMITS.guideSections && !r.guide.sections.some(x => x.pack === id && x.title === g.title))
+        r.guide.sections.push({ title: g.title, lines: g.lines.slice(0, LIMITS.guideLines), pack: id });
+    });
+    Object.entries(P.workouts || {}).forEach(([k, wo]) => {
+      if (r.workouts[k]) return;
+      const eb = slotBlock(r, "evening", plan, made), f = anchorOf(eb, "evening") + 30;
+      r.workouts[k] = { ...clone(wo), when: fmtClock(f), from: hhmm(f), to: hhmm(f + 45), remind: hhmm(f), after: eb.id, pack: id };
+      r.showWorkouts = true;
+    });
+  });
+  r.packs = [...new Set([...(Array.isArray(r.packs) ? r.packs : []), ...ids])];
+  // Sections this call created get their habits in time order; existing sections keep the user's order.
+  made.forEach(b => { b.items = b.items.map((i, n) => [i, n]).sort((x, y) => (x[0]._m ?? 1e9) - (y[0]._m ?? 1e9) || x[1] - y[1]).map(x => x[0]); });
+  r.blocks.forEach(b => b.items.forEach(i => { delete i._m; }));
+  r.blocks.sort((x, y) => blockSpan(x)[0] - blockSpan(y)[0]);
+  return { r, skipped };
+}
+function removePack(base, id) {
+  const r = clone(base), P = packById(id), txt = new Set();
+  ((P && P.tips) || []).forEach(x => { txt.add(x.en); txt.add(x.ms); });
+  r.blocks = (r.blocks || []).map(b => ({ ...b, items: (b.items || []).filter(i => i.pack !== id) })).filter(b => b.items.length);
+  r.weekly = (r.weekly || []).filter(x => x.pack !== id);
+  r.tips = (r.tips || []).filter(x => !txt.has(x));
+  if (r.guide && Array.isArray(r.guide.sections)) { r.guide.sections = r.guide.sections.filter(g => g.pack !== id); if (!r.guide.sections.length) r.guide = null; }
+  const ids = r.blocks.map(b => b.id);
+  Object.keys(r.workouts || {}).forEach(k => { const wo = r.workouts[k]; if (wo.pack === id) delete r.workouts[k]; else if (ids.length && !ids.includes(slug(wo.after))) wo.after = ids[ids.length - 1]; });
+  r.packs = (r.packs || []).filter(x => x !== id);
+  return r;
+}
+const packCount = (r, id) => (r.blocks || []).reduce((n, b) => n + (b.items || []).filter(i => i.pack === id).length, 0);
+function packGridHTML(sel, skip) {
+  return window.TUNAS_PACK_CATS.map(c => {
+    const list = window.TUNAS_PACKS.filter(p => p.cat === c.id && !(skip && skip.has(p.id))); if (!list.length) return "";
+    return `<h4 class="pk-cat">${esc(R(c.title))}</h4><div class="pk-grid">${list.map(p => `<button type="button" class="pk" data-pack="${esc(p.id)}" aria-pressed="${sel.has(p.id)}">
+      <span class="pk-emo" aria-hidden="true">${esc(p.emoji)}</span><span class="tpl-tick">${I.check}</span><b>${esc(R(p.title))}</b><span>${esc(R(p.desc))}</span><small>${T("packHabits", p.habits.length)}</small></button>`).join("")}</div>`;
+  }).join("");
+}
+const selHabits = sel => [...sel].reduce((n, id) => n + ((packById(id) || {}).habits || []).length, 0);
+function renderWelcomePacks(el) {
+  const n = WEL.packs.size, hb = selHabits(WEL.packs);
+  el.innerHTML = `<div class="w-in wide pk-room"><h2>${T("wHelpQ")}</h2><p>${T("wHelpSub")}</p>${packGridHTML(WEL.packs)}
+    <div class="pk-foot"><p class="w-mix">${n ? T("wPackCount", n, hb) : T("wPickOne")}${hb > 30 ? ` · ${T("wManyHabits")}` : ""}</p>
+      <button class="btn" type="button" id="wPkNext" ${n ? "" : "disabled"}>${T("next")}</button>
+      <div class="w-links"><button class="linkish" type="button" id="wBack">${WEL.switching ? T("cancel") : T("back")}</button><button class="linkish" type="button" id="wTpl">${T("wReady")}</button></div></div></div>`;
+  el.querySelectorAll("[data-pack]").forEach(b => b.onclick = () => { togglePack(WEL.packs, b.dataset.pack); const top = el.scrollTop; renderWelcome(); el.scrollTop = top; });
+  $("wPkNext").onclick = () => { if (!WEL.packs.size) return; WEL.step = 3; renderWelcome(); el.scrollTop = 0; };
+  $("wBack").onclick = () => { if (WEL.switching) closeWelcome(); else { WEL.step = 1; renderWelcome(); } };
+  $("wTpl").onclick = () => { WEL.step = "tpl"; renderWelcome(); el.scrollTop = 0; };
+}
+function renderWelcomeDay(el) {
+  const time = (id, label, v) => `<label class="w-time">${label}<input class="field" type="time" id="${id}" value="${esc(v)}"></label>`;
+  el.innerHTML = `<div class="w-in"><h2>${T("wDayQ")}</h2><p>${T("wDaySub")}</p>
+    <div class="w-times">${time("wWake", T("wWake"), WEL.wake)}${time("wSleep", T("wSleep"), WEL.sleep)}</div>
+    <div class="sw-row w-wo"><div><b>${T("wBusy")}</b><span>${T("wBusyHelp")}</span></div><button class="toggle" type="button" role="switch" id="wBusy" aria-checked="${WEL.busy}" aria-label="${T("wBusy")}"><i></i></button></div>
+    ${WEL.busy ? `<div class="w-times">${time("wB1", T("wBusyFrom"), WEL.busyFrom)}${time("wB2", T("wBusyTo"), WEL.busyTo)}</div>` : ""}
+    <button class="btn" type="button" id="wGo">${T("wGo")}</button>
+    <div class="w-links one"><button class="linkish" type="button" id="wBack">${T("back")}</button></div></div>`;
+  [["wWake", "wake"], ["wSleep", "sleep"], ["wB1", "busyFrom"], ["wB2", "busyTo"]].forEach(([id, k]) => { const f = $(id); if (f) f.addEventListener("change", () => { if (/^\d{2}:\d{2}$/.test(f.value)) WEL[k] = f.value; }); });
+  $("wBusy").onclick = () => { WEL.busy = !WEL.busy; renderWelcome(); };
+  $("wBack").onclick = () => { WEL.step = 2; renderWelcome(); };
+  $("wGo").onclick = finishPacks;
+}
+function finishPacks() {
+  const day = { wake: WEL.wake, sleep: WEL.sleep, busy: WEL.busy ? [WEL.busyFrom, WEL.busyTo] : null };
+  const base = { version: 1, label: T("myRoutine"), name: "", blocks: [], focus: {}, workouts: {}, progression: {}, weekly: [], tips: [], guide: null, day, showWorkouts: true, packs: [],
+    away: day.busy ? { from: day.busy[0], to: day.busy[1], say: T("awaySay") } : null };
+  const { r } = addPacks(base, [...WEL.packs]);
+  if (!r.blocks.length) { toast(T("wPickOne"), "x"); return; }
+  welcomeDone(r);
+}
+// Settings → Habit packs
+let PK = { sel: new Set() };
+function packsSettingsHTML() {
+  const active = (Array.isArray(RAW.packs) ? RAW.packs : []).map(packById).filter(Boolean);
+  const rows = active.map(p => { const sure = settingsPane === "rm:" + p.id;
+    return `<div class="pk-row"><span class="pk-emo" aria-hidden="true">${esc(p.emoji)}</span><span class="pk-row-t"><b>${esc(R(p.title))}</b><span>${T("packHabits", packCount(RAW, p.id))}</span></span>
+      <button class="btn small ${sure ? "danger" : "ghost danger-ghost"}" type="button" data-act="rmPack" data-pack="${esc(p.id)}">${sure ? T("edSure") : T("removePack")}</button></div>`; }).join("");
+  return `<div class="set-group"><h3>${T("packsTitle")}</h3><p>${T("packsHelp")}</p>${rows || `<p>${T("packsNone")}</p>`}
+    <div class="row"><button class="btn small ed-add" type="button" data-act="addPacks">${I.plus}${T("addPacks")}</button></div></div>`;
+}
+function renderPackSheet(keep) {
+  const body = $("shBody"), top = keep ? body.scrollTop : 0, n = PK.sel.size;
+  $("shHead").innerHTML = sheetHead("star", T("addPacks"), T("addPacksSub"), null, "--green");
+  $("shHead").querySelector(".sh-ico").innerHTML = I.plus;
+  $("shClose").onclick = closeSheet;
+  const have = new Set(Array.isArray(RAW.packs) ? RAW.packs : []);
+  body.innerHTML = `<div class="pk-bar"><button class="btn" type="button" data-packgo ${n ? "" : "disabled"}>${T("addN", n)}</button></div>` + packGridHTML(PK.sel, have);
+  if (keep) body.scrollTop = top;
+}
+function addPacksNow() {
+  if (!PK.sel.size) return;
+  const ids = [...PK.sel], { r, skipped } = addPacks(RAW, ids);
+  if (RAW_IS_DEFAULT || !r.label) r.label = T("myRoutine");
+  const err = validateRoutine(r); if (err) { toast(esc(err), "x"); return; }
+  if (!saveRoutine(clampText(r))) return;
+  PK.sel = new Set(); store.welcomed = true; save(); lastS = null; prevCleared = null;
+  closeSheet(); refresh(true); sfx("clear");
+  toast(skipped ? T("packsSkipped", skipped) : T("packsAdded", ids.length), skipped ? "x" : "check");
+}
+function removePackNow(id) {
+  const r = removePack(RAW, id);
+  if (!r.blocks.length) { toast(T("packKeepOne"), "x"); return renderSettings(true); }
+  const err = validateRoutine(r); if (err) { toast(esc(err), "x"); return; }
+  if (!saveRoutine(clampText(r))) return renderSettings(true);
+  lastS = null; prevCleared = null; refresh(true); toast(T("packRemoved", esc(R(packById(id).title))), "check");
 }
 
 /* ================= Celebration screens ================= */
