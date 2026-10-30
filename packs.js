@@ -65,7 +65,7 @@
       habits: [
         h("wt-wake", "morning", t("Glass of water when you wake up", "Segelas air bila bangun"), { at: 0 }),
         h("wt-bottle", "day", t("Refill your water bottle", "Isi semula botol air")),
-        h("wt-8", "day", t("Drink 8 glasses of water", "Minum 8 gelas air"), { quest: true }),
+        h("wt-8", "day", t("Drink 8 glasses of water", "Minum 8 gelas air"), { quest: true, target: 8 }),
         h("wt-home", "evening", t("Glass of water when you get home", "Segelas air bila sampai rumah"), { at: 0 })
       ],
       tips: [t("**Keep a bottle in sight.** You drink what you can see.", "**Letak botol depan mata.** Nampak, baru minum.")] },
