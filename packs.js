@@ -28,13 +28,119 @@
     { id: "home", title: t("Home & life", "Rumah & hidup") }
   ];
 
-  const bodyweightEx = [
-    { id: "pushup", name: t("Push-ups", "Tekan tubi"), reps: "8–15", rest: "60s", cue: t("Knees down is fine. Chest to the floor, body straight.", "Lutut di lantai pun boleh. Dada ke lantai, badan lurus."), bodyweight: true },
-    { id: "squat", name: t("Bodyweight Squat", "Cangkung"), reps: "12–20", rest: "60s", cue: t("Sit back like a chair, 3 seconds down.", "Duduk ke belakang macam kerusi, turun 3 saat."), bodyweight: true },
-    { id: "bridge", name: t("Glute Bridge", "Jambatan punggung"), reps: "12–20", rest: "45s", cue: t("Squeeze at the top for 1 second.", "Kepit di atas selama 1 saat."), bodyweight: true },
-    { id: "plank", name: t("Plank", "Plank"), reps: "30–45 sec", rest: "45s", cue: t("Squeeze glutes, ribs down.", "Kepit punggung, rusuk ke bawah."), bodyweight: true, unit: "sec" }
-  ];
-  const homeWorkout = { name: t("Home Workout", "Senaman di Rumah"), say: [t("Workout time! Let's go.", "Masa senaman! Jom."), t("Log every set to catch a new PR.", "Catat setiap set untuk kejar rekod baru.")], exercises: bodyweightEx };
+
+  /* Workout setup: level, place and equipment → a workout plan built on the phone.
+     Exercise kinds set reps and rest by level: w = weighted, bw = bodyweight reps, hold = seconds, acc = accessory.
+     gear: none | band | db (dumbbells) | bar (pull-up bar) | gym. lv: levels the exercise suits. */
+  const x = (id, pattern, gear, lv, kind, name, cue, o) => ({ id, pattern, gear, lv, kind, name, cue, ...(o || {}) });
+  const ALL = ["new", "mid", "pro"];
+  window.TUNAS_WORKOUT = {
+    levels: [
+      { id: "new", title: t("Newbie", "Baru mula"), desc: t("New to training, or back after a long break.", "Baru nak mula, atau kembali selepas lama berhenti.") },
+      { id: "mid", title: t("Intermediate", "Pertengahan"), desc: t("Trained on and off for 6+ months.", "Pernah berlatih sekali-sekala lebih 6 bulan.") },
+      { id: "pro", title: t("Regular", "Tetap"), desc: t("Train most weeks for a year or more.", "Berlatih hampir setiap minggu setahun atau lebih.") }
+    ],
+    places: [
+      { id: "home", emoji: "🏠", title: t("Home", "Rumah") },
+      { id: "gym", emoji: "🏟️", title: t("Gym", "Gim") }
+    ],
+    // Which place to suggest for each level, and why.
+    suggest: {
+      new: { place: "home", text: t("Start at home: no travel, no waiting, and bodyweight builds the basics.", "Mula di rumah: tak perlu ke mana-mana, tak perlu tunggu, dan berat badan sendiri bina asas.") },
+      mid: { place: null, text: t("Either works. Home is fine with dumbbells or bands; a gym makes it easier to keep adding weight.", "Dua-dua boleh. Rumah okay kalau ada dumbel atau band; gim lebih senang untuk terus tambah berat.") },
+      pro: { place: "gym", text: t("A gym lets you keep adding weight, which you'll need to keep progressing.", "Gim bagi kau terus tambah berat, yang kau perlukan untuk terus maju.") }
+    },
+    gear: [
+      { id: "db", emoji: "🏋️", title: t("Dumbbells", "Dumbel") },
+      { id: "band", emoji: "🪢", title: t("Resistance bands", "Band rintangan") },
+      { id: "bar", emoji: "🚪", title: t("Pull-up bar", "Palang tarik") }
+    ],
+    noGearTip: t("No equipment is fine. A pair of adjustable dumbbells or a set of bands later makes home training last much longer.", "Tiada peralatan pun tak apa. Sepasang dumbel boleh laras atau satu set band nanti buat latihan di rumah lebih tahan lama."),
+    plans: {
+      new: { days: { "1": "full", "3": "full", "5": "full" }, mins: t("25–35 min", "25–35 minit") },
+      mid: { days: { "1": "fullA", "3": "fullB", "5": "fullA" }, sets: 3, mins: t("40–50 min", "40–50 minit") },
+      pro: { days: { "1": "upper", "2": "lower", "4": "upper", "5": "lower" }, sets: 3, mins: t("50–60 min", "50–60 minit") }
+    },
+    splits: {
+      full: { name: t("Full Body", "Badan Penuh"), patterns: ["squat", "push", "pull", "hinge", "core"] },
+      fullA: { name: t("Full Body A", "Badan Penuh A"), patterns: ["squat", "push", "pull", "core"] },
+      fullB: { name: t("Full Body B", "Badan Penuh B"), patterns: ["hinge", "vpush", "vpull", "lunge"] },
+      upper: { name: t("Upper Body", "Badan Atas"), patterns: ["push", "pull", "vpush", "vpull", "arms"] },
+      lower: { name: t("Lower Body", "Badan Bawah"), patterns: ["squat", "hinge", "lunge", "core"] }
+    },
+    // If nothing fits a pattern with the gear at hand, use this one instead.
+    fallback: { vpull: "pull", vpush: "push", lunge: "squat", arms: null },
+    reps: {
+      w: { new: "8–12", mid: "6–10", pro: "5–8" }, bw: { new: "6–12", mid: "10–15", pro: "12–20" },
+      hold: { new: "20–30 sec", mid: "30–45 sec", pro: "45–60 sec" }, acc: { new: "10–15", mid: "10–15", pro: "10–15" }
+    },
+    rest: { w: { new: "90s", mid: "2 min", pro: "2–3 min" }, bw: { new: "60s", mid: "60s", pro: "75s" }, hold: { new: "45s", mid: "45s", pro: "45s" }, acc: { new: "60s", mid: "60s", pro: "60s" } },
+    start: {
+      new: t("a weight you can lift 15 times", "berat yang kau boleh angkat 15 kali"),
+      mid: t("a weight you can lift 10 times with 2 to spare", "berat yang kau boleh angkat 10 kali dengan baki 2"),
+      pro: t("your usual working weight", "berat latihan biasa kau")
+    },
+    // Order matters: within the same gear, earlier entries win.
+    ex: [
+      x("leg-press", "squat", "gym", ["new"], "w", t("Leg Press", "Tekan Kaki"), t("Feet shoulder-width, knees track over toes.", "Kaki selebar bahu, lutut ikut arah jari kaki."), { step: 5 }),
+      x("back-squat", "squat", "gym", ["mid", "pro"], "w", t("Barbell Back Squat", "Cangkung Barbel"), t("Brace, sit between your heels, chest up.", "Kuatkan perut, duduk antara tumit, dada ke atas."), { step: 2.5 }),
+      x("goblet-squat", "squat", "db", ALL, "w", t("Goblet Squat", "Cangkung Goblet"), t("Hold the dumbbell at your chest, 3 seconds down.", "Pegang dumbel di dada, turun 3 saat."), { step: 2 }),
+      x("squat", "squat", "none", ["new", "mid"], "bw", t("Bodyweight Squat", "Cangkung"), t("Sit back like a chair, 3 seconds down.", "Duduk ke belakang macam kerusi, turun 3 saat.")),
+      x("split-squat", "squat", "none", ["mid", "pro"], "bw", t("Bulgarian Split Squat", "Cangkung Pisah Bulgaria"), t("Back foot on a chair, front knee over toes.", "Kaki belakang atas kerusi, lutut depan atas jari kaki.")),
+
+      x("machine-press", "push", "gym", ["new"], "w", t("Machine Chest Press", "Tekan Dada Mesin"), t("Shoulders down, press without locking elbows hard.", "Bahu ke bawah, tolak tanpa kunci siku kuat-kuat."), { step: 5 }),
+      x("bench-press", "push", "gym", ["mid", "pro"], "w", t("Barbell Bench Press", "Tekan Bangku Barbel"), t("Feet planted, bar to mid-chest, use a spotter or safeties.", "Kaki rapat lantai, bar ke tengah dada, guna pembantu atau penahan."), { step: 2.5 }),
+      x("db-press", "push", "db", ALL, "w", t("Dumbbell Floor Press", "Tekan Lantai Dumbel"), t("Lie on the floor, elbows touch down softly, press up.", "Baring di lantai, siku sentuh perlahan, tolak naik."), { step: 2 }),
+      x("band-press", "push", "band", ALL, "bw", t("Band Chest Press", "Tekan Dada Band"), t("Band behind your back, press forward, slow return.", "Band di belakang, tolak ke depan, pulang perlahan.")),
+      x("incline-pushup", "push", "none", ["new"], "bw", t("Incline Push-ups", "Tekan Tubi Condong"), t("Hands on a table or wall, body straight.", "Tangan atas meja atau dinding, badan lurus.")),
+      x("pushup", "push", "none", ["mid", "pro"], "bw", t("Push-ups", "Tekan Tubi"), t("Chest to the floor, body straight.", "Dada ke lantai, badan lurus.")),
+
+      x("cable-row", "pull", "gym", ALL, "w", t("Seated Cable Row", "Tarik Kabel Duduk"), t("Pull to your belly, squeeze shoulder blades.", "Tarik ke perut, kepit bilah bahu."), { step: 5 }),
+      x("db-row", "pull", "db", ALL, "w", t("One-arm Dumbbell Row", "Tarik Dumbel Sebelah"), t("Hand on a chair, pull the elbow to your hip.", "Tangan atas kerusi, tarik siku ke pinggul."), { step: 2 }),
+      x("band-row", "pull", "band", ALL, "bw", t("Band Row", "Tarik Band"), t("Anchor the band at chest height, pull and squeeze.", "Ikat band paras dada, tarik dan kepit.")),
+      x("snow-angel", "pull", "none", ALL, "bw", t("Reverse Snow Angels", "Malaikat Salji Terbalik"), t("Face down, lift arms and sweep them slowly overhead.", "Meniarap, angkat tangan dan sapu perlahan ke atas kepala.")),
+
+      x("lat-pulldown", "vpull", "gym", ALL, "w", t("Lat Pulldown", "Tarik Lat ke Bawah"), t("Pull the bar to your upper chest, no swinging.", "Tarik bar ke dada atas, jangan hayun."), { step: 5 }),
+      x("dead-hang", "vpull", "bar", ["new"], "hold", t("Dead Hang", "Bergantung"), t("Hang with straight arms, shoulders slightly pulled down.", "Bergantung tangan lurus, bahu ditarik sedikit ke bawah."), { unit: "sec" }),
+      x("neg-pullup", "vpull", "bar", ["mid"], "bw", t("Negative Pull-ups", "Tarik Naik Negatif"), t("Jump up, lower yourself over 4 seconds.", "Lompat naik, turun perlahan selama 4 saat.")),
+      x("pullup", "vpull", "bar", ["pro"], "bw", t("Pull-ups", "Tarik Naik"), t("Full hang to chin over the bar.", "Dari bergantung penuh sampai dagu atas bar.")),
+      x("band-pulldown", "vpull", "band", ALL, "bw", t("Band Pulldown", "Tarik Band ke Bawah"), t("Anchor the band high, pull elbows down to your sides.", "Ikat band tinggi, tarik siku ke sisi badan.")),
+
+      x("machine-shoulder", "vpush", "gym", ["new"], "w", t("Machine Shoulder Press", "Tekan Bahu Mesin"), t("Back against the pad, press straight up.", "Belakang rapat pad, tolak lurus ke atas."), { step: 5 }),
+      x("ohp", "vpush", "gym", ["mid", "pro"], "w", t("Overhead Press", "Tekan Atas Kepala"), t("Squeeze glutes, press the bar over your head.", "Kepit punggung, tolak bar ke atas kepala."), { step: 2.5 }),
+      x("db-shoulder", "vpush", "db", ALL, "w", t("Dumbbell Shoulder Press", "Tekan Bahu Dumbel"), t("Seated or standing, ribs down, press up.", "Duduk atau berdiri, rusuk ke bawah, tolak naik."), { step: 2 }),
+      x("band-ohp", "vpush", "band", ALL, "bw", t("Band Overhead Press", "Tekan Atas Band"), t("Stand on the band, press both hands up.", "Pijak band, tolak kedua tangan ke atas.")),
+      x("pike-pushup", "vpush", "none", ["mid", "pro"], "bw", t("Pike Push-ups", "Tekan Tubi Pike"), t("Hips high, lower your head between your hands.", "Pinggul tinggi, turunkan kepala antara tangan.")),
+
+      x("back-ext", "hinge", "gym", ["new"], "bw", t("Back Extension", "Lanjutan Belakang"), t("Hinge at the hips, squeeze glutes at the top.", "Bengkok di pinggul, kepit punggung di atas.")),
+      x("rdl", "hinge", "gym", ["mid", "pro"], "w", t("Romanian Deadlift", "Angkat Mati Romania"), t("Push hips back, bar close to your legs, flat back.", "Tolak pinggul ke belakang, bar rapat kaki, belakang rata."), { step: 2.5 }),
+      x("db-rdl", "hinge", "db", ALL, "w", t("Dumbbell Romanian Deadlift", "Angkat Mati Romania Dumbel"), t("Soft knees, hips back, dumbbells slide down your legs.", "Lutut lembut, pinggul ke belakang, dumbel turun rapat kaki."), { step: 2 }),
+      x("band-gm", "hinge", "band", ALL, "bw", t("Band Good Morning", "Good Morning Band"), t("Band under feet and behind neck, hinge and stand tall.", "Band bawah kaki dan belakang leher, bengkok dan berdiri tegak.")),
+      x("bridge", "hinge", "none", ["new"], "bw", t("Glute Bridge", "Jambatan Punggung"), t("Squeeze at the top for 1 second.", "Kepit di atas selama 1 saat.")),
+      x("sl-bridge", "hinge", "none", ["mid", "pro"], "bw", t("Single-leg Glute Bridge", "Jambatan Punggung Sebelah Kaki"), t("One foot down, hips level, squeeze at the top.", "Satu kaki di lantai, pinggul rata, kepit di atas.")),
+
+      x("db-lunge", "lunge", "db", ["mid", "pro"], "w", t("Dumbbell Reverse Lunge", "Langkah Belakang Dumbel"), t("Step back, back knee nearly touches the floor.", "Langkah ke belakang, lutut belakang hampir sentuh lantai."), { step: 2 }),
+      x("lunge", "lunge", "none", ALL, "bw", t("Reverse Lunge", "Langkah Belakang"), t("Step back, front knee stays over the ankle.", "Langkah ke belakang, lutut depan atas buku lali.")),
+
+      x("db-curl", "arms", "db", ["mid", "pro"], "acc", t("Dumbbell Curl", "Curl Dumbel"), t("Elbows by your sides, slow down.", "Siku di sisi, turun perlahan.")),
+      x("cable-pushdown", "arms", "gym", ["mid", "pro"], "acc", t("Cable Triceps Pushdown", "Tolak Kabel Trisep"), t("Elbows pinned, push down until straight.", "Siku rapat, tolak ke bawah sampai lurus.")),
+      x("band-curl", "arms", "band", ["mid", "pro"], "acc", t("Band Curl", "Curl Band"), t("Stand on the band, curl up, slow down.", "Pijak band, angkat, turun perlahan.")),
+
+      x("dead-bug", "core", "none", ["new", "mid"], "bw", t("Dead Bug", "Dead Bug"), t("Lower back stays pressed to the floor.", "Belakang bawah kekal rapat ke lantai.")),
+      x("plank", "core", "none", ["new", "mid"], "hold", t("Plank", "Plank"), t("Squeeze glutes, ribs down.", "Kepit punggung, rusuk ke bawah."), { unit: "sec" }),
+      x("hollow", "core", "none", ["pro"], "hold", t("Hollow Hold", "Tahan Hollow"), t("Arms overhead, lower back pressed down.", "Tangan atas kepala, belakang bawah rapat lantai."), { unit: "sec" })
+    ],
+    say: [t("Workout time! Let's go.", "Masa senaman! Jom."), t("Log every set to catch a new PR.", "Catat setiap set untuk kejar rekod baru.")],
+    planTitle: t("Your workout plan", "Pelan senaman kau"),
+    planGuide: {
+      new: [t("**3 days a week, full body.** Two sets each for the first 4 weeks, then three.", "**3 hari seminggu, badan penuh.** Dua set setiap satu untuk 4 minggu pertama, kemudian tiga."),
+            t("**Hit the top of the rep range on every set?** Move to a harder version or add weight.", "**Capai rep maksimum setiap set?** Tukar ke versi lebih susah atau tambah berat.")],
+      mid: [t("**3 days a week, two full-body days (A and B) alternating.** Three sets each.", "**3 hari seminggu, dua sesi badan penuh (A dan B) berselang.** Tiga set setiap satu."),
+            t("**Add a little weight or a rep each week** while form stays clean.", "**Tambah sedikit berat atau satu rep setiap minggu** selagi teknik masih kemas.")],
+      pro: [t("**4 days a week, upper and lower split.** Three hard sets per exercise.", "**4 hari seminggu, pecahan atas dan bawah.** Tiga set berat setiap latihan."),
+            t("**Every 6–8 weeks, take a lighter week** to recover and keep progressing.", "**Setiap 6–8 minggu, buat seminggu ringan** untuk pulih dan terus maju.")]
+    }
+  };
 
   window.TUNAS_PACKS = [
     /* ---------- Body ---------- */
@@ -88,9 +194,9 @@
         h("mv-walk", "evening", t("20 min walk", "Jalan 20 minit"), { at: 30 })
       ],
       tips: [t("**Every bit counts.** Three 10-minute walks equal one 30-minute walk.", "**Setiap sikit pun dikira.** Tiga kali jalan 10 minit sama macam sekali 30 minit.")] },
-    { id: "workout", cat: "body", emoji: "💪", title: t("Home workout", "Senaman di rumah"), desc: t("Bodyweight training Monday, Wednesday and Friday.", "Latihan berat badan hari Isnin, Rabu dan Jumaat."),
+    { id: "workout", cat: "body", emoji: "💪", title: t("Workouts", "Senaman"), desc: t("A plan for your level, at home or the gym.", "Pelan ikut tahap kau, di rumah atau gim."),
       habits: [h("wo-stretch", "evening", t("Stretch 5 min after training", "Regangan 5 minit lepas latihan"), { at: 90 })],
-      workouts: { "1": homeWorkout, "3": homeWorkout, "5": homeWorkout },
+      setup: "workout", // asks level, place and equipment, then builds the workouts (see TUNAS_WORKOUT)
       tips: [
         t("**Beat last week by 1 rep.** That's progress.", "**Lebih 1 rep dari minggu lepas.** Itu dah kemajuan."),
         t("**Rest days build muscle.** Don't skip them.", "**Hari rehat bina otot.** Jangan langkau.")
