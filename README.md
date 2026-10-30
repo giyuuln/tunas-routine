@@ -31,7 +31,7 @@ Open **https://tunas.amkaz.dev** on your phone, then:
 
 ## Make it yours
 
-On first open, Tunas asks your name and language, then what you want help with. Pick a few **habit packs** (30 to choose from: skincare, water, sleep, solat, study, money, pet care and more), tell it when you wake up, go to bed and work or study, and it builds your routine on the phone. Pick **Workouts** and it also asks your level (newbie, intermediate or regular), home or gym (with a suggestion for your level) and what equipment you have, then builds a plan from bodyweight, bands, dumbbells, a pull-up bar or gym machines. Prefer a full routine? Tap **Use a ready-made routine instead**. After that:
+On first open, Tunas asks your name and language, then what you want help with. Pick a few **habit packs** (30 to choose from: skincare, water, sleep, solat, study, money, pet care and more), tell it when you wake up, go to bed and work or study, and it builds your routine on the phone. Pick **Skincare** and it asks your skin type, how many steps you want (Basic, Standard or Full) and what you want to work on, then builds morning and night steps with serums and treatment nights that fit. Pick **Workouts** and it also asks your level (newbie, intermediate or regular), home or gym (with a suggestion for your level) and what equipment you have, then builds a plan from bodyweight, bands, dumbbells, a pull-up bar or gym machines. Prefer a full routine? Tap **Use a ready-made routine instead**. After that:
 
 - **Gear → Habit packs** to add more packs or remove one (its habits, weekly tasks, tips and guide topics go; your history stays)
 - **Gear → Edit routine** to change any section, habit, time, workout, weekly task, and the **Guide** tab for your own guide and daily tips
@@ -73,7 +73,8 @@ The easiest way to get a routine file is **Gear → Download my routine** after 
   "guide": { "title": "Guide", "sections": [ { "title": "Section", "lines": [ "**Morning:** …" ] } ] },
   "packs": [ "skin", "water" ],
   "day": { "wake": "06:30", "sleep": "23:00", "busy": [ "08:30", "17:00" ] },
-  "fitness": { "level": "mid", "place": "home", "gear": [ "db", "band" ] }
+  "fitness": { "level": "mid", "place": "home", "gear": [ "db", "band" ] },
+  "skin": { "type": "combo", "level": "std", "concerns": [ "acne" ] }
 }
 ```
 
@@ -87,6 +88,8 @@ The easiest way to get a routine file is **Gear → Download my routine** after 
 | `pack` | On habits, weekly tasks, workouts and guide sections: which pack added it, so removing the pack removes it. Leave it out for your own items |
 | `packs` / `day` | Packs in use, and the wake/sleep/busy hours used to place habits from new packs (see [`packs.js`](packs.js)) |
 | `fitness` | Workout setup: `level` `new`/`mid`/`pro`, `place` `home`/`gym`, `gear` any of `db`, `band`, `bar`. **Gear → Habit packs → Change workout setup** rebuilds the pack's workouts; logs stay |
+| `skin` | Skincare setup: `type` `oily`/`dry`/`combo`/`normal`/`sensitive`/`unsure`, `level` `basic`/`std`/`full`, `concerns` any of `acne`, `spots`, `dull`, `dry`, `oil`, `lines`. **Change skincare setup** rebuilds the pack's habits; ticks stay |
+| `onDays` (habit) | Show only on these weekdays, `0` = Sunday (e.g. retinoid nights `[1, 3, 6]`) |
 | `sets` (workout) | Sets per exercise (1–5). Without it: 2 sets for the first 4 weeks, then 3 |
 | `tips` / `guide` | Up to 50 tips and 12 guide sections of 20 lines each |
 | `hideOnDays: [3]` | Hide on these weekdays (0 = Sunday … 6 = Saturday) |

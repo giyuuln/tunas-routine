@@ -30,7 +30,6 @@
     <button class="stat xp" id="stXP" type="button" aria-label="XP today"></button>
     <button class="stat lv" id="stLv" type="button" aria-label="Level"></button>
     <button class="stat snd" id="stSnd" type="button" aria-label="Sound"></button>
-    <button class="stat cog" id="stCog" type="button" aria-label="Settings"></button>
   </div>
 
   <div class="hero">
@@ -56,16 +55,18 @@
     <div class="quests" id="quests"></div>
   </details>
 
-  <div class="foot-links">
-    <button class="row-link" type="button" id="openHistory"><span class="ri" aria-hidden="true" id="histIco"></span><b data-i18n="history">History</b><span class="chev" aria-hidden="true"></span></button>
-    <button class="row-link" type="button" id="openBadges"><span class="ri" aria-hidden="true" id="badgeIco"></span><b data-i18n="badges">Badges</b><small id="badgeMeta"></small></button>
-  </div>
-
   <div class="foot">
     <div id="resetArea"></div>
     <div data-i18n="foot">Everything saves on this phone only. A new day starts at 4am.</div>
   </div>
 </div>
+
+<nav class="tabbar" id="tabbar" aria-label="Main">
+  <button type="button" data-tab="home" aria-current="page"><span class="tb-ico" id="tbHome" aria-hidden="true"></span><span data-i18n="tabToday">Today</span></button>
+  <button type="button" data-tab="history"><span class="tb-ico" id="tbHistory" aria-hidden="true"></span><span data-i18n="history">History</span></button>
+  <button type="button" data-tab="badges"><span class="tb-ico" id="tbBadges" aria-hidden="true"></span><span data-i18n="badges">Badges</span><small class="tb-count" id="badgeMeta"></small></button>
+  <button type="button" data-tab="settings"><span class="tb-ico" id="tbSettings" aria-hidden="true"></span><span data-i18n="settings">Settings</span></button>
+</nav>
 
 <div class="scrim" id="scrim" hidden></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="shTitle" hidden>
