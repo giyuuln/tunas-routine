@@ -111,6 +111,15 @@ button:focus-visible,summary:focus-visible,input:focus-visible{outline:3px solid
 .nd-top span{display:block;font-size:14px;color:var(--ink);margin-top:2px}
 .nudge .row{display:flex;flex-wrap:wrap;gap:10px}
 .bk-last{font-size:13px;color:var(--muted)}
+/* Locked backup sheet */
+.lk-form{display:flex;flex-direction:column;gap:10px}
+.lk-form label{font-size:14px;font-weight:800}
+.lk-form .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.lk-err,.lk-note{margin:0;font-size:13.5px}
+.lk-note{color:var(--muted)}
+.lk-warn{display:flex;gap:10px;align-items:flex-start;padding:12px;border-radius:14px;font-size:14px;line-height:1.35}
+.lk-warn i{flex:none;display:grid;place-items:center;width:24px;height:24px}
+.lk-warn i svg{width:22px;height:22px}
 .streak-top{display:flex;align-items:center;gap:12px}
 .big-flame{width:46px;height:46px;flex:none;fill:var(--orange)}
 .big-flame.off{fill:var(--line)}
@@ -608,7 +617,7 @@ a.btn{text-decoration:none;display:inline-block}
    reward   · gold                     XP, stars, cleared levels, perfect days, badges. Reason: gold reads as earned, never as an instruction.
    streak   · orange                   The fire streak and days that kept it. Reason: fire = keep it going; separate from rewards so streak risk stands out.
    info     · sky                      Rest days, neutral hints, "still counts". Reason: calm and non-urgent; nothing is wrong.
-   warning  · amber + ⚠ shape          Needs your attention but loses nothing yet: backup due, unsaved edits. Reason: asks you to act without alarm.
+   warning  · amber + ⚠ shape          Needs your attention but loses nothing yet: backup due, unsaved edits, a locked backup's forgotten-password risk. Reason: asks you to act without alarm.
    danger   · red                      Deletes or replaces data, and errors: Clear ticks, Restore backup, Start from template, Delete, Discard, failed actions. Reason: red = stop and check; it never appears on anything safe.
    locked / disabled · control grey + 45% opacity   Not available yet (future days, locked badges, disabled buttons). Reason: visible but clearly inactive.
    selected · accent border + soft fill   Chosen option (theme, language, tab, template). Reason: shows the choice without shouting.
@@ -621,9 +630,11 @@ a.btn{text-decoration:none;display:inline-block}
 .toast.err{border-color:color-mix(in srgb,var(--danger) 45%,var(--line));box-shadow:0 4px 0 color-mix(in srgb,var(--danger) 45%,var(--line))}
 .toast.err i{background:var(--danger)} .toast.err i svg{fill:#fff}
 .errlog li{background:var(--danger-soft);color:var(--ink)} .errlog li b{color:var(--danger-ink)}
+.lk-err{color:var(--danger-ink)}
 /* warning */
 .nudge{background:var(--warn-soft);border-color:var(--warn)}
 .ed-dirty{color:var(--warn-ink)}
+.lk-warn{background:var(--warn-soft);border:2px solid var(--warn);color:var(--ink)} .lk-warn i svg{fill:var(--warn-ink)}
 /* info */
 .lv-detail .ld-h span.ended{color:var(--info-ink)}
 /* locked / disabled */

@@ -36,6 +36,8 @@ On first open, Tunas asks your name and language, then lets you pick a template.
 
 The routine is saved in the app on your phone. **Download my routine** saves a copy, and **Download backup** saves your XP, streak and workout logs.
 
+**Download locked backup** saves the same backup protected with a password (AES-GCM, encrypted on the phone), so it's safer to keep in cloud storage or send to yourself. If you forget the password, that file can't be opened. **Restore backup** opens both kinds and asks for the password when the file is locked.
+
 `.gitignore` blocks `*-routine.json`, `*.private.json` and `personal/`, so personal files don't get committed by accident.
 
 ## Routine file format
