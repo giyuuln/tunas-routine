@@ -677,3 +677,8 @@ details.set-group.fold[open] > summary .chev{transform:rotate(225deg)}
 details.set-group.fold[open]{gap:10px;padding:0 14px 14px}
 details.set-group.fold[open] > summary{padding:4px 0}
 .tiles:has(> .tile:nth-child(4)){display:grid;grid-template-columns:repeat(2,minmax(130px,1fr))}
+
+/* Routine editor: guide tab */
+.ed-subh{margin:18px 0 0;font-family:var(--display);font-weight:700;font-size:17px}
+.ed-gline{align-items:flex-start}
+.ed-row textarea.ed-line{font-weight:600;font-size:14.5px}

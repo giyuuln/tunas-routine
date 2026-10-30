@@ -83,7 +83,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.10.30b";
+const APP_VERSION = "2026.10.30c";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -117,7 +117,7 @@ function loadJSON(key, check) {
   try { const v = JSON.parse(raw); if (check(v)) return { value: v }; throw new Error("unexpected shape"); }
   catch (e) { try { localStorage.setItem(`${key}-corrupt-${Date.now()}`, raw); } catch (_) {} logError("load:" + key, e); notices.push("errCorrupt"); return { value: null, corrupt: true }; }
 }
-const LIMITS = { routineBytes: 1000000, backupBytes: 4000000, lockedBytes: 6000000, sections: 30, items: 80, exercises: 30, weekly: 30, text: 300 };
+const LIMITS = { routineBytes: 1000000, backupBytes: 4000000, lockedBytes: 6000000, sections: 30, items: 80, exercises: 30, weekly: 30, text: 300, guideSections: 12, guideLines: 20, tips: 50 };
 
 /* ================= Language ================= */
 const LANG_KEY = "tunas-lang";
@@ -168,6 +168,21 @@ function validateRoutine(r) {
   }
   for (const w of Object.values(r.workouts || {})) if (w && Array.isArray(w.exercises) && w.exercises.length > LIMITS.exercises) return T("errTooBig");
   if (Array.isArray(r.weekly) && r.weekly.length > LIMITS.weekly) return T("errTooBig");
+  return guideError(r);
+}
+// Guide and tips are shown with md(), which escapes first; here we only check shape and size.
+function guideError(r) {
+  const strs = a => Array.isArray(a) && a.every(x => typeof x === "string");
+  if (r.tips != null) { if (!strs(r.tips)) return T("badFile"); if (r.tips.length > LIMITS.tips) return T("errGuideBig"); }
+  const g = r.guide; if (g == null) return null;
+  if (typeof g !== "object" || Array.isArray(g) || (g.title != null && typeof g.title !== "string")) return T("badFile");
+  if (g.sections == null) return null;
+  if (!Array.isArray(g.sections)) return T("badFile");
+  if (g.sections.length > LIMITS.guideSections) return T("errGuideBig");
+  for (const sec of g.sections) {
+    if (!sec || typeof sec !== "object" || (sec.title != null && typeof sec.title !== "string") || (sec.lines != null && !strs(sec.lines))) return T("badFile");
+    if ((sec.lines || []).length > LIMITS.guideLines) return T("errGuideBig");
+  }
   return null;
 }
 // Cut very long text so one huge field can't break the layout or fill storage.
@@ -1222,7 +1237,9 @@ $("stCog").onclick = () => { settingsPane = ""; openSheet("settings"); };
 let ED = null, draftTimer = null;
 const DRAFT_KEY = "tunas-editor-draft";
 function openEditor() {
-  const draft = clone(RAW); draft.focus ||= {}; draft.workouts ||= {}; draft.weekly ||= [];
+  const draft = clone(RAW); draft.focus ||= {}; draft.workouts ||= {}; draft.weekly ||= []; draft.tips ||= [];
+  draft.guide = draft.guide && typeof draft.guide === "object" ? draft.guide : { title: "", sections: [] };
+  draft.guide.title ||= ""; draft.guide.sections = (draft.guide.sections || []).map(g => ({ ...g, title: g.title || "", lines: g.lines || [] }));
   const base = JSON.stringify(draft);
   // A draft left from last time (app closed, phone died, crash)? Offer to bring it back.
   let offer = null; const saved = loadJSON(DRAFT_KEY, v => v && v.draft && Array.isArray(v.draft.blocks)).value;
@@ -1261,7 +1278,8 @@ function renderEditor(keep) {
   $("shHead").innerHTML = sheetHead("cog", T("edTitle"), `${T("edSub")} <span class="ed-dirty" id="edDirty" ${ED.dirty ? "" : "hidden"}>● ${T("edUnsaved")}</span>`, null, "--green");
   $("shHead").querySelector(".sh-ico").innerHTML = I.pencil;
   $("shClose").onclick = requestCloseEditor;
-  const tabs = ["sections", "workouts", "weekly"].map(t => `<button type="button" data-ed="tab" data-tab="${t}" aria-pressed="${ED.tab === t}">${T(t === "sections" ? "edSections" : t === "workouts" ? "edWorkouts" : "edWeekly")}</button>`).join("");
+  const TAB_T = { sections: "edSections", workouts: "edWorkouts", weekly: "edWeekly", guide: "edGuide" };
+  const tabs = Object.keys(TAB_T).map(t => `<button type="button" data-ed="tab" data-tab="${t}" aria-pressed="${ED.tab === t}">${T(TAB_T[t])}</button>`).join("");
   let h = ED.offer ? `<div class="ed-restore" role="status"><div><b>${T("edRestoreQ", esc(new Date(ED.offer.at).toLocaleString(locale(), { weekday: "short", hour: "numeric", minute: "2-digit" })))}</b></div>
     <div class="row"><button class="btn small" type="button" data-ed="restoreDraft">${T("edRestore")}</button><button class="btn ghost small danger-ghost" type="button" data-ed="dropDraft">${T("edDiscard")}</button></div></div>` : "";
   h += `<div class="seg" role="group">${tabs}</div>`;
@@ -1313,6 +1331,8 @@ function renderEditor(keep) {
       h += `<button class="btn ghost small ed-add" type="button" data-ed="addEx" data-k="${k}">${I.plus}${T("edAddEx")}</button>
         <div class="ed-row">${ED.confirm === `wo.${k}` ? `<button class="btn small danger-btn" type="button" data-ed="del" data-key="wo.${k}" data-k="${k}">${T("edSure")}</button>` : `<button class="btn ghost small danger-ghost" type="button" data-ed="del" data-key="wo.${k}" data-k="${k}">${T("edRemoveWo")}</button>`}</div></div>`;
     }
+  } else if (ED.tab === "guide") {
+    h += guideEditorHTML(D);
   } else {
     h += `<p class="ed-help">${T("edWeeklyHelp")}</p>`;
     D.weekly.forEach((w, wi) => {
@@ -1326,6 +1346,29 @@ function renderEditor(keep) {
     : `<div class="ed-foot"><button class="btn ghost" type="button" data-ed="cancel">${T("cancel")}</button><button class="btn" type="button" data-ed="save">${T("save")}</button></div>`;
   body.innerHTML = h; body.querySelectorAll("textarea.ed-name").forEach(fitName); if (keep) body.scrollTop = top;
   const af = body.querySelector("[data-autofocus]"); if (af) { af.focus(); af.scrollIntoView({ block: "center" }); } ED.focusTo = null;
+}
+// Guide tab: the routine's guide (titled sections of lines) and its daily tips.
+function guideEditorHTML(D) {
+  const G = D.guide, line = (path, val, ph, af) => `<textarea class="field ed-name ed-line" rows="1" data-path="${path}" placeholder="${ph}" ${af ? "data-autofocus" : ""}>${esc(val)}</textarea>`;
+  let h = `<p class="ed-help">${T("edGuideHelp")}</p>
+    <label class="ed-flabel wide">${T("edGuideTitle")}<input class="field" data-path="guide.title" value="${esc(G.title)}" placeholder="${T("guide")}"></label>`;
+  G.sections.forEach((g, si) => {
+    const p = `guide.sections.${si}`;
+    h += `<div class="ed-sec"><div class="ed-row"><input class="field" data-path="${p}.title" value="${esc(g.title)}" placeholder="${T("edGSecPh")}" ${ED.focusTo === p + ".title" ? "data-autofocus" : ""}>
+      ${edBtn("gsecUp", `data-si="${si}"`, I.up, T("edUp"))}${edBtn("gsecDown", `data-si="${si}"`, I.down, T("edDown"))}${delBtn(`gsec.${si}`, "")}</div>`;
+    g.lines.forEach((l, li) => {
+      h += `<div class="ed-row ed-gline">${line(`${p}.lines.${li}`, l, T("edGLinePh"), ED.focusTo === `${p}.lines.${li}`)}
+        ${edBtn("glineUp", `data-si="${si}" data-li="${li}"`, I.up, T("edUp"))}${delBtn(`gline.${si}.${li}`, "")}</div>`;
+    });
+    h += `<button class="btn ghost small ed-add" type="button" data-ed="glineAdd" data-si="${si}">${I.plus}${T("edAddLine")}</button></div>`;
+  });
+  h += `<button class="btn ghost ed-add" type="button" data-ed="gsecAdd">${I.plus}${T("edAddGSec")}</button>
+    <h4 class="ed-subh">${T("edTips")}</h4><p class="ed-help">${T("edTipsHelp")}</p>`;
+  D.tips.forEach((tp, ti) => {
+    h += `<div class="ed-row ed-gline">${line(`tips.${ti}`, tp, T("edTipPh"), ED.focusTo === `tips.${ti}`)}
+      ${edBtn("tipUp", `data-ti="${ti}"`, I.up, T("edUp"))}${edBtn("tipDown", `data-ti="${ti}"`, I.down, T("edDown"))}${delBtn(`tip.${ti}`, "")}</div>`;
+  });
+  return h + `<button class="btn ghost small ed-add" type="button" data-ed="tipAdd">${I.plus}${T("edAddTip")}</button>`;
 }
 function swap(arr, i, j) { if (j < 0 || j >= arr.length) return; [arr[i], arr[j]] = [arr[j], arr[i]]; }
 // Habit names wrap onto a second line instead of being cut off; they stay single-line text.
@@ -1348,7 +1391,8 @@ function editorClick(e) {
     markDirty(); return;
   }
   const b = e.target.closest("[data-ed]"); if (!b) return;
-  const D = ED.draft, a = b.dataset.ed, bi = +b.dataset.bi, ii = +b.dataset.ii, k = b.dataset.k, ei = +b.dataset.ei;
+  const D = ED.draft, a = b.dataset.ed, bi = +b.dataset.bi, ii = +b.dataset.ii, k = b.dataset.k, ei = +b.dataset.ei, si = +b.dataset.si, li = +b.dataset.li, ti = +b.dataset.ti;
+  const full = (n, max) => { if (n >= max) { toast(T("errGuideBig"), "x"); return true; } return false; };
   if (a !== "del") ED.confirm = null;
   if (a !== "keep" && a !== "discard" && a !== "save") ED.ask = false;
   const tooMany = n => { if (n >= LIMITS.items) { toast(T("errTooBig"), "x"); return true; } return false; };
@@ -1377,6 +1421,14 @@ function editorClick(e) {
     case "exUp": swap(D.workouts[k].exercises, ei, ei - 1); break;
     case "exDown": swap(D.workouts[k].exercises, ei, ei + 1); break;
     case "addWeekly": D.weekly.push({ id: uid(), title: "" }); ED.focusTo = `weekly.${D.weekly.length - 1}.title`; break;
+    case "gsecAdd": if (full(D.guide.sections.length, LIMITS.guideSections)) break; D.guide.sections.push({ title: "", lines: [""] }); ED.focusTo = `guide.sections.${D.guide.sections.length - 1}.title`; break;
+    case "gsecUp": swap(D.guide.sections, si, si - 1); break;
+    case "gsecDown": swap(D.guide.sections, si, si + 1); break;
+    case "glineAdd": { const L = D.guide.sections[si].lines; if (full(L.length, LIMITS.guideLines)) break; L.push(""); ED.focusTo = `guide.sections.${si}.lines.${L.length - 1}`; break; }
+    case "glineUp": swap(D.guide.sections[si].lines, li, li - 1); break;
+    case "tipAdd": if (full(D.tips.length, LIMITS.tips)) break; D.tips.push(""); ED.focusTo = `tips.${D.tips.length - 1}`; break;
+    case "tipUp": swap(D.tips, ti, ti - 1); break;
+    case "tipDown": swap(D.tips, ti, ti + 1); break;
     case "del": {
       const key = b.dataset.key;
       if (ED.confirm !== key) { ED.confirm = key; break; }
@@ -1387,6 +1439,9 @@ function editorClick(e) {
       else if (kind === "ex") D.workouts[x].exercises.splice(+y, 1);
       else if (kind === "wo") delete D.workouts[x];
       else if (kind === "wk") D.weekly.splice(+x, 1);
+      else if (kind === "gsec") D.guide.sections.splice(+x, 1);
+      else if (kind === "gline") D.guide.sections[+x].lines.splice(+y, 1);
+      else if (kind === "tip") D.tips.splice(+x, 1);
       break; }
     case "cancel": return requestCloseEditor();
     case "save": return saveEditor();
@@ -1414,6 +1469,10 @@ function saveEditor() {
     delete w._timeDirty;
   });
   r.weekly = (r.weekly || []).filter(w => String(w.title || "").trim()).map(w => { w.id = w.id || uid(); return w; });
+  const trimmed = a => (a || []).map(x => String(x || "").trim()).filter(Boolean);
+  r.tips = trimmed(r.tips);
+  const gs = ((r.guide || {}).sections || []).map(g => ({ ...g, title: String(g.title || "").trim(), lines: trimmed(g.lines) })).filter(g => g.title || g.lines.length).map(g => ({ ...g, title: g.title || T("guide") }));
+  r.guide = gs.length ? { ...r.guide, title: String(r.guide.title || "").trim(), sections: gs } : null;
   if (RAW_IS_DEFAULT || !r.label) r.label = T("myRoutine");
   const err = validateRoutine(r); if (err) { toast(esc(err), "x"); return; }
   if (!saveRoutine(clampText(r))) return; // error already shown; the draft stays open and cached
