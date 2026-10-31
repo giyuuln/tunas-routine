@@ -90,6 +90,8 @@ The easiest way to get a routine file is **Routine tab → Download my routine**
 | `fitness` | Workout setup: `level` `new`/`mid`/`pro`, `place` `home`/`gym`, `gear` any of `db`, `band`, `bar`. **Routine tab → Habit packs → Change workout setup** rebuilds the pack's workouts; logs stay |
 | `skin` | Skincare setup: `type` `oily`/`dry`/`combo`/`normal`/`sensitive`/`unsure`, `level` `basic`/`std`/`full`, `concerns` any of `acne`, `spots`, `dull`, `dry`, `oil`, `lines`. **Change skincare setup** rebuilds the pack's habits; ticks stay |
 | `onDays` (habit) | Show only on these weekdays, `0` = Sunday (e.g. retinoid nights `[1, 3, 6]`) |
+| `days` (habit) | `"work"` or `"off"`: show only on work/class days or days off (from `away.days`). Ignored when there are no fixed hours |
+| `away.days` | Work or class days for the fixed hours, `0` = Sunday. Default Monday to Friday. Tunas only says its "at work" lines on these days |
 | `sets` (workout) | Sets per exercise (1–5). Without it: 2 sets for the first 4 weeks, then 3 |
 | `tips` / `guide` | Up to 50 tips and 12 guide sections of 20 lines each |
 | `hideOnDays: [3]` | Hide on these weekdays (0 = Sunday … 6 = Saturday) |

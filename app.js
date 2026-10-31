@@ -94,7 +94,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.10.31b";
+const APP_VERSION = "2026.10.31c";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -183,6 +183,7 @@ function validateRoutine(r) {
   if (r.day != null && (typeof r.day !== "object" || Array.isArray(r.day))) return T("badFile");
   if (r.fitness != null && (typeof r.fitness !== "object" || Array.isArray(r.fitness))) return T("badFile");
   if (r.skin != null && (typeof r.skin !== "object" || Array.isArray(r.skin))) return T("badFile");
+  if (r.away != null && (typeof r.away !== "object" || Array.isArray(r.away))) return T("badFile");
   return guideError(r);
 }
 // Guide and tips are shown with md(), which escapes first; here we only check shape and size.
@@ -218,7 +219,7 @@ function applyRoutine(r) {
     return { id: slug(b.id || b.title), title: b.title || "Section", icon: I[b.icon] ? b.icon : "star", range: b.from && b.to ? fmtRange(from, to) : (b.range || ""), from, to, remind: b.remind ? tm(b.remind, null) : null,
       say: Array.isArray(b.say) ? b.say : null,
       items: (b.items || []).map(i => ({ id: slug(i.id || i.title), t: i.title || "", n: i.note || "", time: i.time || "",
-        key: !!i.quest, alt: !!i.everyOtherDay, hide: Array.isArray(i.hideOnDays) && i.hideOnDays.length ? i.hideOnDays.map(Number) : null, dyn: !!i.useFocus, on: weekdays(i.onDays), goal: goalOf(i.target) })) };
+        key: !!i.quest, alt: !!i.everyOtherDay, hide: Array.isArray(i.hideOnDays) && i.hideOnDays.length ? i.hideOnDays.map(Number) : null, dyn: !!i.useFocus, on: weekdays(i.onDays), dt: i.days === "work" || i.days === "off" ? i.days : null, goal: goalOf(i.target) })) };
   });
   FOCUS = {};
   for (let k = 0; k < 7; k++) { const f = (r.focus || {})[k] || (r.focus || {})[String(k)] || {}; FOCUS[k] = { t: f.title || (LANG === "ms" ? "1 jam: fokus" : "1 hour: focus"), n: f.note || "" }; }
@@ -284,7 +285,12 @@ function routineDate() { const d = new Date(); if (d.getHours() < 4) d.setDate(d
 function nowMins() { const n = new Date(); return n.getHours()*60 + n.getMinutes() + (n.getHours() < 4 ? 1440 : 0); }
 const weekdayName = (k, style) => { const d = new Date(2024, 0, 7 + k); return d.toLocaleDateString(locale(), { weekday: style || "long" }); };
 const isAltDay = d => dayNum(d) % 2 === 0;
-const shown = (i, d) => !(i.alt && !isAltDay(d)) && !(i.hide && i.hide.includes(d.getDay())) && !(i.on && !i.on.includes(d.getDay()));
+// Work or class days come from the routine's fixed hours (away.days); without a list it's Monday to Friday.
+const WEEKDAYS = [1, 2, 3, 4, 5];
+const workDays = () => (CFG && CFG.away ? weekdays(CFG.away.days) || WEEKDAYS : null);
+const isWorkDay = d => { const w = workDays(); return !!w && w.includes(d.getDay()); };
+const shown = (i, d) => !(i.alt && !isAltDay(d)) && !(i.hide && i.hide.includes(d.getDay())) && !(i.on && !i.on.includes(d.getDay()))
+  && !(i.dt === "work" && workDays() && !isWorkDay(d)) && !(i.dt === "off" && workDays() && isWorkDay(d));
 const firstName = () => esc(CFG.name || (LANG === "ms" ? "Kawan" : "Friend"));
 
 function itemsFor(d) { const out = []; BLOCKS.forEach(b => b.items.forEach(i => { if (shown(i,d)) out.push(i.id); })); if (WORKOUTS[d.getDay()]) out.push("wo-done"); return out; }
@@ -491,7 +497,7 @@ function contextSay() {
   if (missed) { const st = nodeState(missed, d); return say2(T("sayMissed", esc(missed.title), st.total - st.n), "think"); }
   // 6. Away (work / class), from the user's routine
   const away = CFG.away;
-  if (away && mins >= tm(away.from, 510) && mins < tm(away.to, 1050)) { const a = away.say || [T("letsGo"), ""]; return say(esc(a[0]), esc(a[1] || ""), "idle"); }
+  if (away && isWorkDay(d) && mins >= tm(away.from, 510) && mins < tm(away.to, 1050)) { const a = away.say || [T("letsGo"), ""]; return say(esc(a[0]), esc(a[1] || ""), "idle"); }
   // 7. What's coming up next
   const up = timed.find(n => n.from > mins && !nodeState(n, d).cleared);
   if (up) { const st = nodeState(up, d); return say2(T("sayUpcoming", esc(up.title), fmtClock(up.from), st.total - st.n), "idle"); }
@@ -925,6 +931,7 @@ $("shBody").addEventListener("click", e => {
   const ra = e.target.closest("[data-remadd]"); if (ra) { store.rem[ra.dataset.remadd] = Date.now(); save(); setTimeout(() => { if (sheetId === "routine") renderSheet(true); }, 400); return; }
   const ru = e.target.closest("[data-remundo]"); if (ru) { delete store.rem[ru.dataset.remundo]; save(); renderSheet(true); return; }
   const rd = e.target.closest("[data-restday]"); if (rd) return setRest(rd.dataset.restday, rd.dataset.v === "1");
+  const wk = e.target.closest("[data-wkday]"); if (wk) { const k = +wk.dataset.wkday; return saveWeek(A => ({ ...A, days: toggleDay((A && weekdays(A.days)) || WEEKDAYS, k).sort() })); }
   const act = e.target.closest("[data-act]"); if (act) return settingsAction(act.dataset.act, act);
   const r = e.target.closest("[data-rest]"); if (r) { startRest(+r.dataset.rest, r.dataset.label); return; }
   const cm = e.target.closest("[data-cminus]"); if (cm) return countStep(cm.dataset.cminus, -1, cm);
@@ -1180,6 +1187,24 @@ function renderSettings(keep) {
   foldSettings(body);
   if (keep) body.scrollTop = top;
 }
+// Monday-first weekday chips. Removing the last day is refused, so there's always at least one.
+const toggleDay = (list, k) => { const next = list.includes(k) ? list.filter(x => x !== k) : [...list, k]; if (!next.length) { toast(T("dOneDay"), "x"); return list; } return next; };
+const workDayChips = (list, attr) => `<div class="day-chips">${[1, 2, 3, 4, 5, 6, 0].map(k => `<button type="button" class="day-chip" data-${attr}="${k}" aria-pressed="${list.includes(k)}">${weekdayName(k, "short")}</button>`).join("")}</div>`;
+function weekHTML() {
+  const A = RAW.away, on = !!A, days = (A && weekdays(A.days)) || WEEKDAYS, time = (k, label, v) => `<label class="w-time">${label}<input class="field" type="time" data-week="${k}" value="${esc(v)}"></label>`;
+  const off = [0, 1, 2, 3, 4, 5, 6].filter(k => !days.includes(k)).map(k => weekdayName(k, "short")).join(", ");
+  return `<div class="set-group"><h3>${T("yourWeek")}</h3><p class="rt-meta">${on ? T("weekSummary", off || T("none")) : T("weekNone")}</p><p>${T("weekHelp")}</p>
+    <div class="sw-row inline"><div><b>${T("wBusy")}</b><span>${T("wBusyHelp")}</span></div><button class="toggle" type="button" role="switch" aria-checked="${on}" data-act="weekBusy" aria-label="${T("wBusy")}"><i></i></button></div>
+    ${on ? `<div class="w-times">${time("from", T("wBusyFrom"), hhmm(tm(A.from, 510)))}${time("to", T("wBusyTo"), hhmm(tm(A.to, 1020)))}</div>
+      <b class="rt-sub">${T("workDaysQ")}</b>${workDayChips(days, "wkday")}<p class="wo-hint">${T("weekHabitHint")}</p>` : ""}</div>`;
+}
+function saveWeek(change) {
+  const r = clone(RAW), A = r.away ? { ...r.away } : null;
+  const next = change(A);
+  r.away = next; r.day = { ...(r.day || {}), busy: next ? [next.from, next.to] : null };
+  if (!saveRoutine(r)) return renderSheet(true);
+  lastS = null; prevCleared = null; refresh(true); contextSay();
+}
 // Routine: everything you edit about your day, in one place.
 function renderRoutinePage(keep) {
   const body = $("shBody"), top = keep ? body.scrollTop : 0;
@@ -1203,6 +1228,7 @@ function renderRoutinePage(keep) {
       <h4 class="rt-sub">${T("rtStartOver")}</h4><p>${T("rtStartOverHelp")}</p>
       <div class="row"><button class="btn ghost small danger-ghost" type="button" data-act="template">${T("newTemplate")}</button></div>
     </div>
+    ${weekHTML()}
     ${packsSettingsHTML()}
     ${guideHTML()}
     <div class="set-group"><h3>${T("reminders")}</h3><p class="rt-meta">${T("remCount", added, L.length)}</p><p>${T("remShort")}</p><details class="more-help"><summary>${T("remHow")}</summary><p>${T("remHelp")}</p></details>
@@ -1210,6 +1236,8 @@ function renderRoutinePage(keep) {
       <p class="rem-note">${T("remNote")}</p>
       <div class="row"><button class="btn ghost small" type="button" data-act="ics">${T("icsAll")}</button></div>
       <p>${T("icsHelp")}</p></div>`;
+  body.querySelectorAll("[data-week]").forEach(f => f.addEventListener("change", () => { if (!/^\d{2}:\d{2}$/.test(f.value)) return;
+    saveWeek(A => ({ ...A, [f.dataset.week]: f.value })); }));
   foldSettings(body);
   if (keep) body.scrollTop = top;
   if (settingsPane === "paste") $("pasteBox").focus();
@@ -1301,6 +1329,7 @@ function settingsAction(act, el) {
   if (act === "toggleWo") { const r = { ...RAW, showWorkouts: CFG.showWorkouts === false }; if (!saveRoutine(r)) return renderSheet(true); lastS = null; prevCleared = null; refresh(true); toast(r.showWorkouts ? T("woShown") : T("woHidden"), "check"); return; }
   if (act === "edit") return openEditor();
   if (act === "editGuide") return openEditor("guide");
+  if (act === "weekBusy") return saveWeek(A => A ? null : { from: "08:30", to: "17:00", days: [...WEEKDAYS], say: T("awaySay") });
   if (act === "template") { closeSheet(); return openWelcome(2, true); }
   if (act === "importRoutine") return $("fileRoutine").click();
   if (act === "pasteToggle") { settingsPane = settingsPane === "paste" ? "" : "paste"; return renderSheet(true); }
@@ -1445,7 +1474,7 @@ function renderEditor(keep) {
           ${open ? `<div class="ed-more">
             ${it.useFocus ? `<p>${T("edFocusEdit")}</p>${[1,2,3,4,5,6,0].map(k => `<label class="ed-flabel">${weekdayName(k, "short")}<input class="field" data-path="focus.${k}.title" value="${esc(((D.focus || {})[k] || {}).title || "")}" placeholder="${T("edFocusPh")}"></label>`).join("")}`
               : `<input class="field" data-path="${p}.note" value="${esc(it.note || "")}" placeholder="${T("edNotePh")}">`}
-            ${weekdays(it.onDays) ? `<label class="ed-check"><input type="checkbox" data-ed-check="ondays" data-bi="${bi}" data-ii="${ii}" checked>${T("edOnDays", weekdays(it.onDays).map(k => weekdayName(k, "short")).join(", "))}</label>` : ""}
+            ${showOnHTML(it, bi, ii, D)}
             <label class="ed-count">${T("edCount")}<input class="field" type="number" inputmode="numeric" min="0" max="99" step="1" data-path="${p}.target" value="${goalOf(it.target) || ""}" placeholder="–"></label>
             <p class="ed-count-help">${T("edCountHelp")}</p>
             <label class="ed-check"><input type="checkbox" data-ed-check="alt" data-bi="${bi}" data-ii="${ii}" ${it.everyOtherDay ? "checked" : ""}>${T("edAlt")}</label>
@@ -1513,6 +1542,14 @@ function guideEditorHTML(D) {
   });
   return h + `<button class="btn ghost small ed-add" type="button" data-ed="tipAdd">${I.plus}${T("edAddTip")}</button>`;
 }
+// When a habit shows: every day, work days, days off, or picked weekdays (0 = Sunday).
+function showOnHTML(it, bi, ii, D) {
+  const mode = it.days === "work" || it.days === "off" ? it.days : weekdays(it.onDays) ? "pick" : "all", hasWork = !!D.away;
+  const opt = (v, label) => `<button type="button" class="day-chip" data-ed="showOn" data-v="${v}" data-bi="${bi}" data-ii="${ii}" aria-pressed="${mode === v}">${label}</button>`;
+  const on = weekdays(it.onDays) || [];
+  return `<div class="ed-show"><span class="ed-show-l">${T("showOn")}</span><div class="show-opts" role="group" aria-label="${T("showOn")}">${opt("all", T("dEvery"))}${hasWork ? opt("work", T("dWork")) + opt("off", T("dOff")) : ""}${opt("pick", T("dPick"))}</div>
+    ${mode === "pick" ? `<div class="day-chips">${[1, 2, 3, 4, 5, 6, 0].map(k => `<button type="button" class="day-chip" data-ed="dayChip" data-k="${k}" data-bi="${bi}" data-ii="${ii}" aria-pressed="${on.includes(k)}">${weekdayName(k, "short")}</button>`).join("")}</div>` : ""}</div>`;
+}
 function swap(arr, i, j) { if (j < 0 || j >= arr.length) return; [arr[i], arr[j]] = [arr[j], arr[i]]; }
 // Habit names wrap onto a second line instead of being cut off; they stay single-line text.
 function fitName(t) { if (!t.offsetParent) return; t.style.height = "auto"; t.style.height = t.scrollHeight + 4 + "px"; }
@@ -1555,6 +1592,16 @@ function editorClick(e) {
       ED.focusTo = `blocks.${D.blocks.length - 1}.title`; break; }
     case "addItem": if (tooMany(D.blocks[bi].items.length)) break; D.blocks[bi].items.push({ id: uid(), title: "", time: "" }); ED.focusTo = `blocks.${bi}.items.${D.blocks[bi].items.length - 1}.title`; break;
     case "star": { const it = D.blocks[bi].items[ii]; it.quest = !it.quest; break; }
+    case "showOn": { const it = D.blocks[bi].items[ii], v = b.dataset.v; delete it.days;
+      if (v === "work" || v === "off") { it.days = v; delete it.onDays; }
+      else if (v === "pick") it.onDays = weekdays(it.onDays) || (D.away ? (weekdays(D.away.days) || WEEKDAYS) : WEEKDAYS);
+      else delete it.onDays;
+      break; }
+    case "dayChip": { const it = D.blocks[bi].items[ii], k = +b.dataset.k, cur = weekdays(it.onDays) || [0, 1, 2, 3, 4, 5, 6];
+      const next = cur.includes(k) ? cur.filter(x => x !== k) : [...cur, k];
+      if (!next.length) { toast(T("dOneDay"), "x"); break; }
+      if (next.length === 7) delete it.onDays; else it.onDays = next.sort();
+      break; }
     case "more": { const key = `${bi}.${ii}`; ED.more.has(key) ? ED.more.delete(key) : ED.more.add(key); break; }
     case "itemUp": swap(D.blocks[bi].items, ii, ii - 1); ED.more.clear(); ED.more.add(`${bi}.${Math.max(0, ii - 1)}`); break;
     case "itemDown": swap(D.blocks[bi].items, ii, ii + 1); ED.more.clear(); ED.more.add(`${bi}.${Math.min(D.blocks[bi].items.length - 1, ii + 1)}`); break;
@@ -1628,7 +1675,8 @@ function saveEditor() {
 
 /* ================= Welcome ================= */
 const newWel = (step, switching) => ({ step: step || 1, tpls: new Set(["worker"]), includeWo: true, switching: !!switching, name: switching ? (CFG.name || "") : "",
-  packs: new Set(), fit: normFit(RAW.fitness), skin: normSkin(RAW.skin), wake: (RAW.day && RAW.day.wake) || "06:30", sleep: (RAW.day && RAW.day.sleep) || "23:00", busy: true, busyFrom: "08:30", busyTo: "17:00" });
+  packs: new Set(), fit: normFit(RAW.fitness), skin: normSkin(RAW.skin), wake: (RAW.day && RAW.day.wake) || "06:30", sleep: (RAW.day && RAW.day.sleep) || "23:00", busy: true, busyFrom: "08:30", busyTo: "17:00",
+  workDays: (RAW.away && weekdays(RAW.away.days)) || [...WEEKDAYS] });
 let WEL = newWel(1);
 function countHabits(r) { return (r.blocks || []).reduce((s, b) => s + (b.items || []).length, 0); }
 function openWelcome(step, switching) {
@@ -1836,18 +1884,20 @@ function renderWelcomeDay(el) {
   el.innerHTML = `<div class="w-in"><h2>${T("wDayQ")}</h2><p>${T("wDaySub")}</p>
     <div class="w-times">${time("wWake", T("wWake"), WEL.wake)}${time("wSleep", T("wSleep"), WEL.sleep)}</div>
     <div class="sw-row w-wo"><div><b>${T("wBusy")}</b><span>${T("wBusyHelp")}</span></div><button class="toggle" type="button" role="switch" id="wBusy" aria-checked="${WEL.busy}" aria-label="${T("wBusy")}"><i></i></button></div>
-    ${WEL.busy ? `<div class="w-times">${time("wB1", T("wBusyFrom"), WEL.busyFrom)}${time("wB2", T("wBusyTo"), WEL.busyTo)}</div>` : ""}
+    ${WEL.busy ? `<div class="w-times">${time("wB1", T("wBusyFrom"), WEL.busyFrom)}${time("wB2", T("wBusyTo"), WEL.busyTo)}</div>
+      <div class="w-label">${T("workDaysQ")}</div>${workDayChips(WEL.workDays, "wday")}` : ""}
     <button class="btn" type="button" id="wGo">${T("wGo")}</button>
     <div class="w-links one"><button class="linkish" type="button" id="wBack">${T("back")}</button></div></div>`;
   [["wWake", "wake"], ["wSleep", "sleep"], ["wB1", "busyFrom"], ["wB2", "busyTo"]].forEach(([id, k]) => { const f = $(id); if (f) f.addEventListener("change", () => { if (/^\d{2}:\d{2}$/.test(f.value)) WEL[k] = f.value; }); });
   $("wBusy").onclick = () => { WEL.busy = !WEL.busy; renderWelcome(); };
+  el.querySelectorAll("[data-wday]").forEach(b => b.onclick = () => { WEL.workDays = toggleDay(WEL.workDays, +b.dataset.wday); const top = el.scrollTop; renderWelcome(); el.scrollTop = top; });
   $("wBack").onclick = () => welGo(-1);
   $("wGo").onclick = finishPacks;
 }
 function finishPacks() {
   const day = { wake: WEL.wake, sleep: WEL.sleep, busy: WEL.busy ? [WEL.busyFrom, WEL.busyTo] : null };
   const base = { version: 1, label: T("myRoutine"), name: "", blocks: [], focus: {}, workouts: {}, progression: {}, weekly: [], tips: [], guide: null, day, showWorkouts: true, packs: [],
-    away: day.busy ? { from: day.busy[0], to: day.busy[1], say: T("awaySay") } : null };
+    away: day.busy ? { from: day.busy[0], to: day.busy[1], days: [...WEL.workDays].sort(), say: T("awaySay") } : null };
   if (WEL.packs.has("workout")) base.fitness = normFit(WEL.fit);
   if (WEL.packs.has("skin")) base.skin = normSkin(WEL.skin);
   const { r } = addPacks(base, [...WEL.packs]);
