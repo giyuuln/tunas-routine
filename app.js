@@ -3,6 +3,9 @@
 
 /* ================= Icons ================= */
 const I = {
+  list:'<svg class="ico" viewBox="0 0 24 24"><path d="M4 5.5h2.5V8H4zM9 5.75h11v2H9zM4 10.75h2.5v2.5H4zM9 11h11v2H9zM4 16h2.5v2.5H4zM9 16.25h11v2H9z"/></svg>',
+  chart:'<svg class="ico" viewBox="0 0 24 24"><path d="M4 20h16v2H4zM5 12h3v6H5zM10.5 7h3v11h-3zM16 3h3v15h-3z"/></svg>',
+  sprout:'<svg class="ico" viewBox="0 0 24 24"><path d="M11 21v-7.1C6.6 13.6 3.5 10.6 3.3 6.2 7.9 6 11.3 8.6 11.9 12.6c.4-4.9 3.7-8.4 8.8-8.6-.1 5.3-3.4 8.9-7.7 9.6V21z"/></svg>',
   spark:'<svg viewBox="0 0 24 24"><path d="M12 1.5c.6 5.4 3.6 9 10.5 10.5-6.9 1.5-9.9 5.1-10.5 10.5-.6-5.4-3.6-9-10.5-10.5C8.4 10.5 11.4 6.9 12 1.5z"/></svg>',
   home:'<svg class="ico" viewBox="0 0 24 24"><path d="M12 3.2 2.5 11.1l1.3 1.5L5 11.6V20a1 1 0 0 0 1 1h4.5v-6h3v6H18a1 1 0 0 0 1-1v-8.4l1.2 1 1.3-1.5z"/></svg>',
   sun:'<svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M11 1h2v4h-2zM11 19h2v4h-2zM1 11h4v2H1zM19 11h4v2h-4zM4.2 5.6l1.4-1.4 2.8 2.8-1.4 1.4zM15.6 17l1.4-1.4 2.8 2.8-1.4 1.4zM4.2 18.4 7 15.6 8.4 17l-2.8 2.8zM15.6 7 18.4 4.2l1.4 1.4L17 8.4z"/></svg>',
@@ -91,7 +94,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.10.31a";
+const APP_VERSION = "2026.10.31b";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -712,8 +715,8 @@ function renderBadges(S) {
     return `<div class="badge${ok ? " won" : " locked"}" style="--c:var(${c[0]});--cd:var(${c[1]})"><div class="medal-wrap">${spark}<div class="medal"><span>${I[b.ic] || I.star}${b.n ? `<small>${b.n}</small>` : ""}</span></div>${fresh ? `<b class="b-new">${T("newBadge")}</b>` : ""}</div><div class="bn">${badgeName(b.id)}</div><div class="bh">${badgeHow(b.id)}</div>${prog}</div>`; }).join("");
   return got;
 }
-// The routine's guide and daily tip live in Settings now; refresh it if it's open.
-function renderGuide() { if (sheetId === "settings") renderSettings(true); }
+// The routine's guide and daily tip live on the Routine page; refresh it if it's open.
+function renderGuide() { if (sheetId === "routine") renderSheet(true); }
 function guideHTML() {
   const g = CFG.guide, tip = TIPS[dayNum(routineDate()) % TIPS.length];
   return `<div class="set-group"><h3>${esc((g && g.title) || T("guide"))}</h3><div class="tip"><div class="ti">${I.star}</div><p>${md(tip)}</p></div>
@@ -722,7 +725,7 @@ function guideHTML() {
 function renderProgressSheet(kind, keep) {
   const body = $("shBody"), top = keep ? body.scrollTop : 0, S = lastS || computeAll();
   if (kind === "history") {
-    $("shHead").innerHTML = sheetHead("cal", T("history"), T("histSub"), null, "--green");
+    $("shHead").innerHTML = sheetHead("cal", T("tabProgress"), T("histSub"), null, "--green"); $("shHead").querySelector(".sh-ico").innerHTML = I.chart;
     body.innerHTML = `<div class="card streak-card" id="streakCard"></div><div class="card hist wsum" id="wsum"></div><div class="card hist" id="hist"></div>`;
     renderStreak(S); renderWeekSum(); renderHistory();
   } else {
@@ -741,7 +744,9 @@ function openSheet(id) {
   // Phone back button closes the sheet instead of leaving the app.
   if (!sheetId && !(history.state && history.state.tunasSheet)) { try { history.pushState({ tunasSheet: 1 }, ""); } catch (e) {} }
   // A day opened from History goes back to History when closed; a locked-backup sheet goes back to Settings.
-  parentSheet = (sheetId === "history" && id.startsWith("day:")) || (sheetId === "settings" && (id.startsWith("lock:") || id === "packs" || id === "wosetup" || id === "skinsetup")) ? sheetId : null;
+  if (id === "badges") id = "me"; // badges live in the Me tab now
+  parentSheet = (sheetId === "history" && id.startsWith("day:")) || (sheetId === "settings" && id.startsWith("lock:"))
+    || (sheetId === "routine" && ["packs", "wosetup", "skinsetup"].includes(id)) ? sheetId : null;
   if (!parentSheet) lastFocus = document.activeElement;
   // Restoring a backup from the welcome screen opens a sheet on top of it.
   document.body.classList.toggle("sheet-top", !$("welcome").hidden);
@@ -813,13 +818,15 @@ function renderSheet(keep) {
   syncTabs();
   if (!sheetId) return;
   if (sheetId === "settings") return renderSettings(keep);
+  if (sheetId === "routine") return renderRoutinePage(keep);
+  if (sheetId === "me") return renderMe(keep);
   if (sheetId === "editor") return renderEditor(keep);
   if (sheetId.startsWith("lock:")) return renderLockSheet(keep);
   if (sheetId === "packs") return renderPackSheet(keep);
   if (sheetId === "wosetup") return renderWoSheet(keep);
   if (sheetId === "skinsetup") return renderSkinSheet(keep);
   if (sheetId.startsWith("day:")) return renderDaySheet(sheetId.slice(4), keep);
-  if (sheetId === "history" || sheetId === "badges") return renderProgressSheet(sheetId, keep);
+  if (sheetId === "history") return renderProgressSheet(sheetId, keep);
   const d = routineDate(), today = dkey(d), node = nodesFor(d).find(n => n.id === sheetId); if (!node) { closeSheet(); return; }
   const st = nodeState(node, d), body = $("shBody"), top = keep ? body.scrollTop : 0;
   $("shHead").innerHTML = sheetHead(node.icon, esc(node.title), `${esc(node.range)}${node.range ? " · " : ""}${T("of", st.n, st.total)}`, st, st.cleared ? "--gold" : "--green");
@@ -915,8 +922,8 @@ function countStep(id, step, el) {
 }
 $("shBody").addEventListener("click", e => {
   if (sheetId === "editor") return editorClick(e);
-  const ra = e.target.closest("[data-remadd]"); if (ra) { store.rem[ra.dataset.remadd] = Date.now(); save(); setTimeout(() => { if (sheetId === "settings") renderSettings(true); }, 400); return; }
-  const ru = e.target.closest("[data-remundo]"); if (ru) { delete store.rem[ru.dataset.remundo]; save(); renderSettings(true); return; }
+  const ra = e.target.closest("[data-remadd]"); if (ra) { store.rem[ra.dataset.remadd] = Date.now(); save(); setTimeout(() => { if (sheetId === "routine") renderSheet(true); }, 400); return; }
+  const ru = e.target.closest("[data-remundo]"); if (ru) { delete store.rem[ru.dataset.remundo]; save(); renderSheet(true); return; }
   const rd = e.target.closest("[data-restday]"); if (rd) return setRest(rd.dataset.restday, rd.dataset.v === "1");
   const act = e.target.closest("[data-act]"); if (act) return settingsAction(act.dataset.act, act);
   const r = e.target.closest("[data-rest]"); if (r) { startRest(+r.dataset.rest, r.dataset.label); return; }
@@ -1152,58 +1159,102 @@ let settingsPane = "";
 function segLang(id) {
   return `<div class="seg" role="group" aria-label="${T("language")}" id="${id}"><button type="button" data-lang="en" aria-pressed="${LANG === "en"}">English</button><button type="button" data-lang="ms" aria-pressed="${LANG === "ms"}">Bahasa Melayu</button></div>`;
 }
+// Settings: only how the app behaves (language, sound, backups, help). Your routine lives in Routine, you in Me.
 function renderSettings(keep) {
   const body = $("shBody"), top = keep ? body.scrollTop : 0;
   $("shHead").innerHTML = sheetHead("cog", T("settings"), T("setSub"), null, "--green");
   $("shHead").querySelector(".sh-ico").innerHTML = I.cog;
   $("shClose").onclick = closeSheet;
+  const bAge = backupAge(), due = needsBackup();
   body.innerHTML = `
-    <div class="set-group"><h3>${T("yourName")}</h3><p>${T("nameHelp")}</p>
-      <input class="field" id="setName" value="${esc(CFG.name || "")}" placeholder="${T("namePh")}" autocomplete="given-name" maxlength="30"></div>
-    <div class="set-group"><h3>${T("language")}</h3>${segLang("langSeg")}</div>
-    <div class="set-group"><h3>${T("theme")}</h3><p>${T("themeHelp")}</p>${themePicker()}</div>
-    <div class="set-group"><div class="sw-row"><div><h3>${T("showWo")}</h3><p>${T("showWoHelp")}</p></div>
-      <button class="toggle" type="button" role="switch" aria-checked="${CFG.showWorkouts !== false}" data-act="toggleWo" aria-label="${T("showWo")}"><i></i></button></div></div>
-    <div class="set-group"><h3>${T("routine")}</h3>
-      <p>${T("using")} <span class="pill-ok">${esc(CFG.label || T("custom"))}</span> · ${T("sections", BLOCKS.length, Object.keys(WORKOUTS).length)}</p>
-      <div class="row"><button class="btn small" type="button" data-act="edit">${T("editRoutine")}</button>
-        <button class="btn ghost small danger-ghost" type="button" data-act="template">${T("newTemplate")}</button></div>
-      <p>${T("routineLocal")}</p>
-      <div class="row"><button class="btn ghost small danger-ghost" type="button" data-act="importRoutine">${T("importFile")}</button>
-        <button class="btn ghost small danger-ghost" type="button" data-act="pasteToggle">${T("pasteInstead")}</button>
-        <button class="btn ghost small" type="button" data-act="exportRoutine">${T("downloadRoutine")}</button></div>
-      ${settingsPane === "paste" ? `<textarea class="field" id="pasteBox" placeholder="${T("pastePh")}"></textarea><div class="row"><button class="btn small danger" type="button" data-act="pasteApply">${T("useThis")}</button></div>` : ""}
-    </div>
-    ${packsSettingsHTML()}
-    ${guideHTML()}
-    <div class="set-group"><h3>${T("reminders")}</h3><p>${T("remShort")}</p><details class="more-help"><summary>${T("remHow")}</summary><p>${T("remHelp")}</p></details>
-      ${(() => { const L = reminderList(), n = L.filter(r => store.rem[remSig(r)]).length; return (n ? `<p class="rem-count">${T("remCount", n, L.length)}</p>` : "") + L.map(remRow).join(""); })()}
-      <p class="rem-note">${T("remNote")}</p>
-      <div class="row"><button class="btn ghost small" type="button" data-act="ics">${T("icsAll")}</button></div>
-      <p>${T("icsHelp")}</p></div>
-    <div class="set-group"><h3>${T("share")}</h3><p>${T("shareHelp")}</p><div class="row"><button class="btn small" type="button" data-act="share">${T("shareBtn")}</button></div></div>
-    <div class="set-group"><h3>${T("backup")}</h3><p>${T("backupHelp")}</p><p>${T("lockHelp")}</p><p class="bk-last">${T("lastBackup", backupAge())}</p>
+    <div class="set-group nofold"><h3>${T("language")}</h3>${segLang("langSeg")}</div>
+    <div class="set-group nofold"><div class="sw-row"><div><h3>${T("sound")}</h3><p>${T("soundHelp")}</p></div>
+      <button class="toggle" type="button" role="switch" aria-checked="${soundOn}" data-act="sound" aria-label="${T("sound")}"><i></i></button></div></div>
+    <div class="set-group${due ? " start-open" : ""}"><h3>${T("backup")}</h3><p class="bk-last${due ? " due" : ""}">${T("lastBackup", bAge)}</p><p>${T("backupHelp")}</p><p>${T("lockHelp")}</p>
       <div class="row"><button class="btn small" type="button" data-act="backup">${T("downloadBackup")}</button>
         <button class="btn ghost small" type="button" data-act="lockBackup">${T("downloadLocked")}</button>
         <button class="btn ghost small danger-ghost" type="button" data-act="restore">${T("restoreBackup")}</button></div></div>
-    <div class="set-group"><h3>${T("sound")}</h3><div class="row"><button class="btn ghost small" type="button" data-act="sound">${soundOn ? T("soundOff") : T("soundOn")}</button></div></div>
+    <div class="set-group"><h3>${T("share")}</h3><p>${T("shareHelp")}</p><div class="row"><button class="btn small" type="button" data-act="share">${T("shareBtn")}</button></div></div>
     <div class="set-group"><h3>${T("errLog")}</h3><p>${T("errLogHelp")}</p>${errLogHTML()}</div>
     <div class="set-group"><h3>${T("about")}</h3><p>${T("aboutText")}</p><p class="ver">v${APP_VERSION}</p></div>`;
-  $("setName").addEventListener("change", e => { const v = e.target.value.trim().slice(0, 30); const r = { ...RAW, name: v || (LANG === "ms" ? "Kawan" : "Friend") }; if (saveRoutine(r)) { toast(T("nameSaved"), "check"); contextSay(); } });
+  foldSettings(body);
+  if (keep) body.scrollTop = top;
+}
+// Routine: everything you edit about your day, in one place.
+function renderRoutinePage(keep) {
+  const body = $("shBody"), top = keep ? body.scrollTop : 0;
+  $("shHead").innerHTML = sheetHead("star", T("tabRoutine"), T("routineSub"), null, "--green");
+  $("shHead").querySelector(".sh-ico").innerHTML = I.list;
+  $("shClose").onclick = closeSheet;
+  const habits = BLOCKS.reduce((n, b) => n + b.items.length, 0), L = reminderList(), added = L.filter(x => store.rem[remSig(x)]).length;
+  body.innerHTML = `
+    <div class="set-group start-open"><h3>${T("yourRoutine")}</h3>
+      <p>${T("using")} <span class="pill-ok">${esc(CFG.label || T("custom"))}</span></p>
+      <p class="rt-meta">${T("rtCount", BLOCKS.length, habits, Object.keys(WORKOUTS).length)}</p>
+      <div class="row"><button class="btn small" type="button" data-act="edit">${T("editRoutine")}</button>
+        <button class="btn ghost small" type="button" data-act="editGuide">${T("editGuide")}</button></div>
+      <div class="sw-row inline"><div><b>${T("showWo")}</b><span>${T("showWoHelp")}</span></div>
+        <button class="toggle" type="button" role="switch" aria-checked="${CFG.showWorkouts !== false}" data-act="toggleWo" aria-label="${T("showWo")}"><i></i></button></div>
+      <h4 class="rt-sub">${T("rtFile")}</h4><p>${T("routineLocal")}</p>
+      <div class="row"><button class="btn ghost small" type="button" data-act="exportRoutine">${T("downloadRoutine")}</button>
+        <button class="btn ghost small danger-ghost" type="button" data-act="importRoutine">${T("importFile")}</button>
+        <button class="btn ghost small danger-ghost" type="button" data-act="pasteToggle">${T("pasteInstead")}</button></div>
+      ${settingsPane === "paste" ? `<textarea class="field" id="pasteBox" placeholder="${T("pastePh")}"></textarea><div class="row"><button class="btn small danger" type="button" data-act="pasteApply">${T("useThis")}</button></div>` : ""}
+      <h4 class="rt-sub">${T("rtStartOver")}</h4><p>${T("rtStartOverHelp")}</p>
+      <div class="row"><button class="btn ghost small danger-ghost" type="button" data-act="template">${T("newTemplate")}</button></div>
+    </div>
+    ${packsSettingsHTML()}
+    ${guideHTML()}
+    <div class="set-group"><h3>${T("reminders")}</h3><p class="rt-meta">${T("remCount", added, L.length)}</p><p>${T("remShort")}</p><details class="more-help"><summary>${T("remHow")}</summary><p>${T("remHelp")}</p></details>
+      ${L.map(remRow).join("")}
+      <p class="rem-note">${T("remNote")}</p>
+      <div class="row"><button class="btn ghost small" type="button" data-act="ics">${T("icsAll")}</button></div>
+      <p>${T("icsHelp")}</p></div>`;
   foldSettings(body);
   if (keep) body.scrollTop = top;
   if (settingsPane === "paste") $("pasteBox").focus();
 }
+// Me: who you are in Tunas. Your name, Tunas's colour, your level, lifetime stats and the trophy case.
+function renderMe(keep) {
+  const body = $("shBody"), top = keep ? body.scrollTop : 0, S = lastS || computeAll();
+  const got = BADGES.filter(b => b.test(S)).length;
+  $("shHead").innerHTML = sheetHead("star", T("tabMe"), T("meSub"), null, "--green");
+  $("shHead").querySelector(".sh-ico").innerHTML = I.sprout;
+  $("shClose").onclick = closeSheet;
+  const stat = (ico, n, label) => `<div class="me-stat"><span class="me-n">${I[ico]}<b>${n}</b></span><span>${label}</span></div>`;
+  body.innerHTML = `
+    <div class="card me-card">
+      <div class="mascot me-av happy" aria-hidden="true">${MASCOT}</div>
+      <div class="me-id">
+        <label class="sr" for="setName">${T("yourName")}</label>
+        <input class="field me-name" id="setName" value="${esc(CFG.name || "")}" placeholder="${T("namePh")}" autocomplete="given-name" maxlength="30">
+        <p class="me-lv"><b>${T("level", S.L.n)}</b> <span>${esc(titleOf(S.L.n))}</span></p>
+        <div class="bar"><i style="${fillPct(100 * S.L.cur / S.L.span)}"></i><b>${T("xpOf", S.L.cur, S.L.span)}</b></div>
+      </div>
+    </div>
+    <div class="me-stats">
+      ${stat("flame", S.streak, T("meStreak"))}${stat("trophy", S.bestStreak, T("meBest"))}
+      ${stat("check", S.ticks, T("meTicks"))}${stat("star", S.perfectDays, T("mePerfect"))}
+      ${stat("dumb", S.workouts, T("meWorkouts"))}${stat("bolt", S.prs, T("mePRs"))}
+    </div>
+    <div class="set-group nofold"><h3>${T("tunasColour")}</h3><p>${T("themeHelp")}</p>${themePicker()}</div>
+    <section class="me-trophy" aria-labelledby="trophyT"><div class="me-th"><h3 id="trophyT">${T("badges")}</h3><span>${got} / ${BADGES.length}</span></div>
+      <div class="bar"><i style="${fillPct(100 * got / BADGES.length)}"></i></div>
+      <div class="bgrid" id="bgrid"></div></section>`;
+  renderBadges(S);
+  $("setName").addEventListener("change", e => { const v = e.target.value.trim().slice(0, 30); const r = { ...RAW, name: v || (LANG === "ms" ? "Kawan" : "Friend") }; if (saveRoutine(r)) { toast(T("nameSaved"), "check"); contextSay(); } });
+  if (keep) body.scrollTop = top;
+}
 // Settings groups fold into one tappable row each; the open ones stay open across re-renders.
-const setOpen = new Set();
+const setOpen = new Set(), setShut = new Set();
 function foldSettings(body) {
-  body.querySelectorAll(":scope > .set-group").forEach(g => {
+  body.querySelectorAll(":scope > .set-group:not(.nofold)").forEach(g => {
     const h = g.querySelector(":scope > h3"); if (!h) return;
     const key = h.textContent, d = document.createElement("details"); d.className = g.className + " fold";
-    if (setOpen.has(key) || (key === T("routine") && settingsPane === "paste") || (key === T("packsTitle") && settingsPane.startsWith("rm:"))) d.open = true;
+    if (setOpen.has(key) || (g.classList.contains("start-open") && !setShut.has(key)) || (key === T("yourRoutine") && settingsPane === "paste") || (key === T("packsTitle") && settingsPane.startsWith("rm:"))) d.open = true;
     const sm = document.createElement("summary"); sm.appendChild(h); sm.insertAdjacentHTML("beforeend", '<span class="chev" aria-hidden="true"></span>');
     d.appendChild(sm); while (g.firstChild) d.appendChild(g.firstChild); g.replaceWith(d);
-    d.addEventListener("toggle", () => { if (d.open) setOpen.add(key); else setOpen.delete(key); });
+    d.addEventListener("toggle", () => { if (d.open) { setOpen.add(key); setShut.delete(key); } else { setOpen.delete(key); setShut.add(key); } });
   });
 }
 function errLogHTML() {
@@ -1244,24 +1295,25 @@ function settingsAction(act, el) {
     PK = { sel: new Set(), step: "", fit: normFit(RAW.fitness), skin: normSkin(RAW.skin) };
     return openSheet(act === "addPacks" ? "packs" : act === "woSetup" ? "wosetup" : "skinsetup"); }
   if (act === "rmPack") { const id = el && el.dataset.pack; if (!id) return;
-    if (settingsPane !== "rm:" + id) { settingsPane = "rm:" + id; return renderSettings(true); }
+    if (settingsPane !== "rm:" + id) { settingsPane = "rm:" + id; return renderSheet(true); }
     settingsPane = ""; return removePackNow(id); }
   if (act === "tickAll") return tickAll();
-  if (act === "toggleWo") { const r = { ...RAW, showWorkouts: CFG.showWorkouts === false }; if (!saveRoutine(r)) return renderSettings(true); lastS = null; prevCleared = null; refresh(true); toast(r.showWorkouts ? T("woShown") : T("woHidden"), "check"); return; }
+  if (act === "toggleWo") { const r = { ...RAW, showWorkouts: CFG.showWorkouts === false }; if (!saveRoutine(r)) return renderSheet(true); lastS = null; prevCleared = null; refresh(true); toast(r.showWorkouts ? T("woShown") : T("woHidden"), "check"); return; }
   if (act === "edit") return openEditor();
+  if (act === "editGuide") return openEditor("guide");
   if (act === "template") { closeSheet(); return openWelcome(2, true); }
   if (act === "importRoutine") return $("fileRoutine").click();
-  if (act === "pasteToggle") { settingsPane = settingsPane === "paste" ? "" : "paste"; return renderSettings(true); }
+  if (act === "pasteToggle") { settingsPane = settingsPane === "paste" ? "" : "paste"; return renderSheet(true); }
   if (act === "pasteApply") return loadRoutineText($("pasteBox").value);
   if (act === "copyLog") { const txt = storeGet(ERR_KEY) || "[]"; (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => toast(T("copiedLog"), "check")).catch(() => toast(esc(txt).slice(0, 400), "x", 8000)); return; }
-  if (act === "clearLog") { storeDel(ERR_KEY); return renderSettings(true); }
+  if (act === "clearLog") { storeDel(ERR_KEY); return renderSheet(true); }
   if (act === "exportRoutine") return download(`${slug(CFG.label || "routine")}.json`, RAW);
   if (act === "ics") return downloadText("tunas-reminders.ics", buildICS(), "text/calendar");
   if (act === "share") return shareApp();
-  if (act === "backup") { saveBackup(); return renderSettings(true); }
+  if (act === "backup") { saveBackup(); return renderSheet(true); }
   if (act === "lockBackup") return hasCrypto() ? openSheet("lock:save") : void toast(T("lockNoCrypto"), "x");
   if (act === "restore") return $("fileBackup").click();
-  if (act === "sound") { toggleSound(); return renderSettings(true); }
+  if (act === "sound") { toggleSound(); return renderSheet(true); }
 }
 $("sheet").addEventListener("click", e => { if (sheetId === "packs" || sheetId === "wosetup" || sheetId === "skinsetup") { const wo = e.target.closest("[data-wo]"); if (wo) { woToggle(PK.fit, wo); return renderSheet(true); }
     const sk = e.target.closest("[data-sk]"); if (sk) { skinToggle(PK.skin, sk); return renderSheet(true); }
@@ -1271,7 +1323,7 @@ $("sheet").addEventListener("click", e => { if (sheetId === "packs" || sheetId =
     if (e.target.closest("[data-packback]")) { const L = pkSteps(); PK.step = L[Math.max(0, L.indexOf(PK.step) - 1)]; return renderPackSheet(false); }
     if (e.target.closest("[data-packgo]")) return addPacksNow(); }
   const b = e.target.closest("[data-lang]"); if (b) { setLang(b.dataset.lang); return; }
-  const t = e.target.closest("[data-theme-pick]"); if (t) { pickTheme(t.dataset.themePick); if (sheetId === "settings") renderSettings(true); } });
+  const t = e.target.closest("[data-theme-pick]"); if (t) { pickTheme(t.dataset.themePick); if (sheetId === "me") renderSheet(true); } });
 function readFile(input, cb, maxBytes) {
   const f = input.files && input.files[0]; if (!f) return;
   if (maxBytes && f.size > maxBytes) { input.value = ""; toast(T("errFileTooBig", maxBytes / 1e6), "x"); return; }
@@ -1301,9 +1353,9 @@ $("fileBackup").addEventListener("change", e => readFile(e.target, text => {
 }, LIMITS.lockedBytes));
 /* ================= Bottom navigation ================= */
 // Today, History, Badges and Settings are one tap away, even with a sheet open; the tab bar sits above sheets.
-const SETTINGS_SHEETS = ["settings", "editor", "packs", "wosetup", "skinsetup"];
-const tabOf = id => !id ? "home" : id === "history" || id.startsWith("day:") ? "history" : id === "badges" ? "badges"
-  : SETTINGS_SHEETS.includes(id) || id.startsWith("lock:") ? "settings" : "home";
+const ROUTINE_SHEETS = ["routine", "editor", "packs", "wosetup", "skinsetup"];
+const tabOf = id => !id ? "home" : id === "history" || id.startsWith("day:") ? "history" : id === "me" ? "me"
+  : ROUTINE_SHEETS.includes(id) ? "routine" : id === "settings" || id.startsWith("lock:") ? "settings" : "home";
 function syncTabs() {
   const cur = tabOf(sheetId);
   document.querySelectorAll("#tabbar [data-tab]").forEach(b => { if (b.dataset.tab === cur) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
@@ -1312,19 +1364,19 @@ function goTab(tab) {
   if (sheetId === "editor" && ED && ED.dirty) return requestCloseEditor(); // unsaved edits ask first
   if (tab === "home") { if (sheetId) closeSheet(); else window.scrollTo({ top: 0, behavior: reduced() ? "auto" : "smooth" }); return; }
   if (sheetId === tab) { $("shBody").scrollTo({ top: 0, behavior: reduced() ? "auto" : "smooth" }); return; }
-  audio(); if (tab === "settings") settingsPane = "";
+  audio(); if (tab === "settings" || tab === "routine") settingsPane = "";
   if (!sheetId) return openSheet(tab);
   // Switch the open sheet in place: no close-and-reopen animation, back button still closes it.
   parentSheet = null; ED = null; lockedFile = null; sheetId = tab; renderSheet(false); $("shBody").scrollTop = 0;
   const x = $("shClose"); x && x.focus({ preventScroll: true });
 }
 $("tabbar").addEventListener("click", e => { const b = e.target.closest("[data-tab]"); if (b) goTab(b.dataset.tab); });
-["Home", "History", "Badges", "Settings"].forEach((k, n) => { $("tb" + k).innerHTML = I[["home", "cal", "trophy", "cog"][n]]; });
+["Home", "Routine", "History", "Me", "Settings"].forEach((k, n) => { $("tb" + k).innerHTML = I[["home", "list", "chart", "sprout", "cog"][n]]; });
 
 /* ================= Routine editor ================= */
 let ED = null, draftTimer = null;
 const DRAFT_KEY = "tunas-editor-draft";
-function openEditor() {
+function openEditor(tab) {
   const draft = clone(RAW); draft.focus ||= {}; draft.workouts ||= {}; draft.weekly ||= []; draft.tips ||= [];
   draft.guide = draft.guide && typeof draft.guide === "object" ? draft.guide : { title: "", sections: [] };
   draft.guide.title ||= ""; draft.guide.sections = (draft.guide.sections || []).map(g => ({ ...g, title: g.title || "", lines: g.lines || [] }));
@@ -1332,7 +1384,7 @@ function openEditor() {
   // A draft left from last time (app closed, phone died, crash)? Offer to bring it back.
   let offer = null; const saved = loadJSON(DRAFT_KEY, v => v && v.draft && Array.isArray(v.draft.blocks)).value;
   if (saved && JSON.stringify(saved.draft) !== base) offer = saved; else if (saved) storeDel(DRAFT_KEY);
-  ED = { draft, base, dirty: false, ask: false, offer, tab: "sections", day: routineDate().getDay(), more: new Set(), iconFor: null, confirm: null, focusTo: null };
+  ED = { draft, base, dirty: false, ask: false, offer, tab: ["sections", "workouts", "weekly", "guide"].includes(tab) ? tab : "sections", day: routineDate().getDay(), more: new Set(), iconFor: null, confirm: null, focusTo: null };
   if (sheetId) { sheetId = "editor"; renderSheet(false); } else openSheet("editor");
   $("shBody").scrollTop = 0;
 }
@@ -1349,7 +1401,7 @@ function requestCloseEditor() {
   if (ED.dirty) { ED.ask = true; renderEditor(true); const f = document.querySelector(".ed-foot"); f && f.scrollIntoView({ block: "end" }); const k = $("edKeepBtn"); k && k.focus({ preventScroll: true }); return; }
   exitEditor(false);
 }
-function exitEditor(discard) { clearTimeout(draftTimer); if (discard) storeDel(DRAFT_KEY); ED = null; sheetId = "settings"; renderSheet(false); }
+function exitEditor(discard) { clearTimeout(draftTimer); if (discard) storeDel(DRAFT_KEY); ED = null; sheetId = "routine"; renderSheet(false); }
 function getPath(obj, path) { return path.split(".").reduce((o, k) => (o == null ? o : o[k]), obj); }
 function setPath(obj, path, val) {
   const ks = path.split("."); let o = obj;
@@ -1851,9 +1903,9 @@ function addPacksNow() {
 }
 function removePackNow(id) {
   const r = removePack(RAW, id);
-  if (!r.blocks.length) { toast(T("packKeepOne"), "x"); return renderSettings(true); }
+  if (!r.blocks.length) { toast(T("packKeepOne"), "x"); return renderSheet(true); }
   const err = validateRoutine(r); if (err) { toast(esc(err), "x"); return; }
-  if (!saveRoutine(clampText(r))) return renderSettings(true);
+  if (!saveRoutine(clampText(r))) return renderSheet(true);
   lastS = null; prevCleared = null; refresh(true); toast(T("packRemoved", esc(R(packById(id).title))), "check");
 }
 
@@ -2021,7 +2073,7 @@ const celeQ = [];
 function queueCele(c) { celeQ.push(c); if ($("cele").hidden) nextCele(); }
 function nextCele() {
   const c = celeQ.shift(); if (!c) { $("cele").hidden = true; contextSay(); setTimeout(playHome, 150); return; }
-  if (sheetId && sheetId !== "settings" && sheetId !== "editor" && !sheetId.startsWith("day:") && !sheetId.startsWith("lock:")) closeSheet();
+  if (sheetId && !["settings", "routine", "me", "editor", "packs", "wosetup", "skinsetup"].includes(sheetId) && !sheetId.startsWith("day:") && !sheetId.startsWith("lock:")) closeSheet();
   const el = $("cele"); el.hidden = false;
   el.innerHTML = `${c.art || `<div class="mascot cheer" id="celeMascot">${MASCOT}</div>`}<h2 class="${c.color || ""}">${c.title}</h2><p>${c.sub}</p>
     ${c.tiles.length ? `<div class="tiles">${c.tiles.map(t => `<div class="tile" style="--c:var(${t.c})"><small>${t.k}</small><b>${t.i ? I[t.i] : ""}${t.v}</b></div>`).join("")}</div>` : ""}
@@ -2105,7 +2157,7 @@ function refresh(keepSheet) {
   renderTop(S); renderQuests(S); renderPath(S); renderNudge(); renderStreak(S); renderHistory();
   const got = renderBadges(S);
   if (sheetId && sheetId !== "editor" && keepSheet !== false) renderSheet(true);
-  else if (sheetId && keepSheet === false && !["settings", "editor"].includes(sheetId) && !sheetId.startsWith("day:")) {
+  else if (sheetId && keepSheet === false && !["settings", "routine", "me", "editor"].includes(sheetId) && !sheetId.startsWith("day:")) {
     const node = nodesFor(d).find(n => n.id === sheetId); if (node) { const st = nodeState(node, d), bar = $("shHead").querySelector(".bar"); if (bar) { setFill(bar.querySelector("i"), 100*st.n/st.total); bar.querySelector("b").textContent = `${st.n} / ${st.total}`; } }
   }
   const states = {}; nodesFor(d).forEach(n => states[n.id] = nodeState(n, d));
@@ -2177,7 +2229,7 @@ if ($("welcome").hidden) { const h = new Date().getHours(), S0 = lastS || comput
   history.replaceState(null, "", location.pathname);
   const d = routineDate(), nodes = nodesFor(d);
   if (q === "settings") return openSheet("settings");
-  if (q === "history" || q === "badges") return openSheet(q);
+  if (["history", "badges", "me", "routine", "settings"].includes(q)) return openSheet(q);
   const id = q === "now" ? (pathTarget(d, nowMins(), nodes) || {}).id : q;
   if (id && nodes.some(n => n.id === id)) return openSheet(id);
   if (q === "workout") toast(T("noWorkout"), "star");
