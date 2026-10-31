@@ -311,6 +311,24 @@ textarea.field{min-height:140px;font-family:ui-monospace,monospace;font-size:12.
 .h-foot span{display:inline-flex;align-items:center;gap:5px}
 .lg{width:12px;height:12px;border-radius:4px;display:inline-block;border:2px solid var(--line)}
 .lg.perfect{background:var(--gold);border-color:var(--gold-d)} .lg.full{background:var(--orange);border-color:var(--orange-d)} .lg.part{background:var(--gold-soft);border-color:var(--gold)} .lg.rest{background:var(--sky-soft);border-color:var(--sky)}
+/* Per-habit stats */
+.sheet .task{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.hs-grid{display:grid;grid-template-columns:repeat(10,1fr);gap:5px}
+.hs-c{aspect-ratio:1;border-radius:8px;border:2px solid var(--line);background:var(--card)}
+.hs-c.done,.lg.hs-done{background:var(--green);border-color:var(--green-d)}
+.hs-c.miss,.lg.hs-miss{background:var(--soft);border-color:var(--control)}
+.hs-c.rest{background:var(--sky-soft);border-color:var(--sky)}
+.hs-c.off,.lg.hs-off{background:none;border-style:dashed}
+.hs-c.today{box-shadow:0 0 0 3px var(--green);border-color:var(--card)}
+.hs-list{gap:8px}
+.hs-row{width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;border:2px solid var(--line);background:var(--card);box-shadow:0 3px 0 var(--line);text-align:left;color:var(--ink);font:inherit}
+.hs-row:active{transform:translateY(3px);box-shadow:none}
+.hs-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.hs-t b{font-weight:900;font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hs-t .bar{height:8px} .hs-t .bar i::after{display:none}
+.hs-n{flex:none;min-width:44px;text-align:right;font-weight:900;font-size:14px;font-variant-numeric:tabular-nums}
+.hs-fl{flex:none;display:inline-flex;align-items:center;gap:2px;min-width:38px;font-weight:900;font-size:13px;color:var(--orange-ink);font-variant-numeric:tabular-nums}
+.hs-fl svg{width:16px;height:16px;fill:var(--orange)} .hs-fl.off{color:var(--muted)} .hs-fl.off svg{fill:var(--control)}
 .h-note{margin:0;font-size:13px;color:var(--muted)}
 .grp{font-family:var(--display);font-weight:700;font-size:17px;margin:8px 2px 0}
 /* Reminders */

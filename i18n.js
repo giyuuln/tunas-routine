@@ -241,6 +241,11 @@ window.TUNAS_I18N = {
     wsBest: (t, n, o) => `Best habit: <b>${t}</b> · ${n}/${o} days`, wsMiss: (t, n) => `Needs love: <b>${t}</b> · missed ${n} day${n === 1 ? "" : "s"}`,
     wsNoMiss: "Nothing missed. Perfect week!", wsEmpty: "No ticks that week. This week is a fresh start.", tWorkouts: "Workouts",
     wsLast: "Last week", wsAgo: n => `${n} weeks ago`, wsPrev: "Previous week", wsNext: "Next week",
+    hsLast30: "Last 30 days", hsPct: "Done", hsBest: "Best", hsListTitle: "Habit by habit", hsNone: "not started yet",
+    hsLine: (n, t) => `Done <b>${n}</b> of the <b>${t}</b> days it was on your list.`, hsNew: "No days to count yet. Tick it today to start!",
+    hsGridLabel: (n, t) => `Last 30 days: done ${n} of ${t} days`, hsNotToday: "This habit isn't on today's list.",
+    hsTip: "Tip: press and hold a habit to see how it's going.",
+    hsState: { done: "Done", miss: "Missed", rest: "Rest day", off: "Not on the list", today: "Still to do" },
   },
   ms: {
     locale: "ms-MY",
@@ -479,5 +484,10 @@ window.TUNAS_I18N = {
     wsBest: (t, n, o) => `Tabiat terbaik: <b>${t}</b> · ${n}/${o} hari`, wsMiss: (t, n) => `Perlu perhatian: <b>${t}</b> · terlepas ${n} hari`,
     wsNoMiss: "Tak ada yang terlepas. Minggu sempurna!", wsEmpty: "Tak ada tanda minggu tu. Minggu ni mula baru.", tWorkouts: "Senaman",
     wsLast: "Minggu lepas", wsAgo: n => `${n} minggu lepas`, wsPrev: "Minggu sebelumnya", wsNext: "Minggu seterusnya",
+    hsLast30: "30 hari lepas", hsPct: "Siap", hsBest: "Terbaik", hsListTitle: "Satu-satu tabiat", hsNone: "belum mula lagi",
+    hsLine: (n, t) => `Siap <b>${n}</b> daripada <b>${t}</b> hari yang ada dalam senarai.`, hsNew: "Belum ada hari nak dikira. Tanda hari ni untuk mula!",
+    hsGridLabel: (n, t) => `30 hari lepas: siap ${n} daripada ${t} hari`, hsNotToday: "Tabiat ni tak ada dalam senarai hari ni.",
+    hsTip: "Tip: tekan lama satu tabiat untuk tengok prestasinya.",
+    hsState: { done: "Siap", miss: "Terlepas", rest: "Hari rehat", off: "Tak dalam senarai", today: "Belum buat" },
   }
 };
