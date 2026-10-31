@@ -94,7 +94,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.10.31c";
+const APP_VERSION = "2026.10.31d";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -354,7 +354,8 @@ function computeAll() {
 function nodesFor(d) {
   const W = WORKOUTS[d.getDay()], out = [];
   const woNode = () => ({ id: "workout", kind: "workout", W, title: W.name, icon: "dumb", range: W.when, from: W.from, to: W.to, say: W.say });
-  BLOCKS.forEach(b => { out.push({ id: b.id, kind: "block", b, title: b.title, icon: b.icon, range: b.range, from: b.from, to: b.to, say: b.say });
+  // A section with nothing to do today (e.g. all its habits are work-day only on a day off) is left off the path.
+  BLOCKS.forEach(b => { if (b.items.some(i => shown(i, d))) out.push({ id: b.id, kind: "block", b, title: b.title, icon: b.icon, range: b.range, from: b.from, to: b.to, say: b.say });
     if (W && W.after === b.id) out.push(woNode()); });
   if (W && !BLOCKS.some(b => b.id === W.after)) out.push(woNode());
   if (WEEKLY.length) out.push({ id: "weekly", kind: "weekly", title: T("thisWeek"), icon: "cal", range: T("resetsMonday") });
