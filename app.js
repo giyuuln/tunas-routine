@@ -3,6 +3,7 @@
 
 /* ================= Icons ================= */
 const I = {
+  spark:'<svg viewBox="0 0 24 24"><path d="M12 1.5c.6 5.4 3.6 9 10.5 10.5-6.9 1.5-9.9 5.1-10.5 10.5-.6-5.4-3.6-9-10.5-10.5C8.4 10.5 11.4 6.9 12 1.5z"/></svg>',
   home:'<svg class="ico" viewBox="0 0 24 24"><path d="M12 3.2 2.5 11.1l1.3 1.5L5 11.6V20a1 1 0 0 0 1 1h4.5v-6h3v6H18a1 1 0 0 0 1-1v-8.4l1.2 1 1.3-1.5z"/></svg>',
   sun:'<svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M11 1h2v4h-2zM11 19h2v4h-2zM1 11h4v2H1zM19 11h4v2h-4zM4.2 5.6l1.4-1.4 2.8 2.8-1.4 1.4zM15.6 17l1.4-1.4 2.8 2.8-1.4 1.4zM4.2 18.4 7 15.6 8.4 17l-2.8 2.8zM15.6 7 18.4 4.2l1.4 1.4L17 8.4z"/></svg>',
   walk:'<svg class="ico" viewBox="0 0 24 24"><circle cx="13.5" cy="4" r="2.2"/><path d="M10.6 7.4 7 9.2V13h2v-2.5l1.6-.8-1.9 9.8 2 .4 1.2-5.6 2.1 2V22h2v-5.5l-2.4-2.3.7-3.4c1 1.3 2.5 2.2 4.2 2.2v-2c-1.4 0-2.6-.8-3.2-2l-.9-1.7a2.3 2.3 0 0 0-2.8-1.1z"/></svg>',
@@ -48,9 +49,11 @@ const MASCOT = `<svg viewBox="0 0 120 120">
     <g class="shades"><path d="M38 37h18a2 2 0 0 1 2 2v2a6 6 0 0 1-6 6h-6a8 8 0 0 1-8-8 2 2 0 0 1 2-2zM64 37h18a2 2 0 0 1 2 2 8 8 0 0 1-8 8h-6a6 6 0 0 1-6-6v-2a2 2 0 0 1 2-2z" fill="#2a2440"/><path d="M58 40h4" stroke="#2a2440" stroke-width="3"/><path d="M42 39l4 0" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".7"/><path d="M68 39l4 0" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".7"/></g>
     <g class="flower"><circle cx="60" cy="4" r="4.2" fill="#ff8fbf"/><circle cx="65.5" cy="8" r="4.2" fill="#ff8fbf"/><circle cx="63.4" cy="14.2" r="4.2" fill="#ff8fbf"/><circle cx="56.6" cy="14.2" r="4.2" fill="#ff8fbf"/><circle cx="54.5" cy="8" r="4.2" fill="#ff8fbf"/><circle cx="60" cy="9.6" r="3" fill="#ffd34d"/></g>
     <g class="e-open">
-      <ellipse cx="46" cy="58" rx="10" ry="11" fill="#fff"/><ellipse cx="74" cy="58" rx="10" ry="11" fill="#fff"/>
-      <g class="look"><g class="pupil"><circle cx="47.5" cy="60" r="5.5" fill="var(--m-ink)"/><circle cx="75.5" cy="60" r="5.5" fill="var(--m-ink)"/></g></g>
-      <circle cx="50" cy="57" r="2" fill="#fff"/><circle cx="78" cy="57" r="2" fill="#fff"/>
+      <g class="look"><g class="pupil">
+        <ellipse cx="46" cy="59" rx="6.8" ry="8.2" fill="var(--m-ink)"/><ellipse cx="74" cy="59" rx="6.8" ry="8.2" fill="var(--m-ink)"/>
+        <circle cx="48.6" cy="55.6" r="2.9" fill="#fff"/><circle cx="76.6" cy="55.6" r="2.9" fill="#fff"/>
+        <circle cx="43.6" cy="62.6" r="1.3" fill="#fff" opacity=".9"/><circle cx="71.6" cy="62.6" r="1.3" fill="#fff" opacity=".9"/>
+      </g></g>
     </g>
     <g class="e-happy" fill="none" stroke="var(--m-ink)" stroke-width="4.5" stroke-linecap="round"><path d="M37 61q9-11 18 0"/><path d="M65 61q9-11 18 0"/></g>
     <g class="e-sleep" fill="none" stroke="var(--m-ink)" stroke-width="4" stroke-linecap="round"><path d="M38 60q8 5 16 0"/><path d="M66 60q8 5 16 0"/></g>
@@ -59,6 +62,7 @@ const MASCOT = `<svg viewBox="0 0 120 120">
     <path class="mo-smile" d="M52 74q8 8 16 0" fill="none" stroke="var(--m-ink)" stroke-width="4" stroke-linecap="round"/>
     <g class="mo-big"><path d="M49 71q11 18 22 0z" fill="#8a2338"/><path d="M54 79q6 5 12 0q-6-4-12 0z" fill="#ff7a8f"/></g>
     <path class="mo-flat" d="M54 76q6 2 12 0" fill="none" stroke="var(--m-ink)" stroke-width="4" stroke-linecap="round"/>
+    <path class="mo-hmm" d="M55 75.5q5.5 4.5 11 -1" fill="none" stroke="var(--m-ink)" stroke-width="4" stroke-linecap="round"/>
     <text class="zz" x="88" y="34" font-family="Fredoka, sans-serif" font-weight="700" font-size="16" fill="var(--sky)">z</text>
   </g>
 </svg>`;
@@ -87,7 +91,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.10.30i";
+const APP_VERSION = "2026.10.31a";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -701,8 +705,11 @@ function renderBadges(S) {
   const list = BADGES.map((b, i) => ({ b, i, ok: b.test(S), p: near(b) })).sort((x, y) => (y.ok - x.ok) || (y.p - x.p) || (x.i - y.i));
   grid.innerHTML = list.map(({ b, i, ok }) => { const c = COLORS[i % COLORS.length];
     const [have, need] = (BADGE_GOAL[b.id] || (() => [0, 1]))(S), pct = Math.min(100, 100 * have / need);
-    const prog = ok ? `<div class="bp done">${I.check}${T("earned")}</div>` : `<div class="bp"><span class="bar"><i style="${fillPct(pct)}"></i></span><b>${Math.min(have, need)} / ${need}</b></div>`;
-    return `<div class="badge${ok ? "" : " locked"}" style="--c:var(${c[0]});--cd:var(${c[1]})"><div class="medal"><span>${I[b.ic] || I.star}${b.n ? `<small>${b.n}</small>` : ""}</span></div><div class="bn">${badgeName(b.id)}</div><div class="bh">${badgeHow(b.id)}</div>${prog}</div>`; }).join("");
+    const when = ok && typeof store.seen[b.id] === "string" ? store.seen[b.id] : null, fresh = when === dkey(routineDate()), left = need - Math.min(have, need);
+    const prog = ok ? `<div class="bp won">${I.check}<span>${T("earned")}</span></div>${when ? `<time class="b-when" datetime="${when}">${keyToDate(when).toLocaleDateString(locale(), { day: "numeric", month: "short" })}</time>` : ""}`
+      : `<div class="bp${pct >= 60 ? " near" : ""}"><span class="bar"><i style="${fillPct(pct)}"></i></span><b>${pct >= 60 ? T("toGo", left) : `${Math.min(have, need)} / ${need}`}</b></div>`;
+    const spark = ok ? `<i class="spk s1" aria-hidden="true">${I.spark}</i><i class="spk s2" aria-hidden="true">${I.spark}</i>` : "";
+    return `<div class="badge${ok ? " won" : " locked"}" style="--c:var(${c[0]});--cd:var(${c[1]})"><div class="medal-wrap">${spark}<div class="medal"><span>${I[b.ic] || I.star}${b.n ? `<small>${b.n}</small>` : ""}</span></div>${fresh ? `<b class="b-new">${T("newBadge")}</b>` : ""}</div><div class="bn">${badgeName(b.id)}</div><div class="bh">${badgeHow(b.id)}</div>${prog}</div>`; }).join("");
   return got;
 }
 // The routine's guide and daily tip live in Settings now; refresh it if it's open.
@@ -720,7 +727,7 @@ function renderProgressSheet(kind, keep) {
     renderStreak(S); renderWeekSum(); renderHistory();
   } else {
     const n = BADGES.filter(b => b.test(S)).length;
-    $("shHead").innerHTML = sheetHead("trophy", T("badges"), T("badgesSub", n, BADGES.length), null, "--gold");
+    $("shHead").innerHTML = sheetHead("trophy", T("badges"), T("badgesSub", n, BADGES.length), { n, total: BADGES.length }, "--gold");
     body.innerHTML = `<div class="bgrid" id="bgrid"></div>`; renderBadges(S);
   }
   $("shClose").onclick = closeSheet;
@@ -2103,7 +2110,7 @@ function refresh(keepSheet) {
   }
   const states = {}; nodesFor(d).forEach(n => states[n.id] = nodeState(n, d));
   const fresh = got.filter(b => !store.seen[b.id]);
-  if (fresh.length) { fresh.forEach(b => store.seen[b.id] = 1); save();
+  if (fresh.length) { fresh.forEach(b => store.seen[b.id] = dkey(d)); save();
     if (lastS) fresh.forEach(b => toast(T("badgeOne", badgeName(b.id)), "trophy"));
     else toast(fresh.length === 1 ? T("badgeOne", badgeName(fresh[0].id)) : T("badgeMany", fresh.length), "trophy"); }
   if (lastS && prevCleared) {
