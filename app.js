@@ -94,7 +94,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.10.31d";
+const APP_VERSION = "2026.10.31e";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -733,7 +733,7 @@ function renderProgressSheet(kind, keep) {
   const body = $("shBody"), top = keep ? body.scrollTop : 0, S = lastS || computeAll();
   if (kind === "history") {
     $("shHead").innerHTML = sheetHead("cal", T("tabProgress"), T("histSub"), null, "--green"); $("shHead").querySelector(".sh-ico").innerHTML = I.chart;
-    body.innerHTML = `<div class="card streak-card" id="streakCard"></div><div class="card hist wsum" id="wsum"></div><div class="card hist" id="hist"></div>`;
+    body.innerHTML = `<div class="card streak-card" id="streakCard"></div><div class="card hist wsum" id="wsum"></div><div class="card hist" id="hist"></div>${habitListHTML()}`;
     renderStreak(S); renderWeekSum(); renderHistory();
   } else {
     const n = BADGES.filter(b => b.test(S)).length;
@@ -753,7 +753,7 @@ function openSheet(id) {
   // A day opened from History goes back to History when closed; a locked-backup sheet goes back to Settings.
   if (id === "badges") id = "me"; // badges live in the Me tab now
   parentSheet = (sheetId === "history" && id.startsWith("day:")) || (sheetId === "settings" && id.startsWith("lock:"))
-    || (sheetId === "routine" && ["packs", "wosetup", "skinsetup"].includes(id)) ? sheetId : null;
+    || (sheetId === "routine" && ["packs", "wosetup", "skinsetup"].includes(id)) || (sheetId && id.startsWith("habit:")) ? sheetId : null;
   if (!parentSheet) lastFocus = document.activeElement;
   // Restoring a backup from the welcome screen opens a sheet on top of it.
   document.body.classList.toggle("sheet-top", !$("welcome").hidden);
@@ -833,6 +833,7 @@ function renderSheet(keep) {
   if (sheetId === "wosetup") return renderWoSheet(keep);
   if (sheetId === "skinsetup") return renderSkinSheet(keep);
   if (sheetId.startsWith("day:")) return renderDaySheet(sheetId.slice(4), keep);
+  if (sheetId.startsWith("habit:")) return renderHabitSheet(sheetId.slice(6), keep);
   if (sheetId === "history") return renderProgressSheet(sheetId, keep);
   const d = routineDate(), today = dkey(d), node = nodesFor(d).find(n => n.id === sheetId); if (!node) { closeSheet(); return; }
   const st = nodeState(node, d), body = $("shBody"), top = keep ? body.scrollTop : 0;
@@ -851,6 +852,7 @@ function renderSheet(keep) {
       const tag = i.key ? `<span class="qtag">★ +${XP.key}</span>` : i.alt ? `<span class="qtag alt">${T("every2")}</span>` : "";
       h += taskHTML(i, !!done[i.id], tag, today);
     });
+    if (!store.seen.habitHold) h += `<div class="note hs-tip">${T("hsTip")}</div>`;
   } else if (node.kind === "weekly") {
     const wd = store.weeks[wkey(d)] || {};
     WEEKLY.forEach(i => { h += taskHTML(i, !!wd[i.id], `<span class="qtag alt">+${XP.weekly}</span>`); });
@@ -909,6 +911,65 @@ function tickAll() {
   offerUndo(T("tickedAll", ticked.length), () => {
     const day = store.days[today]; if (!day) return; ticked.forEach(id => { delete day[id]; }); save(); sfx("undo"); lastS = null; prevCleared = null; refresh(true); });
 }
+
+/* ================= Per-habit stats ================= */
+// Press and hold a habit (or tap it in Progress) to see how that one habit is going: last 30 days and its own streak.
+const habitById = id => { for (const b of BLOCKS) { const i = b.items.find(x => x.id === id); if (i) return { i, b }; } return null; };
+function habitStats(it) {
+  const d0 = routineDate(), today = dkey(d0), keys = [...Object.keys(store.days), ...Object.keys(store.rest)].sort();
+  const start = keys[0] && keys[0] < today ? keys[0] : today; // days before you started using Tunas don't count as missed
+  const stat = d => { const k = dkey(d); if (k < start || !shown(it, d)) return "off"; if ((store.days[k] || {})[it.id]) return "done";
+    return k === today ? "today" : isRest(d) ? "rest" : "miss"; };
+  const days = []; for (let n = 29; n >= 0; n--) { const d = new Date(d0); d.setDate(d.getDate() - n); days.push({ k: dkey(d), d, s: stat(d) }); }
+  const done = days.filter(x => x.s === "done").length, due = done + days.filter(x => x.s === "miss").length;
+  // Days it isn't on the list, rest days and today (still to do) don't break the streak.
+  let streak = 0; const x = new Date(d0);
+  for (let g = 0; g < 3650; g++) { const s = stat(x); if (s === "done") streak++; else if (s === "miss") break; if (dkey(x) <= start) break; x.setDate(x.getDate() - 1); }
+  let best = 0, run = 0; const c = keyToDate(start);
+  for (let g = 0; g < 3650 && dkey(c) <= today; g++) { const s = stat(c); if (s === "done") best = Math.max(best, ++run); else if (s === "miss") run = 0; c.setDate(c.getDate() + 1); }
+  return { days, done, due, pct: due ? Math.round(100 * done / due) : null, streak, best };
+}
+function renderHabitSheet(id, keep) {
+  const h0 = habitById(id); if (!h0) { closeSheet(); return; }
+  const { i, b } = h0, d = routineDate(), body = $("shBody"), top = keep ? body.scrollTop : 0, s = habitStats(i), title = itemTitle(i, d);
+  $("shHead").innerHTML = sheetHead(b.icon, esc(title), `${esc(b.title)} · ${T("hsLast30")}`, null, "--green");
+  $("shClose").onclick = closeSheet;
+  if (!store.seen.habitHold) { store.seen.habitHold = 1; save(); }
+  const tiles = [{ k: T("hsPct"), v: s.pct == null ? "–" : `${s.pct}%`, i: "", c: "--green" }, { k: T("tStreak"), v: s.streak, i: "flame", c: "--orange" }, { k: T("hsBest"), v: s.best, i: "trophy", c: "--gold" }];
+  const fmt = { weekday: "short", day: "numeric", month: "short" };
+  const cells = s.days.map(x => `<i class="hs-c ${x.s}" title="${esc(x.d.toLocaleDateString(locale(), fmt))}: ${T("hsState")[x.s]}"></i>`).join("");
+  body.innerHTML = `<div class="card hist hs">
+      <div class="tiles">${tiles.map(t => `<div class="tile" style="--c:var(${t.c})"><small>${t.k}</small><b>${t.i ? I[t.i] : ""}${t.v}</b></div>`).join("")}</div>
+      <p class="ws-line">${s.due ? T("hsLine", s.done, s.due) : T("hsNew")}</p>
+      <div class="hs-grid" role="img" aria-label="${esc(T("hsGridLabel", s.done, s.due))}">${cells}</div>
+      <div class="h-foot"><span><i class="lg hs-done"></i>${T("hsState").done}</span><span><i class="lg hs-miss"></i>${T("hsState").miss}</span><span><i class="lg rest"></i>${T("lgRest")}</span><span><i class="lg hs-off"></i>${T("hsState").off}</span></div>
+    </div>${shown(i, d) ? "" : `<div class="note">${T("hsNotToday")}</div>`}`;
+  if (keep) body.scrollTop = top;
+}
+// "Habit by habit" list at the bottom of Progress: every button opens that habit's stats.
+function habitListHTML() {
+  const rows = BLOCKS.flatMap(b => b.items).map(i => { const s = habitStats(i), t = itemTitle(i, routineDate());
+    return `<button class="hs-row" type="button" data-habit="${esc(i.id)}" aria-label="${esc(t)}: ${s.pct == null ? T("hsNone") : s.pct + "%"}, ${T("streakDays", s.streak)}">
+      <span class="hs-t"><b>${esc(t)}</b><span class="bar green" aria-hidden="true"><i style="${fillPct(s.pct || 0)}"></i></span></span>
+      <span class="hs-n" aria-hidden="true">${s.pct == null ? "–" : s.pct + "%"}</span><span class="hs-fl${s.streak ? "" : " off"}" aria-hidden="true">${I.flame}${s.streak}</span></button>`; }).join("");
+  return rows ? `<div class="card hist hs-list"><div class="ws-h"><b>${T("hsListTitle")}</b><span>${T("hsLast30")}</span></div>${rows}</div>` : "";
+}
+$("shBody").addEventListener("click", e => { const r = e.target.closest("[data-habit]"); if (r) { audio(); openSheet("habit:" + r.dataset.habit); } });
+// Press and hold a habit in a section or day sheet. A right-click / long-press menu does the same.
+let holdT = null, holdXY = null, holdFired = 0;
+const holdable = t => t && sheetId && sheetId !== "weekly" && !sheetId.startsWith("habit:") && habitById(t.dataset.task);
+function openHabit(id) { holdFired = Date.now(); clearTimeout(holdT); holdT = null; buzz(15); openSheet("habit:" + id); }
+$("shBody").addEventListener("pointerdown", e => {
+  const t = e.target.closest("[data-task]"); if (!holdable(t) || (e.pointerType === "mouse" && e.button !== 0)) return;
+  holdXY = [e.clientX, e.clientY]; clearTimeout(holdT); holdT = setTimeout(() => openHabit(t.dataset.task), 550);
+});
+const holdCancel = () => { clearTimeout(holdT); holdT = null; };
+["pointerup", "pointercancel", "pointerleave"].forEach(ev => $("shBody").addEventListener(ev, holdCancel));
+$("shBody").addEventListener("pointermove", e => { if (holdT && holdXY && Math.hypot(e.clientX - holdXY[0], e.clientY - holdXY[1]) > 10) holdCancel(); });
+$("shBody").addEventListener("scroll", holdCancel, { passive: true });
+$("shBody").addEventListener("contextmenu", e => { const t = e.target.closest("[data-task]"); if (!holdable(t)) return; e.preventDefault(); if (Date.now() - holdFired > 1000) openHabit(t.dataset.task); });
+// The finger lifting after a hold must not also tick the habit.
+$("shBody").addEventListener("click", e => { if (Date.now() - holdFired < 800) { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
 
 const countItem = id => { for (const b of BLOCKS) { const i = b.items.find(x => x.id === id); if (i) return i.goal ? i : null; } return null; };
 // +1 or −1 on a count habit that isn't finished by this tap. −1 on a finished one unticks it.
@@ -1384,7 +1445,7 @@ $("fileBackup").addEventListener("change", e => readFile(e.target, text => {
 /* ================= Bottom navigation ================= */
 // Today, History, Badges and Settings are one tap away, even with a sheet open; the tab bar sits above sheets.
 const ROUTINE_SHEETS = ["routine", "editor", "packs", "wosetup", "skinsetup"];
-const tabOf = id => !id ? "home" : id === "history" || id.startsWith("day:") ? "history" : id === "me" ? "me"
+const tabOf = id => !id ? "home" : id.startsWith("habit:") ? tabOf(parentSheet) : id === "history" || id.startsWith("day:") ? "history" : id === "me" ? "me"
   : ROUTINE_SHEETS.includes(id) ? "routine" : id === "settings" || id.startsWith("lock:") ? "settings" : "home";
 function syncTabs() {
   const cur = tabOf(sheetId);
