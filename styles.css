@@ -66,7 +66,7 @@ button:focus-visible,summary:focus-visible,input:focus-visible{outline:3px solid
 @keyframes bob{50%{transform:translateY(-4px)}}
 .mascot.jump .mbody{animation:jump .55s cubic-bezier(.3,1.4,.5,1)}
 @keyframes jump{0%{transform:scale(1.08,.9)}35%{transform:translateY(-22px) scale(.95,1.06)}70%{transform:translateY(0) scale(1.06,.94)}100%{transform:none}}
-.mascot .e-happy,.mascot .e-sleep,.mascot .mo-big,.mascot .mo-flat,.mascot .zz{display:none}
+.mascot .e-happy,.mascot .e-sleep,.mascot .mo-big,.mascot .mo-flat,.mascot .mo-hmm,.mascot .zz{display:none}
 .mascot.happy .e-open,.mascot.cheer .e-open,.mascot.sleepy .e-open{display:none}
 .mascot.happy .e-happy,.mascot.cheer .e-happy{display:inline}
 .mascot.happy .mo-smile,.mascot.cheer .mo-smile,.mascot.sleepy .mo-smile{display:none}
@@ -144,7 +144,7 @@ button:focus-visible,summary:focus-visible,input:focus-visible{outline:3px solid
 .medal span svg{width:22px;height:22px;fill:currentColor}
 .badge.locked .medal{background:var(--soft);box-shadow:0 5px 0 var(--line)}
 .badge.locked .medal span{color:var(--muted)}
-.badge .bn{font-size:13px;font-weight:900;line-height:1.2;margin-top:6px}
+.badge .bn{font-size:13px;font-weight:900;line-height:1.2;margin-top:2px}
 .badge .bh{font-size:12.5px;color:var(--muted);line-height:1.25}
 .badge.locked .bn{color:var(--muted)}
 
@@ -416,7 +416,7 @@ body.sheet-top .scrim{z-index:74} body.sheet-top .sheet{z-index:75}
 .look{animation:look 9s ease-in-out infinite;transform-box:fill-box}
 @keyframes look{0%,40%,100%{transform:translate(0,0)}45%,55%{transform:translate(-2.5px,0)}60%,70%{transform:translate(2.5px,-1px)}75%{transform:translate(0,0)}}
 .mascot.think .look{animation:none;transform:translate(2px,-3px)}
-.mascot.think .mo-smile{display:none} .mascot.think .mo-flat{display:inline}
+.mascot.think .mo-smile{display:none} .mascot.think .mo-hmm{display:inline}
 .bubble .tw::after{content:"";display:inline-block;width:2px;height:1em;margin-left:2px;vertical-align:-2px;background:currentColor;animation:caret .6s steps(2) infinite}
 @keyframes caret{50%{opacity:0}}
 /* ===== Colour themes: each one tints the page, cards, lines and text, not just the buttons ===== */
@@ -672,8 +672,24 @@ button:disabled,.btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;tra
 /* reward progress on locked badges */
 .badge .bp{display:flex;align-items:center;gap:6px;width:100%;max-width:120px;font-size:12px;font-weight:900;color:var(--muted)}
 .badge .bp .bar{flex:1;height:7px;border-radius:99px;background:var(--line);overflow:hidden}
-.badge .bp .bar i{display:block;height:100%;background:var(--gold);border-radius:99px}
-.badge .bp.done{justify-content:center;color:var(--gold-ink)}
+.badge .bp.near b{color:var(--gold-ink)}
+.badge .bp.near .bar{box-shadow:0 0 0 2px var(--gold-soft)}
+/* Earned: a gold ribbon with the day it was earned, sparkles and a shine on the medal */
+.badge .bp.won{justify-content:center;gap:4px;width:auto;max-width:none;padding:4px 10px 4px 8px;border-radius:999px;background:var(--gold);color:var(--on-gold);box-shadow:0 3px 0 var(--gold-d);white-space:nowrap}
+.badge .bp.won svg{flex:none;width:14px;height:14px;fill:currentColor}
+.medal-wrap{position:relative;display:grid;place-items:center;width:84px;height:76px}
+.badge.won .medal{position:relative;overflow:hidden}
+.badge.won .medal::after{content:"";position:absolute;inset:-30%;background:linear-gradient(115deg,transparent 40%,var(--shine) 50%,transparent 60%);transform:translateX(-120%);animation:shine 3.6s ease-in-out infinite}
+@keyframes shine{0%,62%{transform:translateX(-120%)}86%,100%{transform:translateX(120%)}}
+.spk{position:absolute;display:block;color:var(--gold);pointer-events:none}
+.spk svg{display:block;width:100%;height:100%;fill:currentColor}
+.spk.s1{width:14px;height:14px;top:2px;right:6px;animation:twinkle 2.4s ease-in-out infinite}
+.spk.s2{width:10px;height:10px;bottom:10px;left:6px;animation:twinkle 2.4s ease-in-out 1.2s infinite}
+@keyframes twinkle{0%,100%{opacity:.25;transform:scale(.7)}50%{opacity:1;transform:scale(1.1)}}
+.b-new{position:absolute;top:-2px;left:-4px;padding:2px 8px;border-radius:999px;background:var(--danger);color:var(--on-danger);font-size:11.5px;font-weight:900;box-shadow:0 2px 0 var(--danger-d);transform:rotate(-8deg)}
+.badge.won .bn{color:var(--ink)}
+.b-when{margin-top:-2px;font-size:12px;font-weight:800;color:var(--muted)}
+@media (prefers-reduced-motion: reduce){.badge.won .medal::after{animation:none;display:none}.spk{animation:none;opacity:.9}}
 /* info: first-time tips (one at a time, dismissed for good) */
 .coach{position:relative;display:flex;align-items:center;gap:10px;margin:10px 0;padding:10px 10px 10px 12px;border:2px solid var(--info);border-radius:14px;background:var(--info-soft);color:var(--ink)}
 .coach::before{content:"";position:absolute;top:-8px;left:28px;width:12px;height:12px;background:var(--info-soft);border-left:2px solid var(--info);border-top:2px solid var(--info);transform:rotate(45deg)}
