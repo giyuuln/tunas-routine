@@ -761,8 +761,8 @@ details.set-group.fold[open] > summary{padding:4px 0}
 
 /* Bottom navigation: one tap to Today, History, Badges or Settings; it stays above sheets so they switch in place */
 :root{--tab-h:calc(62px + env(safe-area-inset-bottom,0px))}
-.tabbar{position:fixed;z-index:58;left:0;right:0;bottom:0;height:var(--tab-h);display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding:4px 8px env(safe-area-inset-bottom,0px);background:var(--card);border-top:2px solid var(--line)}
-.tabbar button{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:48px;padding:0 4px;border:0;border-radius:14px;background:none;color:var(--muted);font:inherit;font-size:12.5px;font-weight:800;white-space:nowrap;cursor:pointer}
+.tabbar{position:fixed;z-index:58;left:0;right:0;bottom:0;height:var(--tab-h);display:grid;grid-template-columns:repeat(5,minmax(0,1fr));padding:4px 4px env(safe-area-inset-bottom,0px);background:var(--card);border-top:2px solid var(--line)}
+.tabbar button{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:48px;padding:0 2px;border:0;border-radius:14px;background:none;color:var(--muted);font:inherit;font-size:12px;font-weight:800;white-space:nowrap;cursor:pointer}
 .tabbar .tb-ico{display:grid;place-items:center;width:44px;height:28px;border-radius:999px;transition:background-color .15s ease-out}
 .tabbar svg{width:22px;height:22px;fill:currentColor}
 .tabbar [aria-current="page"]{color:var(--green-ink)}
@@ -774,3 +774,29 @@ body.sheet-top .sheet{bottom:0;max-height:88dvh}
 body{padding-bottom:calc(var(--tab-h) + 40px)}
 @media (prefers-reduced-motion: reduce){.tabbar .tb-ico{transition:none}}
 .tabbar .tb-count:empty{display:none}
+
+/* Five tabs: Routine, Me and Settings pages */
+.sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.bk-last.due{color:var(--warn-ink);font-weight:900}
+.rt-meta{margin:0;font-size:13.5px;font-weight:800;color:var(--muted)}
+.rt-sub{margin:8px 0 0;font-size:15px;font-weight:900}
+.sw-row.inline{padding:12px 0;border-block:2px solid var(--line)}
+.me-card{display:flex;align-items:center;gap:12px;padding:16px}
+.me-av{flex:none;width:84px;height:84px}
+.me-id{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
+.me-name{font-family:var(--display);font-weight:700;font-size:20px;padding:8px 12px}
+.me-lv{margin:0;font-size:15px}
+.me-lv b{font-weight:900} .me-lv span{color:var(--green-ink);font-weight:900}
+.me-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.me-stat{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 4px;border:2px solid var(--line);border-radius:16px;background:var(--card);text-align:center;font-size:12px;font-weight:800;color:var(--muted);line-height:1.2}
+.me-n{display:flex;align-items:center;gap:4px;color:var(--ink);font-family:var(--display);font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.me-n svg{width:18px;height:18px;fill:var(--gold)}
+.me-stat:nth-child(1) .me-n svg,.me-stat:nth-child(2) .me-n svg{fill:var(--orange)}
+.me-stat:nth-child(3) .me-n svg{fill:var(--green)}
+.me-trophy{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.me-th{display:flex;align-items:baseline;justify-content:space-between}
+.me-th h3{margin:0;font-family:var(--display);font-weight:700;font-size:20px}
+.me-th span{font-weight:900;color:var(--gold-ink);font-variant-numeric:tabular-nums}
+.me-trophy .bgrid{padding:8px 0}
+@media (max-width:340px){.me-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.tabbar button{font-size:11.5px}}
+

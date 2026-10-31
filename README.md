@@ -15,7 +15,7 @@ A cute, gamified daily routine tracker that you can install on your phone. Tunas
 - **Continue button and home-screen shortcuts:** long-press the app icon for Today, Workout, Night or History
 - **Routine editor:** add, rename, reorder and delete sections, habits, workouts and weekly tasks right in the app
 - **Welcome screen and 4 templates:** Student, Worker, Fitness and Simple, so new users start in seconds
-- **English and Bahasa Melayu:** switch anytime in Settings
+- **English and Bahasa Melayu:** switch anytime in the Settings tab
 - **Share button:** send the app to friends from the phone's share sheet
 - **Works offline** and installs like a normal app
 - **Private:** no account, no server. Everything is saved on your phone only.
@@ -33,10 +33,10 @@ Open **https://tunas.amkaz.dev** on your phone, then:
 
 On first open, Tunas asks your name and language, then what you want help with. Pick a few **habit packs** (30 to choose from: skincare, water, sleep, solat, study, money, pet care and more), tell it when you wake up, go to bed and work or study, and it builds your routine on the phone. Pick **Skincare** and it asks your skin type, how many steps you want (Basic, Standard or Full) and what you want to work on, then builds morning and night steps with serums and treatment nights that fit. Pick **Workouts** and it also asks your level (newbie, intermediate or regular), home or gym (with a suggestion for your level) and what equipment you have, then builds a plan from bodyweight, bands, dumbbells, a pull-up bar or gym machines. Prefer a full routine? Tap **Use a ready-made routine instead**. After that:
 
-- **Gear → Habit packs** to add more packs or remove one (its habits, weekly tasks, tips and guide topics go; your history stays)
-- **Gear → Edit routine** to change any section, habit, time, workout, weekly task, and the **Guide** tab for your own guide and daily tips
-- **Gear → Start a new routine** to start over with packs or a template (your XP and streak stay)
-- **Gear → Import routine file** if someone gave you a routine `.json` (or tap **Paste**)
+- **Routine tab → Habit packs** to add more packs or remove one (its habits, weekly tasks, tips and guide topics go; your history stays)
+- **Routine tab → Edit routine** to change any section, habit, time, workout, weekly task, and the **Guide** tab for your own guide and daily tips
+- **Routine tab → Start a new routine** to start over with packs or a template (your XP and streak stay)
+- **Routine tab → Import routine file** if someone gave you a routine `.json` (or tap **Paste**)
 
 The routine is saved in the app on your phone. **Download my routine** saves a copy, and **Download backup** saves your XP, streak and workout logs.
 
@@ -46,7 +46,7 @@ The routine is saved in the app on your phone. **Download my routine** saves a c
 
 ## Routine file format
 
-The easiest way to get a routine file is **Gear → Download my routine** after editing in the app. The templates in [`templates.js`](templates.js) use the same structure, with `{ "en": …, "ms": … }` pairs for both languages.
+The easiest way to get a routine file is **Routine tab → Download my routine** after editing in the app. The templates in [`templates.js`](templates.js) use the same structure, with `{ "en": …, "ms": … }` pairs for both languages.
 
 ```json
 {
@@ -87,7 +87,7 @@ The easiest way to get a routine file is **Gear → Download my routine** after 
 | `target: 8` | A count habit: tap +1 each time (with a − button to take one off); it ticks when it reaches the target (2–99) |
 | `pack` | On habits, weekly tasks, workouts and guide sections: which pack added it, so removing the pack removes it. Leave it out for your own items |
 | `packs` / `day` | Packs in use, and the wake/sleep/busy hours used to place habits from new packs (see [`packs.js`](packs.js)) |
-| `fitness` | Workout setup: `level` `new`/`mid`/`pro`, `place` `home`/`gym`, `gear` any of `db`, `band`, `bar`. **Gear → Habit packs → Change workout setup** rebuilds the pack's workouts; logs stay |
+| `fitness` | Workout setup: `level` `new`/`mid`/`pro`, `place` `home`/`gym`, `gear` any of `db`, `band`, `bar`. **Routine tab → Habit packs → Change workout setup** rebuilds the pack's workouts; logs stay |
 | `skin` | Skincare setup: `type` `oily`/`dry`/`combo`/`normal`/`sensitive`/`unsure`, `level` `basic`/`std`/`full`, `concerns` any of `acne`, `spots`, `dull`, `dry`, `oil`, `lines`. **Change skincare setup** rebuilds the pack's habits; ticks stay |
 | `onDays` (habit) | Show only on these weekdays, `0` = Sunday (e.g. retinoid nights `[1, 3, 6]`) |
 | `sets` (workout) | Sets per exercise (1–5). Without it: 2 sets for the first 4 weeks, then 3 |
