@@ -257,6 +257,16 @@ button:focus-visible,summary:focus-visible,input:focus-visible{outline:3px solid
 .restbar .rl b{display:block;color:var(--ink);font-size:14px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .restbar .bar{height:10px;margin-top:6px} .restbar .bar i{background:var(--green)} .restbar .bar i::after{display:none}
 /* "New version ready" banner */
+/* Focus timer bar: same shape as the rest bar; sits above it if both run. */
+.focusbar.brk .rt{color:var(--sky-d)} .focusbar.brk .bar i{background:var(--sky)}
+.restbar:not([hidden]) ~ .focusbar{bottom:calc(var(--tab-h) + 72px)}
+.ft-ico{flex:none;width:44px;height:44px;border-radius:12px;border:2px solid var(--line);box-shadow:0 4px 0 var(--line);background:var(--card);color:var(--ink);display:grid;place-items:center;cursor:pointer}
+.ft-ico svg{width:20px;height:20px;fill:currentColor}
+.ft-ico:active{transform:translateY(3px);box-shadow:0 1px 0 var(--line)}
+.btn.ft-go{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;margin-top:-2px}
+.btn.ft-go svg{width:16px;height:16px;fill:currentColor}
+body.ft-on .sh-body{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
+body.ft-on{padding-bottom:calc(var(--tab-h) + 120px)}
 .updbar{position:fixed;z-index:65;left:0;right:0;bottom:var(--tab-h);padding:0 12px calc(12px + env(safe-area-inset-bottom,0px));pointer-events:none}
 .updbar .in{pointer-events:auto;max-width:520px;margin:0 auto;display:flex;align-items:center;gap:10px;background:var(--card);border:2px solid var(--line);box-shadow:0 4px 0 var(--line);border-radius:18px;padding:10px 10px 10px 12px;animation:upin .4s cubic-bezier(.2,1.4,.4,1)}
 .updbar .ui{flex:none;width:36px;height:36px;border-radius:11px;background:var(--green);display:grid;place-items:center}
