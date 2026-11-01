@@ -31,6 +31,8 @@ const I = {
   up:'<svg viewBox="0 0 24 24"><path d="M12 6 5 13l1.4 1.4L11 9.8V20h2V9.8l4.6 4.6L19 13z"/></svg>',
   down:'<svg viewBox="0 0 24 24"><path d="m12 18 7-7-1.4-1.4-4.6 4.6V4h-2v10.2l-4.6-4.6L5 11z"/></svg>',
   dots:'<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>',
+  play:'<svg viewBox="0 0 24 24"><path d="M8 5.5v13a1 1 0 0 0 1.5.9l10-6.5a1 1 0 0 0 0-1.7l-10-6.5A1 1 0 0 0 8 5.5z"/></svg>',
+  pause:'<svg viewBox="0 0 24 24"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></svg>',
   plus:'<svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>',
   sndOn:'<svg viewBox="0 0 24 24"><path d="M3 9h4l5-4v14l-5-4H3zM15.5 8.5a5 5 0 0 1 0 7l-1.4-1.4a3 3 0 0 0 0-4.2zM18.4 5.6a9 9 0 0 1 0 12.8L17 17a7 7 0 0 0 0-9.9z"/></svg>',
   sndOff:'<svg viewBox="0 0 24 24"><path d="M3 9h4l5-4v14l-5-4H3zM15 9.4l1.4-1.4 2.1 2.1 2.1-2.1L22 9.4l-2.1 2.1 2.1 2.1-1.4 1.4-2.1-2.1-2.1 2.1-1.4-1.4 2.1-2.1z"/></svg>',
@@ -543,6 +545,52 @@ function tickRest() { const left = Math.max(0, restEnd - Date.now()); $("restTim
 $("restSkip").onclick = () => { clearInterval(restT); restT = null; $("restbar").hidden = true; };
 $("restPlus").onclick = () => { if (!restT) return startRest(15, $("restLabel").textContent.split(" · ").slice(1).join(" · ")); restEnd += 15000; restTotal += 15; };
 
+/* ================= Focus timer (25 / 5) ================= */
+// For the focus-hour habit: 25 minutes of focus, then a 5 minute break. At zero Tunas ticks the habit.
+// It runs on end times, not a counter, so it keeps going while the phone is locked or the app is closed.
+const FT_KEY = "tunas-focus-timer", FT_FOCUS = 25 * 60, FT_BREAK = 5 * 60;
+// A damaged timer is just dropped: it only holds a few minutes of state, nothing worth keeping.
+let ft = (() => { try { const v = JSON.parse(storeGet(FT_KEY)); if (v && typeof v.id === "string" && /^\d{4}-\d\d-\d\d$/.test(v.day) && (v.ph === "focus" || v.ph === "break") && +v.tot > 0 && (+v.end > 0 || +v.left > 0)) return v; } catch (e) {} storeDel(FT_KEY); return null; })(), ftT = null;
+const ftBuzz = p => { if (!navigator.userActivation || navigator.userActivation.hasBeenActive) buzz(p); };
+const ftSave = () => { if (ft) storeSet(FT_KEY, JSON.stringify(ft)); else storeDel(FT_KEY); };
+const ftLeft = () => (ft.end ? Math.max(0, ft.end - Date.now()) : Math.max(0, +ft.left || 0));
+const ftOn = id => !!ft && (!id || (ft.ph === "focus" && ft.id === id && ft.day === dkey(routineDate())));
+function startFocus(id) {
+  if (!habitById(id)) return;
+  audio(); ft = { id, day: dkey(routineDate()), ph: "focus", end: Date.now() + FT_FOCUS * 1000, tot: FT_FOCUS }; ftSave();
+  sfx("ding"); buzz(12); const m = T("ftSay"); say(m[0], m[1], "cheer", 3500); jump($("mascot"));
+  ftRun(); if (sheetId) renderSheet(true);
+}
+function ftRun() { clearInterval(ftT); ftT = null; if (!ft) { $("focusbar").hidden = true; document.body.classList.remove("ft-on"); return; } ftDraw(); ftT = setInterval(ftTick, 250); ftTick(); }
+function ftDraw() {
+  const h = habitById(ft.id), title = h ? itemTitle(h.i, keyToDate(ft.day)) : "", brk = ft.ph === "break", paused = !ft.end;
+  $("focusbar").innerHTML = `<div class="in"><div class="rt" role="timer" id="ftTime"></div>
+    <div class="rl"><b>${brk ? T("ftBreak") : `${T("ftFocus")}${title ? " · " + esc(title) : ""}`}</b><span>${paused ? T("ftPaused") : brk ? T("ftBreakSub") : T("ftFocusSub")}</span><div class="bar"><i id="ftFill"></i></div></div>
+    ${brk ? "" : `<button class="ft-ico" type="button" id="ftPause" aria-label="${paused ? T("ftResume") : T("ftPause")}" title="${paused ? T("ftResume") : T("ftPause")}">${paused ? I.play : I.pause}</button>`}
+    ${brk ? `<button class="btn ghost small" type="button" id="ftStop">${T("skip")}</button>` : `<button class="ft-ico" type="button" id="ftStop" aria-label="${T("ftStop")}" title="${T("ftStop")}">${I.x}</button>`}</div>`;
+  $("focusbar").setAttribute("aria-label", T("ftTimer")); $("focusbar").classList.toggle("brk", brk); $("focusbar").hidden = false; document.body.classList.add("ft-on");
+  const pb = $("ftPause"); if (pb) pb.onclick = () => { if (!ft) return; if (ft.end) { ft.left = ftLeft(); delete ft.end; } else { ft.end = Date.now() + ft.left; delete ft.left; } ftSave(); ftDraw(); ftTick(); };
+  $("ftStop").onclick = () => { ft = null; ftSave(); ftRun(); if (sheetId) renderSheet(true); };
+}
+function ftTick() {
+  if (!ft) return;
+  const left = ftLeft(); $("ftTime").textContent = fmtTime(left); setFill($("ftFill"), 100 * (1 - left / (ft.tot * 1000)));
+  if (left > 0) return;
+  if (ft.ph === "focus") {
+    const h = habitById(ft.id), day = (store.days[ft.day] ||= {}), fresh = h && !day[ft.id];
+    if (fresh) { day[ft.id] = true; if (h.i.goal) delete (store.counts[ft.day] || {})[ft.id]; save(); }
+    // The break starts when focus ended, so coming back late doesn't add a fresh 5 minutes.
+    const ended = ft.end || Date.now(); ft = { id: ft.id, day: ft.day, ph: "break", end: ended + FT_BREAK * 1000, tot: FT_BREAK }; ftSave();
+    sfx("level"); ftBuzz([200, 100, 200]); const title = h ? esc(itemTitle(h.i, keyToDate(ft.day))) : "";
+    toast(fresh ? T("ftDone", title) : T("ftDoneAlready"), "check", 4500); say(T("ftDoneSay")[0], T("ftDoneSay")[1], "cheer", 4000); jump($("mascot"));
+    ftDraw(); if (booted) refresh(true); ftTick(); return;
+  }
+  clearInterval(ftT); ftT = null; ft = null; ftSave(); sfx("beep"); ftBuzz([200, 100, 200]); toast(T("ftBreakOver"), "star", 3500);
+  $("ftTime").textContent = "0:00"; setTimeout(() => { if (!ft) { $("focusbar").hidden = true; document.body.classList.remove("ft-on"); } }, 2500);
+  if (sheetId) renderSheet(true);
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden && ft) ftTick(); });
+
 /* ================= Rendering: main page ================= */
 let lastS = null;
 // Top-bar numbers roll up to their new value and bump, so every tick visibly pays out.
@@ -851,6 +899,7 @@ function renderSheet(keep) {
       if (i.hide && i.hide.includes(d.getDay())) { h += `<div class="note">${esc(CFG.hideNote || T("hideNote"))}</div>`; return; }
       const tag = i.key ? `<span class="qtag">★ +${XP.key}</span>` : i.alt ? `<span class="qtag alt">${T("every2")}</span>` : "";
       h += taskHTML(i, !!done[i.id], tag, today);
+      if (i.dyn && !done[i.id] && !ftOn()) h += `<button class="btn ghost small ft-go" type="button" data-focus="${esc(i.id)}">${I.play}${T("ftStart", FT_FOCUS / 60)}</button>`;
     });
     if (!store.seen.habitHold) h += `<div class="note hs-tip">${T("hsTip")}</div>`;
   } else if (node.kind === "weekly") {
@@ -996,6 +1045,7 @@ $("shBody").addEventListener("click", e => {
   const wk = e.target.closest("[data-wkday]"); if (wk) { const k = +wk.dataset.wkday; return saveWeek(A => ({ ...A, days: toggleDay((A && weekdays(A.days)) || WEEKDAYS, k).sort() })); }
   const act = e.target.closest("[data-act]"); if (act) return settingsAction(act.dataset.act, act);
   const r = e.target.closest("[data-rest]"); if (r) { startRest(+r.dataset.rest, r.dataset.label); return; }
+  const fo = e.target.closest("[data-focus]"); if (fo) return startFocus(fo.dataset.focus);
   const cm = e.target.closest("[data-cminus]"); if (cm) return countStep(cm.dataset.cminus, -1, cm);
   const t = e.target.closest("[data-task]"); if (!t) return;
   const id = t.dataset.task, dayKey = sheetId.startsWith("day:") ? sheetId.slice(4) : dkey(routineDate()), d = keyToDate(dayKey), v = t.getAttribute("aria-checked") !== "true";
@@ -2324,7 +2374,7 @@ function showRescue() {
     downloadText(`tunas-rescue-${dkey(new Date())}.json`, JSON.stringify(all, null, 2), "application/json"); };
 }
 let booted = false;
-try { applyStatic(); resetIdle(); renderGuide(); refresh(); booted = true; }
+try { applyStatic(); resetIdle(); renderGuide(); refresh(); booted = true; if (ft) ftRun(); }
 catch (e) { logError("boot", e); showRescue(); }
 [...new Set(notices)].forEach(k => setTimeout(() => toast(T(k), "x", 6500), 800));
 $("mascot").setAttribute("role", "button"); $("mascot").setAttribute("tabindex", "0"); $("mascot").setAttribute("aria-label", T("tunasLabel")); $("mascot").removeAttribute("aria-hidden");

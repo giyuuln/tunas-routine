@@ -11,6 +11,7 @@ A cute, gamified daily routine tracker that you can install on your phone. Tunas
 - **Phone reminders:** add each section to Google Calendar in one tap, or download an `.ics` file
 - **Tick all:** finish a whole section in one tap
 - **Count habits:** give a habit a target like 8 glasses of water and tap +1 each time
+- **Focus timer:** start a 25-minute focus round from the focus-hour habit; Tunas ticks it at zero and gives you a 5-minute break
 - **Rest days:** protect your streak when you're sick or busy (2 per month)
 - **Continue button and home-screen shortcuts:** long-press the app icon for Today, Workout, Night or History
 - **Routine editor:** add, rename, reorder and delete sections, habits, workouts and weekly tasks right in the app
