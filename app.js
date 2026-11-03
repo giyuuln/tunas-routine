@@ -2239,8 +2239,9 @@ function nextCele() {
   const el = $("cele"); el.hidden = false;
   el.innerHTML = `${c.art || `<div class="mascot cheer" id="celeMascot">${MASCOT}</div>`}<h2 class="${c.color || ""}">${c.title}</h2><p>${c.sub}</p>
     ${c.tiles.length ? `<div class="tiles">${c.tiles.map(t => `<div class="tile" style="--c:var(${t.c})"><small>${t.k}</small><b>${t.i ? I[t.i] : ""}${t.v}</b></div>`).join("")}</div>` : ""}
-    <button class="btn" type="button" id="celeGo">${c.btn || T("cont")}</button>`;
+    <button class="btn" type="button" id="celeGo">${c.btn || T("cont")}</button>${c.alt ? `<button class="linkish" type="button" id="celeAlt">${c.alt.t}</button>` : ""}`;
   $("celeGo").onclick = nextCele; $("celeGo").focus({ preventScroll: true });
+  if (c.alt) $("celeAlt").onclick = () => { nextCele(); c.alt.go(); };
   if ($("celeMascot")) jump($("celeMascot")); sfx(c.sound || "clear"); buzz([30,60,30]); confetti();
 }
 
@@ -2255,7 +2256,9 @@ function checkRecap() {
   const ids = itemsFor(y), done = store.days[yk] || {}, n = ids.filter(id => done[id]).length, pct = ids.length ? Math.round(100 * n / ids.length) : 0;
   const stars = nodesFor(y).reduce((s2, nd) => s2 + starsFor(nodeState(nd, y)), 0), S = lastS || computeAll();
   const xp = dayXP(yk, computePRs().byDay), rest = isRest(y);
-  queueCele({ title: T(rest ? "recapRestTitle" : n ? "recapTitle" : "recapQuietTitle", firstName()), sub: T(rest ? "recapRestSub" : pct >= 80 ? "recapGoodSub" : n ? "recapOkSub" : "recapQuietSub"), color: "sky", sound: "ding",
+  // Forgot to tick something yesterday? Offer to open yesterday's day sheet and fix it.
+  const left = rest ? 0 : ids.length - n, alt = left ? { t: T("fixYday", left), go: () => { audio(); openSheet("day:" + yk); } } : null;
+  queueCele({ title: T(rest ? "recapRestTitle" : n ? "recapTitle" : "recapQuietTitle", firstName()), sub: T(rest ? "recapRestSub" : pct >= 80 ? "recapGoodSub" : n ? "recapOkSub" : "recapQuietSub"), color: "sky", sound: "ding", alt,
     tiles: [{ k: T("tDone"), v: `${pct}%`, i: "", c: "--green" }, { k: T("tStars"), v: stars, i: "star", c: "--gold" }, { k: T("tXP"), v: `+${xp}`, i: "bolt", c: "--gold" }, { k: T("tStreak"), v: S.streak, i: "flame", c: "--orange" }] });
 }
 
