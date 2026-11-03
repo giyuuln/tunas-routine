@@ -96,7 +96,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.10.31e";
+const APP_VERSION = "2026.11.03";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -161,6 +161,23 @@ function applyTheme(id, persist) {
   if (persist) { try { localStorage.setItem(THEME_KEY, t.id); } catch (e) {} }
 }
 applyTheme(THEME, false);
+/* ================= Display comfort: light/dark and text size ================= */
+// Kept on this phone only (like the colour theme): appearance follows the phone unless picked here, and text can be made bigger.
+const LOOK_KEY = "tunas-look", MODES = ["system", "light", "dark"], TEXTS = ["normal", "large"];
+let LOOK = { mode: "system", text: "normal" };
+try { const v = JSON.parse(localStorage.getItem(LOOK_KEY) || "{}") || {}; if (MODES.includes(v.mode)) LOOK.mode = v.mode; if (TEXTS.includes(v.text)) LOOK.text = v.text; } catch (e) {}
+function applyLook(persist) {
+  const r = document.documentElement;
+  if (LOOK.mode === "system") delete r.dataset.theme; else r.dataset.theme = LOOK.mode;
+  if (LOOK.text === "large") r.dataset.text = "large"; else delete r.dataset.text;
+  if (persist) { try { localStorage.setItem(LOOK_KEY, JSON.stringify(LOOK)); } catch (e) {} }
+}
+applyLook(false);
+const segLook = (key, list, label) => `<div class="seg" role="group" aria-label="${label}">${list.map(v => `<button type="button" data-look="${key}:${v}" aria-pressed="${LOOK[key] === v}">${T("look_" + v)}</button>`).join("")}</div>`;
+function setLook(pair) {
+  const [k, v] = pair.split(":"); if (!((k === "mode" && MODES.includes(v)) || (k === "text" && TEXTS.includes(v))) || LOOK[k] === v) return;
+  LOOK[k] = v; applyLook(true); sfx("ding");
+}
 const themePicker = () => `<div class="swatches" role="group" aria-label="${T("theme")}">${THEMES.map(t => `<button type="button" class="swatch" data-theme-pick="${t.id}" aria-pressed="${THEME === t.id}" style="--sw:${t.c}"><i></i><span>${T("themeNames")[t.id]}</span><small>${T("themeTags")[t.id]}</small></button>`).join("")}</div>`;
 function pickTheme(id) { applyTheme(id, true); sfx("ding"); jump($("mascot")); say(T("themeHello"), T("themeTagLine", T("themeTags")[THEME]), "cheer", 3500); }
 
@@ -400,10 +417,12 @@ function sfx(kind) {
   } catch (e) {}
 }
 function buzz(p) { try { navigator.vibrate && navigator.vibrate(p || 12); } catch (e) {} }
+// Large text zooms the body, so screen positions are turned back into the body's own pixels before placing effects on it.
+const bodyZoom = () => document.body.currentCSSZoom || 1;
 function flyXP(from) {
   const to = $("stXP").getBoundingClientRect(); if (reduced() || !to.width) return;
   const o = document.createElement("div"); o.className = "xpfly"; o.innerHTML = I.bolt;
-  const x0 = from.right - 40, y0 = from.top + from.height / 2 - 14, dx = to.left + 4 - x0, dy = to.top + to.height / 2 - 14 - y0;
+  const z = bodyZoom(), x0 = (from.right - 40) / z, y0 = (from.top + from.height / 2 - 14) / z, dx = (to.left + 4) / z - x0, dy = (to.top + to.height / 2 - 14) / z - y0;
   o.style.left = x0 + "px"; o.style.top = y0 + "px"; document.body.appendChild(o);
   const dur = 620; xpFlying = Date.now() + dur;
   const a = o.animate([{ transform: "translate(0,0) scale(.6)", opacity: 0 }, { transform: `translate(${dx * .35}px,${dy * .35 - 40}px) scale(1.15)`, opacity: 1, offset: .35 },
@@ -411,7 +430,7 @@ function flyXP(from) {
   a.onfinish = () => { o.remove(); buzz(8); };
 }
 function floatXP(x, y, text) { if (reduced()) return; const f = document.createElement("div"); f.className = "fx"; f.textContent = (THEME === "sakura" ? "♥ " : THEME === "ungu" ? "⚡ " : THEME === "langit" ? "~ " : "") + text;
-  f.style.left = Math.max(8, Math.min(innerWidth - 90, x)) + "px"; f.style.top = (y - 14) + "px"; document.body.appendChild(f); setTimeout(() => f.remove(), 950); }
+  const z = bodyZoom(); f.style.left = Math.max(8, Math.min(innerWidth / z - 90, x / z)) + "px"; f.style.top = (y / z - 14) + "px"; document.body.appendChild(f); setTimeout(() => f.remove(), 950); }
 function toast(html, icon, ms, action) { const t = document.createElement("div"); t.className = "toast" + (icon === "x" ? " err" : ""); t.innerHTML = `<i>${I[icon || "star"]}</i><span>${html}</span>`;
   if (action) { const b = document.createElement("button"); b.type = "button"; b.className = "toast-act"; b.textContent = action.label;
     b.onclick = () => { t.remove(); action.fn(); }; t.appendChild(b); t.classList.add("has-act"); }
@@ -1289,6 +1308,9 @@ function renderSettings(keep) {
     <div class="set-group nofold"><h3>${T("language")}</h3>${segLang("langSeg")}</div>
     <div class="set-group nofold"><div class="sw-row"><div><h3>${T("sound")}</h3><p>${T("soundHelp")}</p></div>
       <button class="toggle" type="button" role="switch" aria-checked="${soundOn}" data-act="sound" aria-label="${T("sound")}"><i></i></button></div></div>
+    <div class="set-group nofold"><h3>${T("display")}</h3><p>${T("displayHelp")}</p>
+      <b class="look-sub">${T("appearance")}</b>${segLook("mode", MODES, T("appearance"))}
+      <b class="look-sub">${T("textSize")}</b>${segLook("text", TEXTS, T("textSize"))}</div>
     <div class="set-group${due ? " start-open" : ""}"><h3>${T("backup")}</h3><p class="bk-last${due ? " due" : ""}">${T("lastBackup", bAge)}</p><p>${T("backupHelp")}</p><p>${T("lockHelp")}</p>
       <div class="row"><button class="btn small" type="button" data-act="backup">${T("downloadBackup")}</button>
         <button class="btn ghost small" type="button" data-act="lockBackup">${T("downloadLocked")}</button>
@@ -1464,6 +1486,7 @@ $("sheet").addEventListener("click", e => { if (sheetId === "packs" || sheetId =
     if (e.target.closest("[data-packback]")) { const L = pkSteps(); PK.step = L[Math.max(0, L.indexOf(PK.step) - 1)]; return renderPackSheet(false); }
     if (e.target.closest("[data-packgo]")) return addPacksNow(); }
   const b = e.target.closest("[data-lang]"); if (b) { setLang(b.dataset.lang); return; }
+  const lk = e.target.closest("[data-look]"); if (lk) { setLook(lk.dataset.look); return renderSheet(true); }
   const t = e.target.closest("[data-theme-pick]"); if (t) { pickTheme(t.dataset.themePick); if (sheetId === "me") renderSheet(true); } });
 function readFile(input, cb, maxBytes) {
   const f = input.files && input.files[0]; if (!f) return;

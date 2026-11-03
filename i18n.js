@@ -92,6 +92,8 @@ window.TUNAS_I18N = {
     // settings
     setSub: "Language, sound, backups and help", yourName: "Your name", nameHelp: "Tunas uses it to cheer for you.", namePh: "Your name", nameSaved: "Name saved",
     language: "Language",
+    display: "Display", displayHelp: "Pick light or dark, and make the text bigger if it's hard to read. Saved on this phone only.", appearance: "Appearance", textSize: "Text size",
+    look_system: "Same as phone", look_light: "Light", look_dark: "Dark", look_normal: "Normal", look_large: "Large",
     routine: "Routine", using: "Using:", sections: (s, w) => `${s} sections, ${w} workout days`, routineLocal: "Your routine stays on this phone. It is never uploaded anywhere.",
     editRoutine: "Edit routine", importFile: "Import routine file", pasteInstead: "Paste instead", pastePh: "Paste the routine JSON here", useThis: "Use this routine",
     downloadRoutine: "Download my routine", newTemplate: "Start a new routine",
@@ -343,6 +345,8 @@ window.TUNAS_I18N = {
     restSub: "Hari rehat · streak dilindungi", todayTag: "hari ini",
     setSub: "Bahasa, bunyi, sandaran dan bantuan", yourName: "Nama kau", nameHelp: "Tunas guna nama ni untuk bersorak untuk kau.", namePh: "Nama kau", nameSaved: "Nama disimpan",
     language: "Bahasa",
+    display: "Paparan", displayHelp: "Pilih terang atau gelap, dan besarkan tulisan kalau susah nak baca. Simpan dalam telefon ni je.", appearance: "Rupa", textSize: "Saiz tulisan",
+    look_system: "Ikut telefon", look_light: "Terang", look_dark: "Gelap", look_normal: "Biasa", look_large: "Besar",
     routine: "Rutin", using: "Guna:", sections: (s, w) => `${s} bahagian, ${w} hari senaman`, routineLocal: "Rutin kau kekal dalam telefon ini. Ia tak dimuat naik ke mana-mana.",
     editRoutine: "Ubah rutin", importFile: "Import fail rutin", pasteInstead: "Tampal", pastePh: "Tampal JSON rutin di sini", useThis: "Guna rutin ini",
     downloadRoutine: "Muat turun rutin aku", newTemplate: "Mula rutin baru",

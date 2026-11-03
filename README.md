@@ -17,6 +17,7 @@ A cute, gamified daily routine tracker that you can install on your phone. Tunas
 - **Routine editor:** add, rename, reorder and delete sections, habits, workouts and weekly tasks right in the app
 - **Welcome screen and 4 templates:** Student, Worker, Fitness and Simple, so new users start in seconds
 - **English and Bahasa Melayu:** switch anytime in the Settings tab
+- **Easy on the eyes:** pick light, dark or same-as-phone, and switch to large text in Settings → Display
 - **Share button:** send the app to friends from the phone's share sheet
 - **Works offline** and installs like a normal app
 - **Private:** no account, no server. Everything is saved on your phone only.
