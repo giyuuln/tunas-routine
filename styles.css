@@ -839,3 +839,11 @@ body{padding-bottom:calc(var(--tab-h) + 40px)}
 .show-opts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
 .show-opts .day-chip{padding-inline:8px}
 
+
+/* ================= Display comfort (Settings → Display) =================
+   Large text zooms the whole app a little so every chunky button grows with the words, not just the letters.
+   zoom also scales vh units, so the sheet's height is divided back down to still fit the screen. */
+.look-sub{display:block;margin:12px 0 6px;font-size:14px;font-weight:900}
+:root[data-text="large"] body{zoom:1.15}
+:root[data-text="large"] .sheet{max-height:calc((100dvh - var(--tab-h) * 1.15 - 32px) / 1.15)}
+a:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-visible{outline:3px solid var(--green-ink);outline-offset:2px}
