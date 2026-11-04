@@ -96,7 +96,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.11.03";
+const APP_VERSION = "2026.11.04";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -147,7 +147,7 @@ const locale = () => T("locale");
 function applyStatic() {
   document.documentElement.lang = LANG === "ms" ? "ms" : "en";
   document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = T(el.dataset.i18n); });
-  $("stStreak").setAttribute("aria-label", T("streakTip")); $("stXP").setAttribute("aria-label", T("xpToday")); $("stLv").setAttribute("aria-label", T("levelTip"));
+  $("tabbar").setAttribute("aria-label", T("mainNav")); $("stStreak").setAttribute("aria-label", T("streakTip")); $("stXP").setAttribute("aria-label", T("xpToday")); $("stLv").setAttribute("aria-label", T("levelTip"));
 }
 
 /* ================= Colour themes ================= */
@@ -559,7 +559,7 @@ let restT = null, restEnd = 0, restTotal = 0, wake = null;
 const fmtTime = ms => { const s = Math.ceil(ms/1000); return `${Math.floor(s/60)}:${pad(s%60)}`; };
 async function holdWake() { try { if (!wake && navigator.wakeLock) { wake = await navigator.wakeLock.request("screen"); wake.addEventListener("release", () => { wake = null; }); } } catch (e) {} }
 function startRest(sec, label) { restTotal = sec; restEnd = Date.now() + sec*1000; $("restLabel").textContent = T("rest") + " · " + label; $("restbar").hidden = false; audio(); holdWake(); clearInterval(restT); restT = setInterval(tickRest, 250); tickRest(); }
-function tickRest() { const left = Math.max(0, restEnd - Date.now()); $("restTime").textContent = left > 0 ? fmtTime(left) : "Go!"; setFill($("restFill"), 100 * (1 - left/(restTotal*1000)));
+function tickRest() { const left = Math.max(0, restEnd - Date.now()); $("restTime").textContent = left > 0 ? fmtTime(left) : T("restGo"); setFill($("restFill"), 100 * (1 - left/(restTotal*1000)));
   if (left <= 0) { clearInterval(restT); restT = null; sfx("beep"); buzz([200,100,200]); setTimeout(() => { if (!restT) $("restbar").hidden = true; }, 2500); } }
 $("restSkip").onclick = () => { clearInterval(restT); restT = null; $("restbar").hidden = true; };
 $("restPlus").onclick = () => { if (!restT) return startRest(15, $("restLabel").textContent.split(" · ").slice(1).join(" · ")); restEnd += 15000; restTotal += 15; };
@@ -867,7 +867,7 @@ function countHTML(i, checked, tag, dayKey) {
     <span class="tm cnt-n" aria-hidden="true">${n} / ${i.goal}</span></button>${n > 0 ? `<button class="cnt-minus" type="button" data-cminus="${i.id}" aria-label="${esc(T("countMinus", i.t))}">−</button>` : ""}</div>`;
 }
 function sheetHead(icon, title, sub, st, color) {
-  return `<div class="grab"></div><div class="sh-row"><div class="sh-ico" style="background:var(${color || "--green"})">${I[icon] || I.star}</div><div><h2 id="shTitle">${title}</h2><p>${sub}</p></div><button class="x" id="shClose" type="button" aria-label="Close">${I.x}</button></div>` +
+  return `<div class="grab"></div><div class="sh-row"><div class="sh-ico" style="background:var(${color || "--green"})">${I[icon] || I.star}</div><div><h2 id="shTitle">${title}</h2><p>${sub}</p></div><button class="x" id="shClose" type="button" aria-label="${T("close")}">${I.x}</button></div>` +
     (st ? `<div class="bar green"><i style="${fillPct(st.total ? 100*st.n/st.total : 0)}"></i><b>${st.n} / ${st.total}</b></div>` : "");
 }
 // Star meter: the sheet's progress bar shows where each of the level's 3 stars is earned.
@@ -2296,7 +2296,8 @@ function weekSummary(mon) {
     if (isRest(d)) continue;
     itemsFor(d).forEach(id => { total++; if (dn[id]) done++; if (id === "wo-done") return; seen[id] = (seen[id] || 0) + 1; if (dn[id]) got[id] = (got[id] || 0) + 1; }); }
   const wk = store.weeks[dkey(mon)] || {}, wkN = Object.values(wk).filter(Boolean).length; xp += wkN * XP.weekly; if (wkN) active++;
-  const ids = Object.keys(seen), name = id => (BLOCKS.flatMap(b => b.items).find(i => i.id === id) || {}).t || "";
+  // The focus-hour habit has a different title each day, so the week calls it by its general name.
+  const ids = Object.keys(seen), name = id => { const h = habitById(id); return !h ? "" : h.i.dyn ? T("focusHabit") : h.i.t; };
   const best = ids.filter(id => got[id]).sort((a, b) => (got[b] / seen[b] - got[a] / seen[a]) || (got[b] - got[a]))[0];
   const miss = ids.filter(id => id !== best && seen[id] - (got[id] || 0) > 0).sort((a, b) => (seen[b] - (got[b] || 0)) - (seen[a] - (got[a] || 0)))[0];
   const end = new Date(mon); end.setDate(end.getDate() + 6);
@@ -2384,7 +2385,10 @@ $("stLv").onclick = () => { const S = lastS || computeAll(); toast(T("statLv", S
 const area = $("resetArea");
 function resetIdle() { area.innerHTML = `<button class="btn ghost small danger-ghost" type="button" id="resetBtn">${T("clearToday")}</button>`;
   $("resetBtn").onclick = () => { area.innerHTML = `<div class="confirm"><span>${T("clearConfirm")}</span><button class="btn small danger" id="yesBtn" type="button">${T("clear")}</button><button class="btn ghost small" id="noBtn" type="button">${T("keep")}</button></div>`;
-    $("yesBtn").onclick = () => { delete store.days[dkey(routineDate())]; save(); lastS = null; prevCleared = null; refresh(); resetIdle(); };
+    // Count habits (2 / 8 glasses) are cleared too, and Undo puts everything back for a few seconds.
+    $("yesBtn").onclick = () => { const k = dkey(routineDate()), was = { d: store.days[k], c: store.counts[k] };
+      delete store.days[k]; delete store.counts[k]; save(); lastS = null; prevCleared = null; refresh(); resetIdle();
+      offerUndo(T("clearedDay"), () => { if (was.d) store.days[k] = was.d; if (was.c) store.counts[k] = was.c; save(); sfx("undo"); lastS = null; prevCleared = null; refresh(true); }); };
     $("noBtn").onclick = resetIdle; }; }
 
 
