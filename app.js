@@ -289,8 +289,10 @@ const badgeName = id => (T("badge")[id] || [id, ""])[0], badgeHow = id => (T("ba
 const titleOf = n => { const t = T("titles"); return t[Math.min(n - 1, t.length - 1)]; };
 
 /* ================= Progress storage ================= */
+// Streak shield rules (see Streak shields). Set here because loading saved data already checks them.
+const SHIELD_MAX = 2, SHIELD_ODDS = 0.25, SHIELD_PITY = 5, SHIELD_MIN_STREAK = 2;
 let store = loadJSON(DATA_KEY, v => v && typeof v === "object" && v.days && typeof v.days === "object").value || { days:{}, weeks:{}, logs:{}, seen:{}, rest:{} };
-function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); }
+function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); }
 normStore();
 function save() { return storeSet(DATA_KEY, JSON.stringify(store)); }
 let soundOn = true; try { soundOn = localStorage.getItem(SND_KEY) !== "off"; } catch (e) {}
@@ -318,7 +320,10 @@ function xpFor(id, d) { return id === "wo-done" ? XP.workout : keyIds(d).include
 function ratio(d) { const ids = itemsFor(d), done = store.days[dkey(d)] || {}; return ids.length ? ids.filter(id => done[id]).length / ids.length : 0; }
 const REST_PER_MONTH = 2;
 const isRest = d => !!store.rest[dkey(d)];
-const dayOK = d => isRest(d) || ratio(d) >= 0.8;
+// A day counts for the streak at 80% done, as a rest day, or when a streak shield covered it (see Streak shields).
+const dayDone = d => isRest(d) || ratio(d) >= 0.8;
+const isShielded = d => !!((store.shield || {}).used || {})[dkey(d)];
+const dayOK = d => dayDone(d) || isShielded(d);
 function restsInMonth(d) { const p = dkey(d).slice(0, 7); return Object.keys(store.rest).filter(k => store.rest[k] && k.startsWith(p)).length; }
 
 /* ================= Workout records ================= */
@@ -744,10 +749,10 @@ function setRest(key, v) {
 }
 function renderStreak(S) {
   const d = routineDate(); let days = "";
-  for (let k = 6; k >= 0; k--) { const x = new Date(d); x.setDate(x.getDate() - k); const r = ratio(x), rst = isRest(x);
-    days += `<div class="day${k === 0 ? " today" : ""}${rst ? " rest" : r >= .8 ? " full" : r > 0 ? " part" : ""}" title="${rst ? T("lgRest") : Math.round(r*100) + "%"}"><i>${rst ? I.moon : I.flame}</i><span>${x.toLocaleDateString(locale(), { weekday: "short" }).slice(0, 2)}</span></div>`; }
+  for (let k = 6; k >= 0; k--) { const x = new Date(d); x.setDate(x.getDate() - k); const r = ratio(x), rst = isRest(x), shd = !rst && r < .8 && isShielded(x);
+    days += `<div class="day${k === 0 ? " today" : ""}${rst ? " rest" : shd ? " shielded" : r >= .8 ? " full" : r > 0 ? " part" : ""}" title="${rst ? T("lgRest") : shd ? T("lgShield") : Math.round(r*100) + "%"}"><i>${rst ? I.moon : shd ? SHIELD_ICO : I.flame}</i><span>${x.toLocaleDateString(locale(), { weekday: "short" }).slice(0, 2)}</span></div>`; }
   const el = $("streakCard"); if (!el) return;
-  el.innerHTML = `<div class="streak-top"><svg class="big-flame${S.streak ? "" : " off"}" viewBox="0 0 24 24"><path d="${I.flame.match(/d="([^"]+)"/)[1]}"/></svg><div><b>${T("streakDays", S.streak)}</b><span>${S.streak ? T("streakKeep") : T("streakStart")} · ${T("best", S.bestStreak)}</span></div></div><div class="week">${days}</div>${restRow(d)}`;
+  el.innerHTML = `<div class="streak-top"><svg class="big-flame${S.streak ? "" : " off"}" viewBox="0 0 24 24"><path d="${I.flame.match(/d="([^"]+)"/)[1]}"/></svg><div><b>${T("streakDays", S.streak)}</b><span>${S.streak ? T("streakKeep") : T("streakStart")} · ${T("best", S.bestStreak)}</span></div></div><div class="week">${days}</div>${shieldRow()}${restRow(d)}`;
 }
 $("shBody").addEventListener("click", e => { if (!e.target.closest("#streakCard")) return; const b = e.target.closest("[data-restday]"); if (b) setRest(b.dataset.restday, b.dataset.v === "1"); });
 
@@ -756,18 +761,18 @@ function renderHistory() {
   if (!$("hist")) return;
   const today = dkey(routineDate()), y = histMonth.getFullYear(), m = histMonth.getMonth();
   const first = new Date(y, m, 1), lead = (first.getDay() + 6) % 7, daysIn = new Date(y, m + 1, 0).getDate();
-  let cells = "", full = 0, rests = 0;
+  let cells = "", full = 0, rests = 0, shields = 0;
   for (let i = 0; i < lead; i++) cells += `<span class="hc empty"></span>`;
   for (let n = 1; n <= daysIn; n++) {
-    const dd = new Date(y, m, n), k = dkey(dd), future = k > today, r = future ? 0 : ratio(dd), rst = isRest(dd);
-    if (!future && (r >= .8 || rst)) full++; if (rst) rests++;
-    const cls = ["hc", k === today ? "today" : "", future ? "future" : "", rst ? "rest" : r >= 1 ? "perfect" : r >= .8 ? "full" : r > 0 ? "part" : ""].join(" ").trim();
-    cells += `<button class="${cls}" type="button" data-day="${k}" ${future ? "disabled" : ""} aria-label="${dd.toLocaleDateString(locale())}${future ? "" : rst ? ", " + T("lgRest") : `, ${Math.round(r*100)}%`}">${n}</button>`;
+    const dd = new Date(y, m, n), k = dkey(dd), future = k > today, r = future ? 0 : ratio(dd), rst = isRest(dd), shd = !future && !rst && r < .8 && isShielded(dd);
+    if (shd) shields++; if (!future && (r >= .8 || rst)) full++; if (rst) rests++;
+    const cls = ["hc", k === today ? "today" : "", future ? "future" : "", rst ? "rest" : shd ? "shielded" : r >= 1 ? "perfect" : r >= .8 ? "full" : r > 0 ? "part" : ""].join(" ").trim();
+    cells += `<button class="${cls}" type="button" data-day="${k}" ${future ? "disabled" : ""} aria-label="${dd.toLocaleDateString(locale())}${future ? "" : rst ? ", " + T("lgRest") : `, ${Math.round(r*100)}%${shd ? ", " + T("lgShield") : ""}`}">${n}</button>`;
   }
   const rd = routineDate(), thisMonth = new Date(rd.getFullYear(), rd.getMonth(), 1);
   $("hist").innerHTML = `<div class="h-top"><button class="x" type="button" data-hnav="-1" aria-label="${T("prevMonth")}">‹</button><b>${histMonth.toLocaleDateString(locale(), { month: "long", year: "numeric" })}</b><button class="x" type="button" data-hnav="1" aria-label="${T("nextMonth")}" ${histMonth >= thisMonth ? "disabled" : ""}>›</button></div>
     <div class="h-grid">${T("wk").map(w => `<span class="hw">${w}</span>`).join("")}${cells}</div>
-    <div class="h-foot"><span><i class="lg perfect"></i>${T("lgFull")}</span><span><i class="lg full"></i>${T("lgGood")}</span><span><i class="lg part"></i>${T("lgPart")}</span><span><i class="lg rest"></i>${T("lgRest")}</span></div>
+    <div class="h-foot"><span><i class="lg perfect"></i>${T("lgFull")}</span><span><i class="lg full"></i>${T("lgGood")}</span><span><i class="lg part"></i>${T("lgPart")}</span><span><i class="lg rest"></i>${T("lgRest")}</span>${shields ? `<span><i class="lg shielded"></i>${T("lgShield")}</span>` : ""}</div>
     <p class="h-note">${T("histNote", full, rests)}</p>`;
 }
 $("shBody").addEventListener("click", e => {
@@ -2282,7 +2287,11 @@ function checkRecap() {
   const xp = dayXP(yk, computePRs().byDay), rest = isRest(y);
   // Forgot to tick something yesterday? Offer to open yesterday's day sheet and fix it.
   const left = rest ? 0 : ids.length - n, alt = left ? { t: T("fixYday", left), go: () => { audio(); openSheet("day:" + yk); } } : null;
-  queueCele({ title: T(rest ? "recapRestTitle" : n ? "recapTitle" : "recapQuietTitle", firstName()), sub: T(rest ? "recapRestSub" : pct >= 80 ? "recapGoodSub" : n ? "recapOkSub" : "recapQuietSub"), color: "sky", sound: "ding", alt,
+  // A streak shield covered yesterday: say so kindly, show the shield, and remind them fixing yesterday gives it back.
+  const shd = !rest && pct < 80 && isShielded(y), used = shd ? Object.keys(shieldState().used).filter(k => k >= dkey(new Date(y.getTime() - 3 * 864e5)) && k <= yk).length : 0;
+  queueCele({ title: shd ? T("shieldSavedTitle") : T(rest ? "recapRestTitle" : n ? "recapTitle" : "recapQuietTitle", firstName()),
+    sub: shd ? T("shieldSavedSub", S.streak, used, shieldState().held.length) : T(rest ? "recapRestSub" : pct >= 80 ? "recapGoodSub" : n ? "recapOkSub" : "recapQuietSub"),
+    art: shd ? SHIELD_BIG : undefined, color: "sky", sound: "ding", alt,
     tiles: [{ k: T("tDone"), v: `${pct}%`, i: "", c: "--green" }, { k: T("tStars"), v: stars, i: "star", c: "--gold" }, { k: T("tXP"), v: `+${xp}`, i: "bolt", c: "--gold" }, { k: T("tStreak"), v: S.streak, i: "flame", c: "--orange" }] });
 }
 
@@ -2333,8 +2342,8 @@ function checkChest() {
   const today = dkey(routineDate()); store.chest ||= {};
   if (!renderQuests.allWon || store.chest[today]) return;
   store.chest[today] = 1; Object.keys(store.chest).forEach(k => { if (k < dkey(new Date(Date.now() - 40 * 864e5))) delete store.chest[k]; });
-  const got = openFind(today); save();
-  queueCele({ title: T("chestTitle"), sub: pick(T("chestLines")), color: "green", sound: "level", art: CHEST, extra: findCard(got), btn: T("chestBtn"), tiles: [] });
+  const got = openFind(today), sh = rollShield(today); save();
+  queueCele({ title: T("chestTitle"), sub: pick(T("chestLines")), color: "green", sound: "level", art: CHEST, extra: findCard(got) + (sh ? shieldCard() : ""), btn: T("chestBtn"), tiles: [] });
 }
 const CHEST = `<div class="chest-art" aria-hidden="true"><svg viewBox="0 0 120 100"><g class="glow"><circle cx="60" cy="40" r="34"/></g>
   <rect class="ch-body" x="18" y="46" width="84" height="44" rx="8"/><rect class="ch-band" x="18" y="58" width="84" height="8"/>
@@ -2419,9 +2428,61 @@ function findsHTML() {
     <ul class="fgrid">${FINDS.map(cell).join("")}</ul></section>`;
 }
 
+/* ================= Streak shields ================= */
+// A finished chest sometimes adds a streak shield (hold up to 2). If a day is missed, a held shield covers it the next
+// time the app opens, so the streak keeps going. Odds per chest: 25%, and the 5th chest in a row without one always has
+// one. No rolls while holding 2, so none are wasted. Shields only cover days after they were earned, are only used when
+// the streak is 2+ days and every missed day can be covered, and come back if the missed day is fixed later.
+// Saved as store.shield = { held: [day earned, ...], used: { missed day: day earned }, dry }. Bad values from an old backup are cleaned up.
+function shieldState() {
+  const s = store.shield && typeof store.shield === "object" ? store.shield : (store.shield = {}), isK = k => typeof k === "string" && /^\d{4}-\d\d-\d\d$/.test(k);
+  s.held = (Array.isArray(s.held) ? s.held : []).filter(isK).sort().slice(-SHIELD_MAX);
+  if (!s.used || typeof s.used !== "object" || Array.isArray(s.used)) s.used = {};
+  Object.keys(s.used).forEach(k => { if (!isK(k) || !isK(s.used[k])) delete s.used[k]; });
+  s.dry = Math.max(0, Math.min(SHIELD_PITY, +s.dry || 0)); return s;
+}
+function rollShield(today, rand = Math.random) {
+  const s = shieldState(); if (s.held.length >= SHIELD_MAX) return false;
+  if (s.dry + 1 < SHIELD_PITY && rand() >= SHIELD_ODDS) { s.dry++; return false; }
+  s.dry = 0; s.held.push(today); s.held.sort(); return true;
+}
+function useShields() {
+  const s = shieldState(), d = routineDate(), today = dkey(d); let back = 0, changed = false;
+  // Fixed a covered day (ticked it to 80%, or made it a rest day)? The shield goes back in the pocket.
+  Object.keys(s.used).forEach(k => { if (k >= today) return; if (!dayDone(keyToDate(k))) return;
+    if (s.held.length < SHIELD_MAX) { s.held.push(s.used[k]); s.held.sort(); back++; } delete s.used[k]; changed = true; });
+  Object.keys(s.used).forEach(k => { if (k < dkey(new Date(Date.now() - 400 * 864e5))) { delete s.used[k]; changed = true; } });
+  if (s.held.length) {
+    // Missed days since the last good day, counting back from yesterday. Today isn't over, so it never needs a shield.
+    const gap = [], x = new Date(d); x.setDate(x.getDate() - 1);
+    while (gap.length <= s.held.length && !dayOK(x)) { gap.push(dkey(x)); x.setDate(x.getDate() - 1); }
+    let run = 0; while (run < SHIELD_MIN_STREAK && dayOK(x)) { run++; x.setDate(x.getDate() - 1); }
+    const first = gap[gap.length - 1], can = s.held.filter(e => e < first);
+    if (gap.length && gap.length <= can.length && run >= SHIELD_MIN_STREAK) {
+      gap.reverse().forEach((k, i) => { s.used[k] = can[i]; s.held.splice(s.held.indexOf(can[i]), 1); }); changed = true;
+      // The morning recap tells the story; if it already showed today, a toast does.
+      if (store.recap === today) toast(T("shieldUsedToast", gap.length), "shield", 4500);
+    }
+  }
+  if (changed) save();
+  if (back) toast(T("shieldBack"), "shield", 3500);
+}
+const SHIELD_SVG = `<path d="M24 4 8 10v11c0 10.5 6.8 19.4 16 23 9.2-3.6 16-12.5 16-23V10z" fill="#25aaf0" stroke="#13709f" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M24 13c1 5 7.5 7.5 7.5 14.5a7.5 7.5 0 0 1-15 0c0-4 2-6.5 4.5-8.5 0 3 1 4.5 3 5.5 1.2-3.5 0-7.5 0-11.5z" fill="#ff8a1f" stroke="#d26a00" stroke-width="2.5" stroke-linejoin="round"/>
+  <ellipse cx="16" cy="15" rx="3.5" ry="2" fill="#fff" opacity=".55" transform="rotate(-35 16 15)"/>`;
+const SHIELD_ICO = `<svg class="shd-ico" viewBox="0 0 48 48" aria-hidden="true">${SHIELD_SVG}</svg>`;
+const SHIELD_BIG = `<div class="shield-art" aria-hidden="true"><svg viewBox="0 0 48 48">${SHIELD_SVG}</svg></div>`;
+const shieldCard = () => `<div class="find shield-find"><span class="find-art">${SHIELD_ICO}</span><span class="find-txt"><small>${T("shieldBonus")}</small><b>${T("shieldName")}</b><span>${T("shieldGot", shieldState().held.length, SHIELD_MAX)}</span></span></div>`;
+// In the streak card: shields held (filled) and empty slots, with what they do and where to get them.
+function shieldRow() {
+  const n = shieldState().held.length, slots = Array.from({ length: SHIELD_MAX }, (_, i) => `<i class="${i < n ? "on" : ""}">${SHIELD_ICO}</i>`).join("");
+  return `<div class="shield-row"><span class="sh-slots" role="img" aria-label="${T("shieldCount", n, SHIELD_MAX)}">${slots}</span><span><b>${T("shieldCount", n, SHIELD_MAX)}</b> ${T(n ? "shieldHelp" : "shieldHelpNone")}</span></div>`;
+}
+
 /* ================= Refresh + comparisons ================= */
 let prevCleared = null;
 function refresh(keepSheet) {
+  useShields();
   const d = routineDate(), S = computeAll();
   renderTop(S); renderQuests(S); renderPath(S); renderNudge(); renderStreak(S); renderHistory();
   const got = renderBadges(S);
@@ -2459,7 +2520,7 @@ function refresh(keepSheet) {
 function toggleSound() { soundOn = !soundOn; try { localStorage.setItem(SND_KEY, soundOn ? "on" : "off"); } catch (e) {} if (soundOn) { audio(); sfx("ding"); } renderTop(lastS || computeAll()); }
 $("stSnd").onclick = toggleSound;
 // The top-bar numbers explain themselves on tap (title tooltips never show on phones).
-$("stStreak").onclick = () => { const S = lastS || computeAll(); toast(T("statStreak", S.streak), "flame", 3500); };
+$("stStreak").onclick = () => { const S = lastS || computeAll(); toast(T("statStreak", S.streak) + (shieldState().held.length ? " " + T("shieldHave", shieldState().held.length) : ""), "flame", 3500); };
 $("stXP").onclick = () => { const S = lastS || computeAll(); toast(T("statXP", S.todayXP, S.xp), "bolt", 3500); };
 $("stLv").onclick = () => { const S = lastS || computeAll(); toast(T("statLv", S.L.n, esc(titleOf(S.L.n)), S.L.span - S.L.cur), "shield", 3500); };
 const area = $("resetArea");

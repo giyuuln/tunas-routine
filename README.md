@@ -13,6 +13,7 @@ A cute, gamified daily routine tracker that you can install on your phone. Tunas
 - **Count habits:** give a habit a target like 8 glasses of water and tap +1 each time
 - **Focus timer:** start a 25-minute focus round from the focus-hour habit; Tunas ticks it at zero and gives you a 5-minute break
 - **Rest days:** protect your streak when you're sick or busy (2 per month)
+- **Streak shields:** chests sometimes drop a shield (hold up to 2) that covers a missed day automatically
 - **Continue button and home-screen shortcuts:** long-press the app icon for Today, Workout, Night or History
 - **Routine editor:** add, rename, reorder and delete sections, habits, workouts and weekly tasks right in the app
 - **Welcome screen and 4 templates:** Student, Worker, Fitness and Simple, so new users start in seconds
@@ -115,7 +116,7 @@ The easiest way to get a routine file is **Routine tab → Download my routine**
 | New personal record | +25 |
 | Weekly task | +15 |
 
-A day counts toward your streak at 80% or more, or when you mark it as a rest day. A new day starts at 4am, so late nights count for the day before.
+A day counts toward your streak at 80% or more, when you mark it as a rest day, or when a streak shield covers a missed day. A new day starts at 4am, so late nights count for the day before.
 
 ## Translations
 

@@ -880,3 +880,20 @@ a:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-vis
 .fcell.lock b{color:var(--muted);letter-spacing:.12em}
 .fcell.lock small{color:var(--muted)}
 @media (prefers-reduced-motion: reduce){.find{animation:none}}
+/* Streak shields */
+.shield-row{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted);padding-top:10px;margin-top:10px;border-top:2px solid var(--line)}
+.shield-row b{color:var(--sky-d)}
+.sh-slots{display:flex;gap:4px;flex:none}
+.sh-slots i{width:30px;height:30px;display:grid;place-items:center;border-radius:10px;background:var(--soft)}
+.sh-slots i svg{width:24px;height:24px}
+.sh-slots i:not(.on) svg{opacity:.3;filter:grayscale(1)}
+.day.shielded i{background:var(--sky-soft)} .day.shielded i svg{width:22px;height:22px}
+.hc.shielded{background:var(--sky-soft);border-color:var(--sky);color:var(--sky-d);border-style:dashed}
+.lg.shielded{background:var(--sky-soft);border:2px dashed var(--sky)}
+.shield-find{border-color:var(--sky);box-shadow:0 4px 0 var(--sky-d);animation-delay:.75s} .shield-find small{color:var(--sky-d)}
+.shield-find .find-art{background:var(--sky-soft)}
+.shd-ico{overflow:visible}
+.shield-art{width:150px;height:130px;display:grid;place-items:center}
+.shield-art svg{width:120px;height:120px;animation:shieldpop .6s cubic-bezier(.3,1.6,.5,1) .15s both}
+@keyframes shieldpop{0%{transform:scale(.4) rotate(-12deg);opacity:0}100%{transform:none;opacity:1}}
+@media (prefers-reduced-motion: reduce){.shield-art svg{animation:none}}
