@@ -15,8 +15,8 @@
   // The four parts of a day that packs fill. Same ids as the ready-made templates, so packs slot into those too.
   window.TUNAS_SLOTS = {
     morning: { title: t("Morning", "Pagi"), icon: "sun", say: [t("Morning! Small wins first.", "Selamat pagi! Mula dengan yang kecil."), t("One habit at a time.", "Satu tabiat satu masa.")] },
-    day: { title: t("Daytime", "Siang"), icon: "walk", say: [t("Keep going, you're doing fine.", "Teruskan, kau okay je."), t("Water break?", "Rehat minum air?")] },
-    evening: { title: t("Evening", "Petang"), icon: "heart", say: [t("Day's work done. Your time now.", "Kerja hari ini siap. Masa kau sekarang."), t("A few habits, then rest.", "Beberapa tabiat, lepas tu rehat.")] },
+    day: { title: t("Daytime", "Siang"), icon: "walk", say: [t("Keep going, you're doing fine.", "Teruskan, semuanya okay."), t("Water break?", "Rehat minum air?")] },
+    evening: { title: t("Evening", "Petang"), icon: "heart", say: [t("Day's work done. Your time now.", "Kerja hari ni dah siap. Sekarang masa untuk diri sendiri."), t("A few habits, then rest.", "Beberapa tabiat, lepas tu rehat.")] },
     night: { title: t("Night", "Malam"), icon: "moon", say: [t("Wind down. Big day tomorrow.", "Masa berehat. Esok hari baru."), t("Phone away, lights off.", "Letak phone, tutup lampu.")] }
   };
 
@@ -37,8 +37,8 @@
   window.TUNAS_WORKOUT = {
     levels: [
       { id: "new", title: t("Newbie", "Baru mula"), desc: t("New to training, or back after a long break.", "Baru nak mula, atau kembali selepas lama berhenti.") },
-      { id: "mid", title: t("Intermediate", "Pertengahan"), desc: t("Trained on and off for 6+ months.", "Pernah berlatih sekali-sekala lebih 6 bulan.") },
-      { id: "pro", title: t("Regular", "Tetap"), desc: t("Train most weeks for a year or more.", "Berlatih hampir setiap minggu setahun atau lebih.") }
+      { id: "mid", title: t("Intermediate", "Pertengahan"), desc: t("Trained on and off for 6+ months.", "Dah berlatih sekali-sekala lebih 6 bulan.") },
+      { id: "pro", title: t("Regular", "Kerap"), desc: t("Train most weeks for a year or more.", "Berlatih hampir setiap minggu, setahun atau lebih.") }
     ],
     places: [
       { id: "home", emoji: "🏠", title: t("Home", "Rumah") },
@@ -46,14 +46,14 @@
     ],
     // Which place to suggest for each level, and why.
     suggest: {
-      new: { place: "home", text: t("Start at home: no travel, no waiting, and bodyweight builds the basics.", "Mula di rumah: tak perlu ke mana-mana, tak perlu tunggu, dan berat badan sendiri bina asas.") },
+      new: { place: "home", text: t("Start at home: no travel, no waiting, and bodyweight builds the basics.", "Mula di rumah: tak perlu keluar, tak perlu tunggu giliran, dan senaman berat badan bina asas yang kukuh.") },
       mid: { place: null, text: t("Either works. Home is fine with dumbbells or bands; a gym makes it easier to keep adding weight.", "Dua-dua boleh. Rumah okay kalau ada dumbel atau band; gim lebih senang untuk terus tambah berat.") },
-      pro: { place: "gym", text: t("A gym lets you keep adding weight, which you'll need to keep progressing.", "Gim bagi kau terus tambah berat, yang kau perlukan untuk terus maju.") }
+      pro: { place: "gym", text: t("A gym lets you keep adding weight, which you'll need to keep progressing.", "Di gim, senang nak terus tambah berat, dan itu yang diperlukan untuk terus maju.") }
     },
     gear: [
       { id: "db", emoji: "🏋️", title: t("Dumbbells", "Dumbel") },
-      { id: "band", emoji: "🪢", title: t("Resistance bands", "Band rintangan") },
-      { id: "bar", emoji: "🚪", title: t("Pull-up bar", "Palang tarik") }
+      { id: "band", emoji: "🪢", title: t("Resistance bands", "Resistance band") },
+      { id: "bar", emoji: "🚪", title: t("Pull-up bar", "Bar pull-up") }
     ],
     noGearTip: t("No equipment is fine. A pair of adjustable dumbbells or a set of bands later makes home training last much longer.", "Tiada peralatan pun tak apa. Sepasang dumbel boleh laras atau satu set band nanti buat latihan di rumah lebih tahan lama."),
     plans: {
@@ -62,9 +62,9 @@
       pro: { days: { "1": "upper", "2": "lower", "4": "upper", "5": "lower" }, sets: 3, mins: t("50–60 min", "50–60 minit") }
     },
     splits: {
-      full: { name: t("Full Body", "Badan Penuh"), patterns: ["squat", "push", "pull", "hinge", "core"] },
-      fullA: { name: t("Full Body A", "Badan Penuh A"), patterns: ["squat", "push", "pull", "core"] },
-      fullB: { name: t("Full Body B", "Badan Penuh B"), patterns: ["hinge", "vpush", "vpull", "lunge"] },
+      full: { name: t("Full Body", "Seluruh Badan"), patterns: ["squat", "push", "pull", "hinge", "core"] },
+      fullA: { name: t("Full Body A", "Seluruh Badan A"), patterns: ["squat", "push", "pull", "core"] },
+      fullB: { name: t("Full Body B", "Seluruh Badan B"), patterns: ["hinge", "vpush", "vpull", "lunge"] },
       upper: { name: t("Upper Body", "Badan Atas"), patterns: ["push", "pull", "vpush", "vpull", "arms"] },
       lower: { name: t("Lower Body", "Badan Bawah"), patterns: ["squat", "hinge", "lunge", "core"] }
     },
@@ -76,66 +76,66 @@
     },
     rest: { w: { new: "90s", mid: "2 min", pro: "2–3 min" }, bw: { new: "60s", mid: "60s", pro: "75s" }, hold: { new: "45s", mid: "45s", pro: "45s" }, acc: { new: "60s", mid: "60s", pro: "60s" } },
     start: {
-      new: t("a weight you can lift 15 times", "berat yang kau boleh angkat 15 kali"),
-      mid: t("a weight you can lift 10 times with 2 to spare", "berat yang kau boleh angkat 10 kali dengan baki 2"),
-      pro: t("your usual working weight", "berat latihan biasa kau")
+      new: t("a weight you can lift 15 times", "berat yang boleh diangkat 15 kali"),
+      mid: t("a weight you can lift 10 times with 2 to spare", "berat yang boleh diangkat 10 kali, masih ada baki 2 rep"),
+      pro: t("your usual working weight", "berat latihan biasa")
     },
     // Order matters: within the same gear, earlier entries win.
     ex: [
-      x("leg-press", "squat", "gym", ["new"], "w", t("Leg Press", "Tekan Kaki"), t("Feet shoulder-width, knees track over toes.", "Kaki selebar bahu, lutut ikut arah jari kaki."), { step: 5 }),
-      x("back-squat", "squat", "gym", ["mid", "pro"], "w", t("Barbell Back Squat", "Cangkung Barbel"), t("Brace, sit between your heels, chest up.", "Kuatkan perut, duduk antara tumit, dada ke atas."), { step: 2.5 }),
-      x("goblet-squat", "squat", "db", ALL, "w", t("Goblet Squat", "Cangkung Goblet"), t("Hold the dumbbell at your chest, 3 seconds down.", "Pegang dumbel di dada, turun 3 saat."), { step: 2 }),
-      x("squat", "squat", "none", ["new", "mid"], "bw", t("Bodyweight Squat", "Cangkung"), t("Sit back like a chair, 3 seconds down.", "Duduk ke belakang macam kerusi, turun 3 saat.")),
-      x("split-squat", "squat", "none", ["mid", "pro"], "bw", t("Bulgarian Split Squat", "Cangkung Pisah Bulgaria"), t("Back foot on a chair, front knee over toes.", "Kaki belakang atas kerusi, lutut depan atas jari kaki.")),
+      x("leg-press", "squat", "gym", ["new"], "w", t("Leg Press", "Leg Press"), t("Feet shoulder-width, knees track over toes.", "Kaki selebar bahu, lutut ikut arah jari kaki."), { step: 5 }),
+      x("back-squat", "squat", "gym", ["mid", "pro"], "w", t("Barbell Back Squat", "Barbell Back Squat"), t("Brace, sit between your heels, chest up.", "Kuatkan perut, duduk antara tumit, dada ke atas."), { step: 2.5 }),
+      x("goblet-squat", "squat", "db", ALL, "w", t("Goblet Squat", "Goblet Squat"), t("Hold the dumbbell at your chest, 3 seconds down.", "Pegang dumbel di dada, turun 3 saat."), { step: 2 }),
+      x("squat", "squat", "none", ["new", "mid"], "bw", t("Bodyweight Squat", "Bodyweight Squat"), t("Sit back like a chair, 3 seconds down.", "Duduk ke belakang macam kerusi, turun 3 saat.")),
+      x("split-squat", "squat", "none", ["mid", "pro"], "bw", t("Bulgarian Split Squat", "Bulgarian Split Squat"), t("Back foot on a chair, front knee over toes.", "Kaki belakang atas kerusi, lutut depan atas jari kaki.")),
 
-      x("machine-press", "push", "gym", ["new"], "w", t("Machine Chest Press", "Tekan Dada Mesin"), t("Shoulders down, press without locking elbows hard.", "Bahu ke bawah, tolak tanpa kunci siku kuat-kuat."), { step: 5 }),
-      x("bench-press", "push", "gym", ["mid", "pro"], "w", t("Barbell Bench Press", "Tekan Bangku Barbel"), t("Feet planted, bar to mid-chest, use a spotter or safeties.", "Kaki rapat lantai, bar ke tengah dada, guna pembantu atau penahan."), { step: 2.5 }),
-      x("db-press", "push", "db", ALL, "w", t("Dumbbell Floor Press", "Tekan Lantai Dumbel"), t("Lie on the floor, elbows touch down softly, press up.", "Baring di lantai, siku sentuh perlahan, tolak naik."), { step: 2 }),
-      x("band-press", "push", "band", ALL, "bw", t("Band Chest Press", "Tekan Dada Band"), t("Band behind your back, press forward, slow return.", "Band di belakang, tolak ke depan, pulang perlahan.")),
-      x("incline-pushup", "push", "none", ["new"], "bw", t("Incline Push-ups", "Tekan Tubi Condong"), t("Hands on a table or wall, body straight.", "Tangan atas meja atau dinding, badan lurus.")),
-      x("pushup", "push", "none", ["mid", "pro"], "bw", t("Push-ups", "Tekan Tubi"), t("Chest to the floor, body straight.", "Dada ke lantai, badan lurus.")),
+      x("machine-press", "push", "gym", ["new"], "w", t("Machine Chest Press", "Machine Chest Press"), t("Shoulders down, press without locking elbows hard.", "Bahu ke bawah, tolak tanpa kunci siku."), { step: 5 }),
+      x("bench-press", "push", "gym", ["mid", "pro"], "w", t("Barbell Bench Press", "Barbell Bench Press"), t("Feet planted, bar to mid-chest, use a spotter or safeties.", "Kaki rapat lantai, bar ke tengah dada, guna pembantu atau penahan."), { step: 2.5 }),
+      x("db-press", "push", "db", ALL, "w", t("Dumbbell Floor Press", "Dumbbell Floor Press"), t("Lie on the floor, elbows touch down softly, press up.", "Baring di lantai, siku sentuh perlahan, tolak naik."), { step: 2 }),
+      x("band-press", "push", "band", ALL, "bw", t("Band Chest Press", "Band Chest Press"), t("Band behind your back, press forward, slow return.", "Band di belakang, tolak ke depan, pulang perlahan.")),
+      x("incline-pushup", "push", "none", ["new"], "bw", t("Incline Push-ups", "Incline Push-ups"), t("Hands on a table or wall, body straight.", "Tangan atas meja atau dinding, badan lurus.")),
+      x("pushup", "push", "none", ["mid", "pro"], "bw", t("Push-ups", "Push-ups"), t("Chest to the floor, body straight.", "Dada ke lantai, badan lurus.")),
 
-      x("cable-row", "pull", "gym", ALL, "w", t("Seated Cable Row", "Tarik Kabel Duduk"), t("Pull to your belly, squeeze shoulder blades.", "Tarik ke perut, kepit bilah bahu."), { step: 5 }),
-      x("db-row", "pull", "db", ALL, "w", t("One-arm Dumbbell Row", "Tarik Dumbel Sebelah"), t("Hand on a chair, pull the elbow to your hip.", "Tangan atas kerusi, tarik siku ke pinggul."), { step: 2 }),
-      x("band-row", "pull", "band", ALL, "bw", t("Band Row", "Tarik Band"), t("Anchor the band at chest height, pull and squeeze.", "Ikat band paras dada, tarik dan kepit.")),
-      x("snow-angel", "pull", "none", ALL, "bw", t("Reverse Snow Angels", "Malaikat Salji Terbalik"), t("Face down, lift arms and sweep them slowly overhead.", "Meniarap, angkat tangan dan sapu perlahan ke atas kepala.")),
+      x("cable-row", "pull", "gym", ALL, "w", t("Seated Cable Row", "Seated Cable Row"), t("Pull to your belly, squeeze shoulder blades.", "Tarik ke perut, kepit bilah bahu."), { step: 5 }),
+      x("db-row", "pull", "db", ALL, "w", t("One-arm Dumbbell Row", "One-arm Dumbbell Row"), t("Hand on a chair, pull the elbow to your hip.", "Tangan atas kerusi, tarik siku ke pinggul."), { step: 2 }),
+      x("band-row", "pull", "band", ALL, "bw", t("Band Row", "Band Row"), t("Anchor the band at chest height, pull and squeeze.", "Ikat band paras dada, tarik dan kepit.")),
+      x("snow-angel", "pull", "none", ALL, "bw", t("Reverse Snow Angels", "Reverse Snow Angels"), t("Face down, lift arms and sweep them slowly overhead.", "Meniarap, angkat tangan dan sapu perlahan ke atas kepala.")),
 
-      x("lat-pulldown", "vpull", "gym", ALL, "w", t("Lat Pulldown", "Tarik Lat ke Bawah"), t("Pull the bar to your upper chest, no swinging.", "Tarik bar ke dada atas, jangan hayun."), { step: 5 }),
-      x("dead-hang", "vpull", "bar", ["new"], "hold", t("Dead Hang", "Bergantung"), t("Hang with straight arms, shoulders slightly pulled down.", "Bergantung tangan lurus, bahu ditarik sedikit ke bawah."), { unit: "sec" }),
-      x("neg-pullup", "vpull", "bar", ["mid"], "bw", t("Negative Pull-ups", "Tarik Naik Negatif"), t("Jump up, lower yourself over 4 seconds.", "Lompat naik, turun perlahan selama 4 saat.")),
-      x("pullup", "vpull", "bar", ["pro"], "bw", t("Pull-ups", "Tarik Naik"), t("Full hang to chin over the bar.", "Dari bergantung penuh sampai dagu atas bar.")),
-      x("band-pulldown", "vpull", "band", ALL, "bw", t("Band Pulldown", "Tarik Band ke Bawah"), t("Anchor the band high, pull elbows down to your sides.", "Ikat band tinggi, tarik siku ke sisi badan.")),
+      x("lat-pulldown", "vpull", "gym", ALL, "w", t("Lat Pulldown", "Lat Pulldown"), t("Pull the bar to your upper chest, no swinging.", "Tarik bar ke dada atas, jangan hayun."), { step: 5 }),
+      x("dead-hang", "vpull", "bar", ["new"], "hold", t("Dead Hang", "Dead Hang"), t("Hang with straight arms, shoulders slightly pulled down.", "Bergantung tangan lurus, bahu ditarik sedikit ke bawah."), { unit: "sec" }),
+      x("neg-pullup", "vpull", "bar", ["mid"], "bw", t("Negative Pull-ups", "Negative Pull-ups"), t("Jump up, lower yourself over 4 seconds.", "Lompat naik, turun perlahan selama 4 saat.")),
+      x("pullup", "vpull", "bar", ["pro"], "bw", t("Pull-ups", "Pull-ups"), t("Full hang to chin over the bar.", "Dari bergantung penuh sampai dagu atas bar.")),
+      x("band-pulldown", "vpull", "band", ALL, "bw", t("Band Pulldown", "Band Pulldown"), t("Anchor the band high, pull elbows down to your sides.", "Ikat band tinggi, tarik siku ke sisi badan.")),
 
-      x("machine-shoulder", "vpush", "gym", ["new"], "w", t("Machine Shoulder Press", "Tekan Bahu Mesin"), t("Back against the pad, press straight up.", "Belakang rapat pad, tolak lurus ke atas."), { step: 5 }),
-      x("ohp", "vpush", "gym", ["mid", "pro"], "w", t("Overhead Press", "Tekan Atas Kepala"), t("Squeeze glutes, press the bar over your head.", "Kepit punggung, tolak bar ke atas kepala."), { step: 2.5 }),
-      x("db-shoulder", "vpush", "db", ALL, "w", t("Dumbbell Shoulder Press", "Tekan Bahu Dumbel"), t("Seated or standing, ribs down, press up.", "Duduk atau berdiri, rusuk ke bawah, tolak naik."), { step: 2 }),
-      x("band-ohp", "vpush", "band", ALL, "bw", t("Band Overhead Press", "Tekan Atas Band"), t("Stand on the band, press both hands up.", "Pijak band, tolak kedua tangan ke atas.")),
-      x("pike-pushup", "vpush", "none", ["mid", "pro"], "bw", t("Pike Push-ups", "Tekan Tubi Pike"), t("Hips high, lower your head between your hands.", "Pinggul tinggi, turunkan kepala antara tangan.")),
+      x("machine-shoulder", "vpush", "gym", ["new"], "w", t("Machine Shoulder Press", "Machine Shoulder Press"), t("Back against the pad, press straight up.", "Belakang rapat pad, tolak lurus ke atas."), { step: 5 }),
+      x("ohp", "vpush", "gym", ["mid", "pro"], "w", t("Overhead Press", "Overhead Press"), t("Squeeze glutes, press the bar over your head.", "Kepit punggung, tolak bar ke atas kepala."), { step: 2.5 }),
+      x("db-shoulder", "vpush", "db", ALL, "w", t("Dumbbell Shoulder Press", "Dumbbell Shoulder Press"), t("Seated or standing, ribs down, press up.", "Duduk atau berdiri, rusuk ke bawah, tolak naik."), { step: 2 }),
+      x("band-ohp", "vpush", "band", ALL, "bw", t("Band Overhead Press", "Band Overhead Press"), t("Stand on the band, press both hands up.", "Pijak band, tolak kedua tangan ke atas.")),
+      x("pike-pushup", "vpush", "none", ["mid", "pro"], "bw", t("Pike Push-ups", "Pike Push-ups"), t("Hips high, lower your head between your hands.", "Pinggul tinggi, turunkan kepala antara tangan.")),
 
-      x("back-ext", "hinge", "gym", ["new"], "bw", t("Back Extension", "Lanjutan Belakang"), t("Hinge at the hips, squeeze glutes at the top.", "Bengkok di pinggul, kepit punggung di atas.")),
-      x("rdl", "hinge", "gym", ["mid", "pro"], "w", t("Romanian Deadlift", "Angkat Mati Romania"), t("Push hips back, bar close to your legs, flat back.", "Tolak pinggul ke belakang, bar rapat kaki, belakang rata."), { step: 2.5 }),
-      x("db-rdl", "hinge", "db", ALL, "w", t("Dumbbell Romanian Deadlift", "Angkat Mati Romania Dumbel"), t("Soft knees, hips back, dumbbells slide down your legs.", "Lutut lembut, pinggul ke belakang, dumbel turun rapat kaki."), { step: 2 }),
-      x("band-gm", "hinge", "band", ALL, "bw", t("Band Good Morning", "Good Morning Band"), t("Band under feet and behind neck, hinge and stand tall.", "Band bawah kaki dan belakang leher, bengkok dan berdiri tegak.")),
-      x("bridge", "hinge", "none", ["new"], "bw", t("Glute Bridge", "Jambatan Punggung"), t("Squeeze at the top for 1 second.", "Kepit di atas selama 1 saat.")),
-      x("sl-bridge", "hinge", "none", ["mid", "pro"], "bw", t("Single-leg Glute Bridge", "Jambatan Punggung Sebelah Kaki"), t("One foot down, hips level, squeeze at the top.", "Satu kaki di lantai, pinggul rata, kepit di atas.")),
+      x("back-ext", "hinge", "gym", ["new"], "bw", t("Back Extension", "Back Extension"), t("Hinge at the hips, squeeze glutes at the top.", "Bongkok dari pinggul, kepit punggung di atas.")),
+      x("rdl", "hinge", "gym", ["mid", "pro"], "w", t("Romanian Deadlift", "Romanian Deadlift"), t("Push hips back, bar close to your legs, flat back.", "Tolak pinggul ke belakang, bar rapat kaki, belakang rata."), { step: 2.5 }),
+      x("db-rdl", "hinge", "db", ALL, "w", t("Dumbbell Romanian Deadlift", "Dumbbell Romanian Deadlift"), t("Soft knees, hips back, dumbbells slide down your legs.", "Lutut lembut, pinggul ke belakang, dumbel turun rapat kaki."), { step: 2 }),
+      x("band-gm", "hinge", "band", ALL, "bw", t("Band Good Morning", "Band Good Morning"), t("Band under feet and behind neck, hinge and stand tall.", "Band di bawah kaki dan belakang leher, bongkok kemudian berdiri tegak.")),
+      x("bridge", "hinge", "none", ["new"], "bw", t("Glute Bridge", "Glute Bridge"), t("Squeeze at the top for 1 second.", "Kepit di atas selama 1 saat.")),
+      x("sl-bridge", "hinge", "none", ["mid", "pro"], "bw", t("Single-leg Glute Bridge", "Single-leg Glute Bridge"), t("One foot down, hips level, squeeze at the top.", "Satu kaki di lantai, pinggul rata, kepit di atas.")),
 
-      x("db-lunge", "lunge", "db", ["mid", "pro"], "w", t("Dumbbell Reverse Lunge", "Langkah Belakang Dumbel"), t("Step back, back knee nearly touches the floor.", "Langkah ke belakang, lutut belakang hampir sentuh lantai."), { step: 2 }),
-      x("lunge", "lunge", "none", ALL, "bw", t("Reverse Lunge", "Langkah Belakang"), t("Step back, front knee stays over the ankle.", "Langkah ke belakang, lutut depan atas buku lali.")),
+      x("db-lunge", "lunge", "db", ["mid", "pro"], "w", t("Dumbbell Reverse Lunge", "Dumbbell Reverse Lunge"), t("Step back, back knee nearly touches the floor.", "Langkah ke belakang, lutut belakang hampir sentuh lantai."), { step: 2 }),
+      x("lunge", "lunge", "none", ALL, "bw", t("Reverse Lunge", "Reverse Lunge"), t("Step back, front knee stays over the ankle.", "Langkah ke belakang, lutut depan atas buku lali.")),
 
-      x("db-curl", "arms", "db", ["mid", "pro"], "acc", t("Dumbbell Curl", "Curl Dumbel"), t("Elbows by your sides, slow down.", "Siku di sisi, turun perlahan.")),
-      x("cable-pushdown", "arms", "gym", ["mid", "pro"], "acc", t("Cable Triceps Pushdown", "Tolak Kabel Trisep"), t("Elbows pinned, push down until straight.", "Siku rapat, tolak ke bawah sampai lurus.")),
-      x("band-curl", "arms", "band", ["mid", "pro"], "acc", t("Band Curl", "Curl Band"), t("Stand on the band, curl up, slow down.", "Pijak band, angkat, turun perlahan.")),
+      x("db-curl", "arms", "db", ["mid", "pro"], "acc", t("Dumbbell Curl", "Dumbbell Curl"), t("Elbows by your sides, slow down.", "Siku di sisi, turun perlahan.")),
+      x("cable-pushdown", "arms", "gym", ["mid", "pro"], "acc", t("Cable Triceps Pushdown", "Cable Triceps Pushdown"), t("Elbows pinned, push down until straight.", "Siku rapat, tolak ke bawah sampai lurus.")),
+      x("band-curl", "arms", "band", ["mid", "pro"], "acc", t("Band Curl", "Band Curl"), t("Stand on the band, curl up, slow down.", "Pijak band, angkat, turun perlahan.")),
 
       x("dead-bug", "core", "none", ["new", "mid"], "bw", t("Dead Bug", "Dead Bug"), t("Lower back stays pressed to the floor.", "Belakang bawah kekal rapat ke lantai.")),
       x("plank", "core", "none", ["new", "mid"], "hold", t("Plank", "Plank"), t("Squeeze glutes, ribs down.", "Kepit punggung, rusuk ke bawah."), { unit: "sec" }),
-      x("hollow", "core", "none", ["pro"], "hold", t("Hollow Hold", "Tahan Hollow"), t("Arms overhead, lower back pressed down.", "Tangan atas kepala, belakang bawah rapat lantai."), { unit: "sec" })
+      x("hollow", "core", "none", ["pro"], "hold", t("Hollow Hold", "Hollow Hold"), t("Arms overhead, lower back pressed down.", "Tangan atas kepala, belakang bawah rapat lantai."), { unit: "sec" })
     ],
     say: [t("Workout time! Let's go.", "Masa senaman! Jom."), t("Log every set to catch a new PR.", "Catat setiap set untuk kejar rekod baru.")],
-    planTitle: t("Your workout plan", "Pelan senaman kau"),
+    planTitle: t("Your workout plan", "Pelan senaman"),
     planGuide: {
-      new: [t("**3 days a week, full body.** Two sets each for the first 4 weeks, then three.", "**3 hari seminggu, badan penuh.** Dua set setiap satu untuk 4 minggu pertama, kemudian tiga."),
+      new: [t("**3 days a week, full body.** Two sets each for the first 4 weeks, then three.", "**3 hari seminggu, seluruh badan.** Dua set setiap senaman untuk 4 minggu pertama, kemudian tiga."),
             t("**Hit the top of the rep range on every set?** Move to a harder version or add weight.", "**Capai rep maksimum setiap set?** Tukar ke versi lebih susah atau tambah berat.")],
-      mid: [t("**3 days a week, two full-body days (A and B) alternating.** Three sets each.", "**3 hari seminggu, dua sesi badan penuh (A dan B) berselang.** Tiga set setiap satu."),
+      mid: [t("**3 days a week, two full-body days (A and B) alternating.** Three sets each.", "**3 hari seminggu, dua sesi seluruh badan (A dan B) berselang-seli.** Tiga set setiap senaman."),
             t("**Add a little weight or a rep each week** while form stays clean.", "**Tambah sedikit berat atau satu rep setiap minggu** selagi teknik masih kemas.")],
       pro: [t("**4 days a week, upper and lower split.** Three hard sets per exercise.", "**4 hari seminggu, pecahan atas dan bawah.** Tiga set berat setiap latihan."),
             t("**Every 6–8 weeks, take a lighter week** to recover and keep progressing.", "**Setiap 6–8 minggu, buat seminggu ringan** untuk pulih dan terus maju.")]
@@ -157,16 +157,16 @@
         tip: t("**Treat zones differently.** Lighter products on the T-zone, more moisture on the cheeks.", "**Rawat ikut zon.** Produk ringan di zon-T, lebih lembap di pipi.") },
       { id: "normal", title: t("Normal", "Normal"), desc: t("Comfortable most days", "Selesa kebanyakan hari"),
         cleanser: t("Mild and low-foam, about 30 seconds", "Lembut dan kurang buih, lebih kurang 30 saat"), moist: t("A light lotion is enough", "Losyen ringan pun cukup"), spf: t("SPF 30+", "SPF 30+"),
-        tip: t("**Keep it simple.** Normal skin mostly needs gentle cleansing and daily sunscreen.", "**Buat ringkas.** Kulit normal kebanyakannya cuma perlu cuci lembut dan pelindung matahari setiap hari.") },
+        tip: t("**Keep it simple.** Normal skin mostly needs gentle cleansing and daily sunscreen.", "**Buat ringkas.** Kulit normal kebanyakannya cuma perlu cuci lembut dan sunscreen setiap hari.") },
       { id: "sensitive", title: t("Sensitive", "Sensitif"), desc: t("Stings or reddens easily", "Mudah pedih atau merah"),
         cleanser: t("Fragrance-free", "Tanpa pewangi"), moist: t("Fragrance-free", "Tanpa pewangi"), spf: t("Mineral SPF 30+ (zinc or titanium)", "SPF 30+ mineral (zink atau titanium)"),
-        tip: t("**Fewer products, fragrance-free.** Patch test anything new for 2 days.", "**Kurang produk, tanpa pewangi.** Uji tampal produk baru selama 2 hari.") },
-      { id: "unsure", title: t("Not sure", "Tak pasti"), desc: t("We'll start gentle", "Kita mula dengan lembut"),
+        tip: t("**Fewer products, fragrance-free.** Patch test anything new for 2 days.", "**Kurang produk, tanpa pewangi.** Buat patch test untuk produk baru selama 2 hari.") },
+      { id: "unsure", title: t("Not sure", "Tak pasti"), desc: t("We'll start gentle", "Kita mula dengan yang lembut"),
         cleanser: t("Mild and low-foam, about 30 seconds", "Lembut dan kurang buih, lebih kurang 30 saat"), moist: t("A light lotion is enough", "Losyen ringan pun cukup"), spf: t("SPF 30+", "SPF 30+"),
         tip: t("**Find your type:** wash, wait 1 hour. Shiny all over = oily, tight = dry, shiny T-zone only = combination.", "**Kenal jenis kulit:** cuci muka, tunggu 1 jam. Berkilat semua = berminyak, tegang = kering, zon-T sahaja berkilat = kombinasi.") }
     ],
     levels: [
-      { id: "basic", title: t("Basic", "Asas"), desc: t("3 steps: cleanse, moisturise, sunscreen", "3 langkah: cuci, lembapkan, pelindung matahari") },
+      { id: "basic", title: t("Basic", "Asas"), desc: t("3 steps: cleanse, moisturise, sunscreen", "3 langkah: cuci, lembapkan, sunscreen") },
       { id: "std", title: t("Standard", "Standard"), desc: t("Adds a serum morning and night", "Tambah serum pagi dan malam") },
       { id: "full", title: t("Full", "Lengkap"), desc: t("Adds double cleanse and treatment nights", "Tambah cuci dua kali dan malam rawatan") }
     ],
@@ -177,17 +177,17 @@
     },
     concerns: [
       { id: "acne", title: t("Breakouts", "Jerawat"), am: "nia", pm: "nia", treat: "bha",
-        tip: t("**Don't pick or pop.** It leaves marks that last longer than the spot.", "**Jangan picit.** Ia tinggalkan parut lebih lama dari jerawat.") },
+        tip: t("**Don't pick or pop.** It leaves marks that last longer than the spot.", "**Jangan picit.** Parutnya kekal lebih lama daripada jerawat.") },
       { id: "spots", title: t("Dark spots", "Bintik gelap"), am: "vitc", pm: "nia", treat: "ret",
-        tip: t("**Daily sunscreen does more for dark spots** than any serum.", "**Pelindung matahari setiap hari lebih berkesan untuk bintik gelap** dari mana-mana serum.") },
+        tip: t("**Daily sunscreen does more for dark spots** than any serum.", "**Sunscreen setiap hari lebih berkesan untuk bintik gelap** dari mana-mana serum.") },
       { id: "dull", title: t("Dullness", "Kusam"), am: "vitc", pm: "hya", treat: "aha",
         tip: t("**Glow comes from gentle exfoliation and sleep,** not scrubbing hard.", "**Kulit berseri datang dari pengelupasan lembut dan tidur,** bukan sental kuat.") },
       { id: "dry", title: t("Dry patches", "Tompok kering"), am: "hya", pm: "hya", treat: null,
         tip: t("**Hydrating serum on damp skin,** then moisturiser to lock it in.", "**Serum pelembap pada kulit lembap,** kemudian pelembap untuk kunci.") },
       { id: "oil", title: t("Oil & pores", "Minyak & liang"), am: "nia", pm: "nia", treat: "bha",
-        tip: t("**Blotting paper beats washing more.** Over-washing makes skin oilier.", "**Kertas penyerap minyak lebih baik dari cuci lebih kerap.** Terlebih cuci buat lagi berminyak.") },
+        tip: t("**Blotting paper beats washing more.** Over-washing makes skin oilier.", "**Guna kertas penyerap minyak, bukan cuci muka lebih kerap.** Terlebih cuci buat kulit lagi berminyak.") },
       { id: "lines", title: t("Fine lines", "Garis halus"), am: "vitc", pm: "hya", treat: "ret",
-        tip: t("**Sunscreen and a retinoid** are the two steps with the most evidence for fine lines.", "**Pelindung matahari dan retinoid** dua langkah yang paling terbukti untuk garis halus.") }
+        tip: t("**Sunscreen and a retinoid** are the two steps with the most evidence for fine lines.", "**Sunscreen dan retinoid** ialah dua langkah paling terbukti untuk garis halus.") }
     ],
     serums: {
       nia: t("Niacinamide serum", "Serum niasinamida"),
@@ -200,7 +200,7 @@
       aha: { title: t("AHA exfoliant (glycolic or lactic acid)", "Pengelupas AHA (asid glikolik atau laktik)"), note: t("After cleansing; skip if skin feels raw.", "Lepas cuci muka; tak payah kalau kulit rasa pedih."), days: [2, 5], soft: [5] }
     },
     tips: [
-      t("**Patch test new products** behind the ear for 2 days, and add one at a time.", "**Uji tampal produk baru** di belakang telinga selama 2 hari, dan tambah satu demi satu."),
+      t("**Patch test new products** behind the ear for 2 days, and add one at a time.", "**Buat patch test untuk produk baru** di belakang telinga selama 2 hari, dan tambah satu demi satu."),
       t("**Retinoids and exfoliants on different nights,** never together.", "**Retinoid dan pengelupas pada malam berbeza,** jangan serentak.")
     ],
     caution: t("General skincare tips, not medical advice. For painful acne, rashes or sudden changes, see a doctor or pharmacist. Pregnant or breastfeeding? Ask a doctor before using retinoids.", "Tip penjagaan kulit umum, bukan nasihat perubatan. Untuk jerawat yang sakit, ruam atau perubahan mendadak, jumpa doktor atau ahli farmasi. Hamil atau menyusu? Tanya doktor sebelum guna retinoid.")
@@ -208,11 +208,11 @@
 
   window.TUNAS_PACKS = [
     /* ---------- Body ---------- */
-    { id: "skin", cat: "body", emoji: "🧴", title: t("Skincare", "Penjagaan kulit"), desc: t("A routine for your skin type and goals, morning and night.", "Rutin ikut jenis kulit dan matlamat kau, pagi dan malam."),
+    { id: "skin", cat: "body", emoji: "🧴", title: t("Skincare", "Penjagaan kulit"), desc: t("A routine for your skin type and goals, morning and night.", "Rutin ikut jenis kulit dan matlamat, pagi dan malam."),
       setup: "skin", // asks skin type, steps and goals, then builds the habits (see TUNAS_SKIN)
       habits: [],
       tips: [
-        t("**Thin to thick:** watery products first, creams after, sunscreen last in the morning.", "**Nipis ke pekat:** produk cair dulu, krim kemudian, pelindung matahari paling akhir waktu pagi."),
+        t("**Thin to thick:** watery products first, creams after, sunscreen last in the morning.", "**Nipis ke pekat:** produk cair dulu, krim kemudian, sunscreen paling akhir waktu pagi."),
         t("**Results take 4 to 8 weeks.** Keep the streak going.", "**Hasil ambil masa 4 hingga 8 minggu.** Teruskan streak.")
       ],
       guide: [
@@ -220,9 +220,9 @@
           t("**Cleanser:** one small pump, about 30 seconds.", "**Pencuci:** satu pam kecil, lebih kurang 30 saat."),
           t("**Serum:** 2 to 3 drops on slightly damp skin.", "**Serum:** 2 hingga 3 titis pada kulit yang sedikit lembap."),
           t("**Moisturiser:** a pea-size amount.", "**Pelembap:** sebesar kacang pis."),
-          t("**Sunscreen:** two finger-lengths for face and neck.", "**Pelindung matahari:** dua panjang jari untuk muka dan leher.") ] }
+          t("**Sunscreen:** two finger-lengths for face and neck.", "**Sunscreen:** dua panjang jari untuk muka dan leher.") ] }
       ] },
-    { id: "water", cat: "body", emoji: "💧", title: t("Drink water", "Minum air"), desc: t("A glass on waking and a bottle that goes everywhere.", "Segelas bila bangun dan botol yang ikut ke mana-mana."),
+    { id: "water", cat: "body", emoji: "💧", title: t("Drink water", "Minum air"), desc: t("A glass on waking and a bottle that goes everywhere.", "Segelas sebaik bangun, dan bawa botol ke mana-mana."),
       habits: [
         h("wt-wake", "morning", t("Glass of water when you wake up", "Segelas air bila bangun"), { at: 0 }),
         h("wt-bottle", "day", t("Refill your water bottle", "Isi semula botol air")),
@@ -233,13 +233,13 @@
     { id: "sleep", cat: "body", emoji: "😴", title: t("Better sleep", "Tidur lebih baik"), desc: t("Same wake time, no late coffee, 7–8 hours.", "Bangun masa sama, tiada kopi lewat, 7–8 jam."),
       habits: [
         h("sl-wake", "morning", t("Wake up at the same time", "Bangun pada masa yang sama"), { at: 0 }),
-        h("sl-coffee", "day", t("No coffee after 2pm", "Tiada kopi selepas 2 petang")),
+        h("sl-coffee", "day", t("No coffee after 2pm", "Elak kopi selepas 2 petang")),
         h("sl-dark", "night", t("Room dark and cool", "Bilik gelap dan sejuk"), { at: 50 }),
         h("sl-sleep", "night", t("Sleep on time", "Tidur ikut masa"), { at: 60, quest: true, note: t("Aim for 7–8 hours", "Sasarkan 7–8 jam") })
       ],
       tips: [t("**Same wake time, even on weekends.** Your body clock loves routine.", "**Bangun masa sama, walaupun hujung minggu.** Jam badan suka rutin.")],
       guide: [{ title: t("Sleep basics", "Asas tidur"), lines: [
-        t("**Screens off 30 minutes before bed.** Bright light keeps you awake.", "**Tutup skrin 30 minit sebelum tidur.** Cahaya terang buat mata segar."),
+        t("**Screens off 30 minutes before bed.** Bright light keeps you awake.", "**Tutup skrin 30 minit sebelum tidur.** Cahaya skrin buat otak susah nak lelap."),
         t("**Can't sleep after 20 minutes?** Get up, do something calm, then try again.", "**Tak boleh tidur selepas 20 minit?** Bangun, buat benda tenang, kemudian cuba lagi.") ] }] },
     { id: "move", cat: "body", emoji: "🚶", title: t("Daily movement", "Bergerak setiap hari"), desc: t("Steps, stairs, a stretch and a short walk.", "Langkah, tangga, regangan dan jalan sekejap."),
       habits: [
@@ -249,7 +249,7 @@
         h("mv-walk", "evening", t("20 min walk", "Jalan 20 minit"), { at: 30 })
       ],
       tips: [t("**Every bit counts.** Three 10-minute walks equal one 30-minute walk.", "**Setiap sikit pun dikira.** Tiga kali jalan 10 minit sama macam sekali 30 minit.")] },
-    { id: "workout", cat: "body", emoji: "💪", title: t("Workouts", "Senaman"), desc: t("A plan for your level, at home or the gym.", "Pelan ikut tahap kau, di rumah atau gim."),
+    { id: "workout", cat: "body", emoji: "💪", title: t("Workouts", "Senaman"), desc: t("A plan for your level, at home or the gym.", "Pelan ikut tahap, di rumah atau di gim."),
       habits: [h("wo-stretch", "evening", t("Stretch 5 min after training", "Regangan 5 minit lepas latihan"), { at: 90 })],
       setup: "workout", // asks level, place and equipment, then builds the workouts (see TUNAS_WORKOUT)
       tips: [
@@ -263,7 +263,7 @@
       habits: [
         h("ea-bfast", "morning", t("Breakfast with protein", "Sarapan dengan protein"), { at: 30, note: t("Eggs, yogurt or tofu", "Telur, yogurt atau tauhu") }),
         h("ea-veg", "day", t("Half the plate veg at lunch", "Separuh pinggan sayur masa makan tengah hari"), { at: 0 }),
-        h("ea-sugar", "day", t("No sugary drinks", "Tiada minuman manis"), { quest: true }),
+        h("ea-sugar", "day", t("No sugary drinks", "Elak minuman manis"), { quest: true }),
         h("ea-dinner", "evening", t("Lighter dinner", "Makan malam ringan"), { at: 120, note: t("Less rice, more protein and veg", "Kurang nasi, lebih protein dan sayur") })
       ],
       tips: [t("**Cut liquid sugar first.** Teh tarik and soft drinks add up fast.", "**Kurangkan gula cecair dulu.** Teh tarik dan air bergas cepat bertambah.")] },
@@ -298,7 +298,7 @@
         h("mk-dress", "morning", t("Get dressed, even on days off", "Tukar baju, walaupun hari cuti"), { at: 25 }),
         h("mk-top3", "morning", t("Pick your top 3 for today", "Pilih 3 perkara utama hari ini"), { at: 35, quest: true })
       ],
-      tips: [t("**Decide the night before.** Mornings go smoother with fewer choices.", "**Tentukan malam sebelumnya.** Pagi lebih lancar bila kurang pilihan.")] },
+      tips: [t("**Decide the night before.** Mornings go smoother with fewer choices.", "**Rancang dari malam sebelumnya.** Pagi lebih lancar bila kurang pilihan.")] },
     { id: "winddown", cat: "mind", emoji: "🌙", title: t("Night wind-down", "Rehat malam"), desc: t("Dim lights, prepare for tomorrow, phone away.", "Malapkan lampu, sedia untuk esok, jauhkan phone."),
       habits: [
         h("wd-dim", "night", t("Dim the lights", "Malapkan lampu"), { at: 0 }),
@@ -310,33 +310,33 @@
     { id: "calm", cat: "mind", emoji: "🧘", title: t("Calm mind", "Minda tenang"), desc: t("Breathing, a mindful pause and 3 good things.", "Pernafasan, berhenti sejenak dan 3 perkara baik."),
       habits: [
         h("cm-breathe", "morning", t("5 min of slow breathing", "5 minit pernafasan perlahan"), { at: 15, quest: true, note: t("In for 4 seconds, out for 6", "Tarik 4 saat, hembus 6 saat") }),
-        h("cm-pause", "day", t("One mindful pause", "Berhenti sejenak dan sedar")),
+        h("cm-pause", "day", t("One mindful pause", "Berhenti sejenak, perhati sekeliling")),
         h("cm-good", "night", t("Note 3 good things from today", "Catat 3 perkara baik hari ini"), { at: 20 })
       ],
       guide: [{ title: t("Quick calm", "Tenang cepat"), lines: [
         t("**Box breathing:** in 4, hold 4, out 4, hold 4. Repeat 4 times.", "**Pernafasan kotak:** tarik 4, tahan 4, hembus 4, tahan 4. Ulang 4 kali."),
-        t("**5-4-3-2-1:** name 5 things you see, 4 you hear, 3 you feel, 2 you smell, 1 you taste.", "**5-4-3-2-1:** sebut 5 benda kau nampak, 4 dengar, 3 rasa, 2 bau, 1 kecap."),
-        t("Feeling low for weeks? Talk to someone you trust or a counsellor.", "Rasa sedih berminggu-minggu? Bercakap dengan orang yang kau percaya atau kaunselor.") ] }] },
+        t("**5-4-3-2-1:** name 5 things you see, 4 you hear, 3 you feel, 2 you smell, 1 you taste.", "**5-4-3-2-1:** sebut 5 benda yang dilihat, 4 yang didengar, 3 yang disentuh, 2 yang dihidu, 1 yang dirasa."),
+        t("Feeling low for weeks? Talk to someone you trust or a counsellor.", "Rasa sedih berminggu-minggu? Berbual dengan orang yang dipercayai atau kaunselor.") ] }] },
     { id: "journal", cat: "mind", emoji: "📓", title: t("Journaling", "Menulis jurnal"), desc: t("One intention in the morning, 3 lines at night.", "Satu niat waktu pagi, 3 baris waktu malam."),
       habits: [
         h("jr-intent", "morning", t("Write one intention for today", "Tulis satu niat untuk hari ini"), { at: 20 }),
         h("jr-write", "night", t("Write 3 lines about today", "Tulis 3 baris tentang hari ini"), { at: 15, quest: true })
       ],
       weekly: [w("jr-review", t("Read back this week's notes", "Baca semula catatan minggu ini"))] },
-    { id: "screen", cat: "mind", emoji: "📵", title: t("Screen balance", "Imbang masa skrin"), desc: t("Phone-free mornings and meals, check your screen time.", "Pagi dan waktu makan tanpa phone, semak masa skrin."),
+    { id: "screen", cat: "mind", emoji: "📵", title: t("Screen balance", "Kawal masa skrin"), desc: t("Phone-free mornings and meals, check your screen time.", "Pagi dan waktu makan tanpa phone, semak masa skrin."),
       habits: [
-        h("sc-morning", "morning", t("No phone for the first 30 minutes", "Tiada phone 30 minit pertama"), { quest: true }),
-        h("sc-meals", "day", t("No phone while eating", "Tiada phone masa makan")),
+        h("sc-morning", "morning", t("No phone for the first 30 minutes", "Tak pegang phone 30 minit pertama"), { quest: true }),
+        h("sc-meals", "day", t("No phone while eating", "Tak pegang phone masa makan")),
         h("sc-check", "night", t("Check today's screen time", "Semak masa skrin hari ini"), { at: 0 })
       ],
       weekly: [w("sc-mute", t("Mute or delete one time-wasting app", "Senyapkan atau buang satu app yang buang masa"))] },
     { id: "read", cat: "mind", emoji: "📚", title: t("Reading", "Membaca"), desc: t("10 pages a day and one idea worth keeping.", "10 muka surat sehari dan satu idea untuk disimpan."),
       habits: [
         h("rd-pages", "night", t("Read 10 pages", "Baca 10 muka surat"), { at: 25, quest: true }),
-        h("rd-idea", "night", t("Write down one idea you read", "Catat satu idea yang kau baca"), { at: 40 })
+        h("rd-idea", "night", t("Write down one idea you read", "Catat satu idea dari bacaan"), { at: 40 })
       ],
       weekly: [w("rd-next", t("Pick your next book", "Pilih buku seterusnya"))],
-      tips: [t("**10 pages a day is about 12 books a year.**", "**10 muka surat sehari lebih kurang 12 buku setahun.**")] },
+      tips: [t("**10 pages a day is about 12 books a year.**", "**10 muka surat sehari = lebih kurang 12 buku setahun.**")] },
 
     /* ---------- Faith ---------- */
     { id: "solat", cat: "faith", emoji: "🕌", title: t("Solat", "Solat"), desc: t("The five daily prayers.", "Solat lima waktu."),
@@ -347,7 +347,7 @@
         h("so-maghrib", "evening", t("Maghrib", "Maghrib")),
         h("so-isyak", "night", t("Isyak", "Isyak"))
       ],
-      tips: [t("**Prayer times change through the year.** Check the times for your zone.", "**Waktu solat berubah sepanjang tahun.** Semak waktu untuk zon kau.")] },
+      tips: [t("**Prayer times change through the year.** Check the times for your zone.", "**Waktu solat berubah sepanjang tahun.** Semak waktu ikut zon masing-masing.")] },
     { id: "quran", cat: "faith", emoji: "📖", title: t("Quran & zikir", "Al-Quran & zikir"), desc: t("Morning and evening zikir, a page of Quran a day.", "Zikir pagi dan petang, satu muka surat Al-Quran sehari."),
       habits: [
         h("qr-zikir-am", "morning", t("Morning zikir", "Zikir pagi"), { at: 25 }),
@@ -365,7 +365,7 @@
         h("st-bag", "night", t("Pack your bag for tomorrow", "Kemas beg untuk esok"), { at: 5 })
       ],
       weekly: [w("st-plan", t("Plan the week's assignments", "Rancang tugasan minggu ini"))],
-      tips: [t("**Review within 24 hours.** You'll remember twice as much.", "**Ulang kaji dalam 24 jam.** Kau akan ingat dua kali ganda.")],
+      tips: [t("**Review within 24 hours.** You'll remember twice as much.", "**Ulang kaji dalam 24 jam.** Ingatan jadi dua kali lebih kuat.")],
       guide: [{ title: t("The 25–5 method", "Kaedah 25–5"), lines: [
         t("**Study 25 minutes,** then rest 5. After 4 rounds, rest 20.", "**Belajar 25 minit,** rehat 5. Selepas 4 pusingan, rehat 20."),
         t("**One subject per block.** Switching wastes time.", "**Satu subjek setiap blok.** Bertukar-tukar membazir masa.") ] }] },
@@ -385,7 +385,7 @@
     { id: "code", cat: "grow", emoji: "💻", title: t("Coding practice", "Latihan coding"), desc: t("Code a little every day and keep a learning log.", "Code sikit setiap hari dan simpan log belajar."),
       habits: [
         h("cd-code", "evening", t("30 min of coding", "30 minit coding"), { at: 60, quest: true }),
-        h("cd-log", "night", t("Note one thing you learned", "Catat satu benda yang kau belajar"), { at: 10 })
+        h("cd-log", "night", t("Note one thing you learned", "Catat satu benda yang dipelajari"), { at: 10 })
       ],
       weekly: [w("cd-ship", t("Finish and push one small task", "Siapkan dan push satu tugasan kecil"))],
       tips: [t("**Build small things often.** Finished beats perfect.", "**Bina benda kecil selalu.** Siap lebih baik dari sempurna.")] },
@@ -394,11 +394,11 @@
         h("cr-apply", "day", t("Apply to one job or opportunity", "Mohon satu kerja atau peluang"), { quest: true }),
         h("cr-skill", "evening", t("20 min on a work skill", "20 minit belajar kemahiran kerja"), { at: 90 })
       ],
-      weekly: [w("cr-cv", t("Update your CV or portfolio", "Kemas kini resume atau portfolio")), w("cr-net", t("Message one person in your field", "Mesej seorang dalam bidang kau"))],
+      weekly: [w("cr-cv", t("Update your CV or portfolio", "Kemas kini resume atau portfolio")), w("cr-net", t("Message one person in your field", "Mesej seorang kenalan dalam bidang sama"))],
       tips: [t("**Tailor each application.** Three good ones beat twenty copy-paste ones.", "**Sesuaikan setiap permohonan.** Tiga yang bagus lebih baik dari dua puluh yang sama.")] },
     { id: "create", cat: "grow", emoji: "🎨", title: t("Creative time", "Masa kreatif"), desc: t("20 minutes to draw, write, play or make.", "20 minit untuk melukis, menulis, bermain atau mencipta."),
       habits: [h("cv-make", "evening", t("20 min of creative time", "20 minit masa kreatif"), { at: 120, quest: true, note: t("Draw, write, play music, edit", "Lukis, tulis, main muzik, edit") })],
-      weekly: [w("cv-share", t("Share or save one thing you made", "Kongsi atau simpan satu hasil kau"))] },
+      weekly: [w("cv-share", t("Share or save one thing you made", "Kongsi atau simpan satu hasil kerja"))] },
 
     /* ---------- Home & life ---------- */
     { id: "cook", cat: "home", emoji: "🍳", title: t("Home cooking", "Masak di rumah"), desc: t("Cook one meal a day and plan the week.", "Masak satu hidangan sehari dan rancang minggu."),
@@ -413,25 +413,25 @@
         h("td-10", "evening", t("10-minute tidy", "Kemas 10 minit"), { at: 150, quest: true }),
         h("td-sink", "night", t("Clear the sink before bed", "Kosongkan sinki sebelum tidur"), { at: 0 })
       ],
-      weekly: [w("td-laundry", t("Laundry", "Basuh baju")), w("td-sheets", t("Change bed sheets", "Tukar cadar")), w("td-deep", t("Deep clean one area", "Cuci menyeluruh satu kawasan"))] },
+      weekly: [w("td-laundry", t("Laundry", "Basuh baju")), w("td-sheets", t("Change bed sheets", "Tukar cadar")), w("td-deep", t("Deep clean one area", "Bersihkan satu kawasan habis-habis"))] },
     { id: "money", cat: "home", emoji: "💰", title: t("Money habits", "Urus duit"), desc: t("Track spending, skip impulse buys, save weekly.", "Catat belanja, elak beli ikut nafsu, simpan setiap minggu."),
       habits: [
-        h("mn-nobuy", "day", t("No impulse buys today", "Tiada beli ikut nafsu hari ini"), { note: t("Wait 24 hours before buying anything you didn't plan", "Tunggu 24 jam sebelum beli benda yang tak dirancang") }),
+        h("mn-nobuy", "day", t("No impulse buys today", "Tak beli ikut nafsu hari ni"), { note: t("Wait 24 hours before buying anything you didn't plan", "Tunggu 24 jam sebelum beli benda yang tak dirancang") }),
         h("mn-log", "night", t("Log today's spending", "Catat belanja hari ini"), { at: 15, quest: true })
       ],
       weekly: [w("mn-review", t("Review this week's spending", "Semak belanja minggu ini")), w("mn-save", t("Move money to savings", "Pindah duit ke simpanan"))],
-      tips: [t("**Pay yourself first.** Save on payday, then spend what's left.", "**Bayar diri sendiri dulu.** Simpan masa gaji masuk, baru belanja bakinya.")] },
+      tips: [t("**Pay yourself first.** Save on payday, then spend what's left.", "**Simpan dulu, baru belanja.** Asingkan simpanan sebaik gaji masuk, kemudian belanja bakinya.")] },
     { id: "family", cat: "home", emoji: "👨‍👩‍👧", title: t("Family & friends", "Keluarga & kawan"), desc: t("Stay in touch every day, not just on holidays.", "Kekal berhubung setiap hari, bukan masa cuti sahaja."),
       habits: [
         h("fm-msg", "evening", t("Message a friend or family member", "Mesej kawan atau keluarga"), { at: 60, quest: true }),
-        h("fm-meal", "evening", t("One meal with others, phones away", "Makan bersama, phone diletak jauh"), { at: 120, everyOtherDay: true })
+        h("fm-meal", "evening", t("One meal with others, phones away", "Makan bersama, phone simpan jauh"), { at: 120, everyOtherDay: true })
       ],
       weekly: [w("fm-call", t("Call your parents", "Telefon mak ayah")), w("fm-meet", t("Meet a friend", "Jumpa kawan"))] },
     { id: "pet", cat: "home", emoji: "🐾", title: t("Pet care", "Jaga haiwan peliharaan"), desc: t("Feeding, play time and a clean space.", "Makan, masa bermain dan tempat yang bersih."),
       habits: [
         h("pt-feed-am", "morning", t("Feed your pet", "Beri makan haiwan peliharaan"), { at: 10 }),
         h("pt-play", "evening", t("Walk or play for 15 min", "Bawa jalan atau main 15 minit"), { at: 30, quest: true }),
-        h("pt-feed-pm", "evening", t("Evening feed and fresh water", "Makan petang dan air bersih"), { at: 60 })
+        h("pt-feed-pm", "evening", t("Evening feed and fresh water", "Beri makan petang dan tukar air bersih"), { at: 60 })
       ],
       weekly: [w("pt-clean", t("Clean the litter box, cage or tank", "Cuci pasir, sangkar atau akuarium")), w("pt-stock", t("Check food and supplies", "Semak makanan dan barang keperluan"))] },
     { id: "plants", cat: "home", emoji: "🌱", title: t("Plant care", "Jaga pokok"), desc: t("A quick daily check and a weekly once-over.", "Semakan ringkas setiap hari dan sekali seminggu."),

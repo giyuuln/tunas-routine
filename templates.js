@@ -6,11 +6,11 @@
   const focusWeek = (a, b, rest) => ({
     "0": { title: t("1 hour: plan the week", "1 jam: rancang minggu"), note: t("List what you want to finish this week", "Senaraikan apa nak siap minggu ini") },
     "1": a, "2": b, "3": a, "4": b,
-    "5": rest || { title: t("Night off", "Malam cuti"), note: t("Rest. You earned it.", "Rehat. Kau layak.") },
+    "5": rest || { title: t("Night off", "Malam cuti"), note: t("Rest. You earned it.", "Rehat. Memang layak.") },
     "6": { title: t("1 hour: hobby", "1 jam: hobi"), note: t("Something just for fun", "Sesuatu untuk suka-suka") }
   });
   const skinTips = [
-    t("**Thin to thick:** watery products first, creams after, sunscreen last in the morning.", "**Nipis ke pekat:** produk cair dulu, krim kemudian, pelindung matahari paling akhir waktu pagi."),
+    t("**Thin to thick:** watery products first, creams after, sunscreen last in the morning.", "**Nipis ke pekat:** produk cair dulu, krim kemudian, sunscreen paling akhir waktu pagi."),
     t("**Sleep matters most.** A late night shows on your face more than anything else.", "**Tidur paling penting.** Tidur lewat paling ketara pada muka."),
     t("**Workout first, game after.** Make the game your reward.", "**Senaman dulu, main game kemudian.** Jadikan game sebagai hadiah."),
     t("**Feeling sleepy at 10am?** Water and a 5-minute walk before more coffee.", "**Mengantuk pukul 10 pagi?** Minum air dan jalan 5 minit sebelum tambah kopi."),
@@ -20,22 +20,22 @@
     title: t("Skin basics", "Asas penjagaan kulit"),
     sections: [
       { title: t("The order, every day", "Susunan setiap hari"), lines: [
-        t("**Morning:** cleanser → serum → moisturizer → sunscreen", "**Pagi:** pencuci → serum → pelembap → pelindung matahari"),
+        t("**Morning:** cleanser → serum → moisturizer → sunscreen", "**Pagi:** pencuci → serum → pelembap → sunscreen"),
         t("**Night:** cleanser → serum → moisturizer", "**Malam:** pencuci → serum → pelembap"),
-        t("Watery products first, creams after, sunscreen always last in the morning.", "Produk cair dulu, krim kemudian, pelindung matahari sentiasa paling akhir waktu pagi.") ] },
+        t("Watery products first, creams after, sunscreen always last in the morning.", "Produk cair dulu, krim kemudian, sunscreen sentiasa paling akhir waktu pagi.") ] },
       { title: t("How much to use", "Berapa banyak nak guna"), lines: [
         t("**Cleanser:** one small pump, about 30 seconds.", "**Pencuci:** satu pam kecil, lebih kurang 30 saat."),
         t("**Moisturizer:** a pea-size amount.", "**Pelembap:** sebesar kacang pis."),
-        t("**Sunscreen:** two finger-lengths for face and neck.", "**Pelindung matahari:** dua panjang jari untuk muka dan leher.") ] }
+        t("**Sunscreen:** two finger-lengths for face and neck.", "**Sunscreen:** dua panjang jari untuk muka dan leher.") ] }
     ]
   };
   const bodyweight = (name, day) => ({
     name, when: t("20–30 min", "20–30 minit"), remind: day.remind, from: day.from, to: day.to, after: day.after,
     say: [t("Workout time! Let's go.", "Masa senaman! Jom."), t("Log every set to catch a new PR.", "Catat setiap set untuk kejar rekod baru.")],
     exercises: [
-      { id: "pushup", name: t("Push-ups", "Tekan tubi"), reps: "8–15", rest: "60s", cue: t("Knees down is fine. Chest to the floor, body straight.", "Lutut di lantai pun boleh. Dada ke lantai, badan lurus."), bodyweight: true },
-      { id: "squat", name: t("Bodyweight Squat", "Cangkung"), reps: "12–20", rest: "60s", cue: t("Sit back like a chair, 3 seconds down.", "Duduk ke belakang macam kerusi, turun 3 saat."), bodyweight: true },
-      { id: "bridge", name: t("Glute Bridge", "Jambatan punggung"), reps: "12–20", rest: "45s", cue: t("Squeeze at the top for 1 second.", "Kepit di atas selama 1 saat."), bodyweight: true },
+      { id: "pushup", name: t("Push-ups", "Push-up"), reps: "8–15", rest: "60s", cue: t("Knees down is fine. Chest to the floor, body straight.", "Lutut di lantai pun boleh. Dada ke lantai, badan lurus."), bodyweight: true },
+      { id: "squat", name: t("Bodyweight Squat", "Bodyweight Squat"), reps: "12–20", rest: "60s", cue: t("Sit back like a chair, 3 seconds down.", "Duduk ke belakang macam kerusi, turun 3 saat."), bodyweight: true },
+      { id: "bridge", name: t("Glute Bridge", "Glute Bridge"), reps: "12–20", rest: "45s", cue: t("Squeeze at the top for 1 second.", "Kepit di atas selama 1 saat."), bodyweight: true },
       { id: "plank", name: t("Plank", "Plank"), reps: "30–45 sec", rest: "45s", cue: t("Squeeze glutes, ribs down.", "Kepit punggung, rusuk ke bawah."), bodyweight: true, unit: "sec" }
     ]
   });
@@ -44,22 +44,22 @@
     version: 1, label: t("Worker routine", "Rutin pekerja"), name: "",
     blocks: [
       { id: "morning", remind: "06:30", title: t("Morning", "Pagi"), icon: "sun", from: "05:00", to: "09:00", range: "6:30 – 8:00 am",
-        say: [t("Jom! Morning routine first.", "Jom! Rutin pagi dulu."), t("Sunscreen before you head out.", "Pakai pelindung matahari sebelum keluar.")],
+        say: [t("Jom! Morning routine first.", "Jom! Rutin pagi dulu."), t("Sunscreen before you head out.", "Pakai sunscreen sebelum keluar.")],
         items: [
           { id: "wake", title: t("Wake up + glass of water", "Bangun + segelas air"), time: "6:30" },
           { id: "bed", title: t("Make your bed", "Kemas katil"), time: "6:35" },
           { id: "am-clean", title: t("Rinse or gentle cleanser", "Bilas atau pencuci lembut"), note: t("Pat dry, leave skin a little damp", "Tepuk kering, biar kulit sedikit lembap"), time: "6:45" },
           { id: "am-moist", title: t("Moisturizer", "Pelembap"), time: "6:47" },
-          { id: "spf", title: t("Sunscreen", "Pelindung matahari"), note: t("Two finger-lengths for face and neck", "Dua panjang jari untuk muka dan leher"), time: "6:50", quest: true },
+          { id: "spf", title: t("Sunscreen", "Sunscreen"), note: t("Two finger-lengths for face and neck", "Dua panjang jari untuk muka dan leher"), time: "6:50", quest: true },
           { id: "bfast", title: t("Breakfast with protein", "Sarapan dengan protein"), note: t("Eggs, yogurt or tofu so you don't crash at 10am", "Telur, yogurt atau tauhu supaya tak lemau pukul 10 pagi"), time: "7:00" }
         ] },
       { id: "evening", remind: "17:30", title: t("After work", "Lepas kerja"), icon: "walk", from: "17:00", to: "20:00", range: "5:30 – 8:00 pm",
-        say: [t("Walk time. 30 minutes je.", "Masa berjalan. 30 minit je."), t("Go before it gets dark.", "Pergi sebelum gelap.")],
+        say: [t("Walk time. 30 minutes je.", "Masa jalan kaki. 30 minit je."), t("Go before it gets dark.", "Pergi sebelum gelap.")],
         items: [
           { id: "pm-water", title: t("Drink water when you get home", "Minum air bila sampai rumah"), time: "5:30" },
           { id: "walk", title: t("30 min walk", "Jalan 30 minit"), note: t("Rinse your face after if you sweat.", "Bilas muka lepas berpeluh."), time: "6:00", quest: true, hideOnDays: [3] },
           { id: "dinner", title: t("Lighter dinner", "Makan malam ringan"), note: t("Less rice, add protein and veg", "Kurang nasi, tambah protein dan sayur"), time: "7:30" },
-          { id: "nosnack", title: t("No sugary drinks or salty snacks", "Tiada minuman manis atau snek masin") }
+          { id: "nosnack", title: t("No sugary drinks or salty snacks", "Elak minuman manis dan snek masin") }
         ] },
       { id: "focus", remind: "20:00", title: t("Focus time", "Masa fokus"), icon: "focus", from: "20:00", to: "22:00", range: "8:00 – 10:00 pm",
         items: [
@@ -70,7 +70,7 @@
       { id: "night", remind: "22:30", title: t("Night", "Malam"), icon: "moon", from: "22:00", to: "05:00", range: "10:30 – 11:30 pm",
         say: [t("Skincare, then sleep.", "Jaga kulit, lepas tu tidur."), t("Phone away by 11. You got this.", "Letak phone sebelum 11. Boleh!")],
         items: [
-          { id: "nt-clean", title: t("Gentle cleanser", "Pencuci lembut"), note: t("Washes off sunscreen and the day's oil", "Tanggalkan pelindung matahari dan minyak"), time: "10:30" },
+          { id: "nt-clean", title: t("Gentle cleanser", "Pencuci lembut"), note: t("Washes off sunscreen and the day's oil", "Tanggalkan sunscreen dan minyak"), time: "10:30" },
           { id: "nt-moist", title: t("Moisturizer", "Pelembap"), time: "10:35" },
           { id: "phone", title: t("Phone away", "Letak phone jauh"), time: "11:00" },
           { id: "sleep", title: t("Sleep", "Tidur"), note: t("Aim for 7 hours", "Sasarkan 7 jam"), time: "11:30", quest: true }
@@ -80,7 +80,7 @@
       { title: t("1 hour: learn something", "1 jam: belajar sesuatu"), note: t("A course, a book or practice", "Kursus, buku atau latihan") },
       { title: t("1 hour: side project", "1 jam: projek sampingan"), note: t("Build one small thing", "Bina satu benda kecil") }),
     workouts: {
-      "3": bodyweight(t("Bodyweight Basics", "Asas Berat Badan"), { remind: "18:00", from: "18:00", to: "19:15", after: "evening" }),
+      "3": bodyweight(t("Bodyweight Basics", "Asas Senaman Berat Badan"), { remind: "18:00", from: "18:00", to: "19:15", after: "evening" }),
       "6": bodyweight(t("Weekend Session", "Sesi Hujung Minggu"), { remind: "09:00", after: "morning" })
     },
     progression: {},
@@ -97,7 +97,7 @@
         items: [
           { id: "wake", title: t("Wake up + glass of water", "Bangun + segelas air"), time: "6:45" },
           { id: "am-clean", title: t("Wash face", "Cuci muka"), time: "6:50" },
-          { id: "spf", title: t("Sunscreen", "Pelindung matahari"), time: "7:00", quest: true },
+          { id: "spf", title: t("Sunscreen", "Sunscreen"), time: "7:00", quest: true },
           { id: "bfast", title: t("Breakfast", "Sarapan"), note: t("Eggs, bread or oats. Not just a sweet drink.", "Telur, roti atau oat. Bukan air manis sahaja."), time: "7:10" },
           { id: "bag", title: t("Check bag and timetable", "Semak beg dan jadual"), time: "7:30" }
         ] },
@@ -138,11 +138,11 @@
     ],
     away: { from: "08:30", to: "14:00", say: [t("Good luck in class!", "Semoga lancar di kelas!"), t("Drink water and sit in front if you can.", "Minum air dan duduk depan kalau boleh.")] },
     tips: [
-      t("**Review within 24 hours.** You'll remember twice as much.", "**Ulang kaji dalam 24 jam.** Kau akan ingat dua kali ganda."),
+      t("**Review within 24 hours.** You'll remember twice as much.", "**Ulang kaji dalam 24 jam.** Ingatan jadi dua kali lebih kuat."),
       t("**Phone in another room** while studying. Out of sight, out of mind.", "**Letak phone di bilik lain** masa belajar. Tak nampak, tak teringat."),
       t("**Start assignments early,** even 15 minutes.", "**Mula tugasan awal,** walaupun 15 minit."),
       t("**Sleep before exams** beats an all-nighter.", "**Tidur sebelum peperiksaan** lebih baik daripada berjaga malam."),
-      t("**Move every day.** It helps you focus.", "**Bergerak setiap hari.** Ia bantu kau fokus.")
+      t("**Move every day.** It helps you focus.", "**Bergerak setiap hari.** Badan aktif, otak lebih fokus.")
     ],
     guide: {
       title: t("Study tips", "Tip belajar"),
@@ -160,7 +160,7 @@
         items: [
           { id: "wake", title: t("Wake up + big glass of water", "Bangun + segelas besar air"), time: "6:30", quest: true },
           { id: "bfast", title: t("Protein breakfast", "Sarapan protein"), note: t("2–3 eggs, Greek yogurt or tofu", "2–3 biji telur, yogurt Greek atau tauhu"), time: "7:00", quest: true },
-          { id: "spf", title: t("Sunscreen", "Pelindung matahari"), time: "7:20" }
+          { id: "spf", title: t("Sunscreen", "Sunscreen"), time: "7:20" }
         ] },
       { id: "day", remind: "12:30", title: t("Daytime", "Siang"), icon: "walk", from: "09:00", to: "17:30", range: t("all day", "sepanjang hari"),
         say: [t("Keep moving. Take the stairs.", "Terus bergerak. Guna tangga."), t("Water bottle on your desk.", "Botol air atas meja.")],
@@ -170,16 +170,16 @@
           { id: "steps", title: t("8,000 steps", "8,000 langkah"), quest: true }
         ] },
       { id: "evening", remind: "18:00", title: t("Evening", "Petang"), icon: "heart", from: "17:30", to: "21:00", range: "6:00 – 8:30 pm",
-        say: [t("Training time soon.", "Masa latihan tak lama lagi."), t("A small snack 1 hour before helps.", "Snek kecil sejam sebelum membantu.")],
+        say: [t("Training time soon.", "Masa latihan tak lama lagi."), t("A small snack 1 hour before helps.", "Makan snek kecil sejam sebelum latihan.")],
         items: [
           { id: "stretch", title: t("Stretch 10 min", "Regangan 10 minit"), time: "6:00" },
           { id: "walk", title: t("30 min walk", "Jalan 30 minit"), time: "6:15", hideOnDays: [1, 3, 5] },
           { id: "dinner", title: t("Protein + veg dinner", "Makan malam protein + sayur"), time: "7:30" }
         ] },
       { id: "night", remind: "22:30", title: t("Night", "Malam"), icon: "moon", from: "21:00", to: "05:00", range: "10:30 – 11:30 pm",
-        say: [t("Recovery time. Muscles grow while you sleep.", "Masa pemulihan. Otot membesar semasa tidur."), t("No late snacks.", "Tiada snek lewat malam.")],
+        say: [t("Recovery time. Muscles grow while you sleep.", "Masa pemulihan. Otot membesar semasa tidur."), t("No late snacks.", "Elak snek lewat malam.")],
         items: [
-          { id: "nosnack", title: t("No late-night snacks", "Tiada snek lewat malam"), time: "9:30" },
+          { id: "nosnack", title: t("No late-night snacks", "Elak snek lewat malam"), time: "9:30" },
           { id: "phone", title: t("Phone away", "Letak phone jauh"), time: "11:00" },
           { id: "sleep", title: t("Sleep 7–8 hours", "Tidur 7–8 jam"), time: "11:30", quest: true }
         ] }
@@ -196,11 +196,11 @@
     tips: [
       t("**Protein at every meal** keeps you full and builds muscle.", "**Protein setiap kali makan** buat kenyang lama dan bina otot."),
       t("**Beat last week by 1 rep.** That's progress.", "**Lebih 1 rep dari minggu lepas.** Itu dah kemajuan."),
-      t("**Liquid sugar first:** cut sweet drinks before anything else.", "**Gula cecair dulu:** kurangkan minuman manis dahulu."),
+      t("**Liquid sugar first:** cut sweet drinks before anything else.", "**Mula dengan minuman manis:** kurangkan yang itu dulu."),
       t("**Rest days build muscle.** Don't skip them.", "**Hari rehat bina otot.** Jangan langkau."),
-      t("**Track your waist and photos,** not just the scale.", "**Jejak pinggang dan gambar,** bukan timbang sahaja.")
+      t("**Track your waist and photos,** not just the scale.", "**Ukur pinggang dan ambil gambar,** bukan timbang berat je.")
     ],
-    guide: { title: t("Training basics", "Asas latihan"), sections: [{ title: t("How hard to push", "Seberat mana nak tolak"), lines: [
+    guide: { title: t("Training basics", "Asas latihan"), sections: [{ title: t("How hard to push", "Sejauh mana nak paksa diri"), lines: [
       t("**Stop 2 reps before failure** on most sets.", "**Berhenti 2 rep sebelum tak larat** untuk kebanyakan set."),
       t("**Hit the top of the rep range on every set?** Make it harder next time.", "**Capai rep maksimum setiap set?** Buat lebih susah lain kali.") ] }] }
   };
@@ -219,7 +219,7 @@
       { id: "night", remind: "22:30", title: t("Night", "Malam"), icon: "moon", from: "21:00", to: "05:00", range: "10:30 – 11:30 pm",
         say: [t("Almost done for today.", "Hampir siap untuk hari ini."), t("Phone away, then sleep.", "Letak phone, lepas tu tidur.")],
         items: [
-          { id: "nophone", title: t("No phone in bed", "Tiada phone atas katil"), quest: true },
+          { id: "nophone", title: t("No phone in bed", "Tak main phone atas katil"), quest: true },
           { id: "sleep", title: t("Sleep by 11:30", "Tidur sebelum 11:30"), time: "11:30" }
         ] }
     ],
@@ -244,7 +244,7 @@
           { id: "wake", title: t("Wake up + glass of water", "Bangun + segelas air"), time: "6:45" },
           { id: "am-clean", title: t("Wash face", "Cuci muka"), time: "6:50" },
           { id: "am-moist", title: t("Moisturizer", "Pelembap"), time: "6:55" },
-          { id: "spf", title: t("Sunscreen", "Pelindung matahari"), time: "7:00", quest: true },
+          { id: "spf", title: t("Sunscreen", "Sunscreen"), time: "7:00", quest: true },
           { id: "bfast", title: t("Breakfast", "Sarapan"), note: t("Eggs, bread or oats. Not just a sweet drink.", "Telur, roti atau oat. Bukan air manis sahaja."), time: "7:10" },
           { id: "bag", title: t("Pack bag, laptop and work clothes", "Kemas beg, laptop dan baju kerja"), time: "7:30" }
         ] },
@@ -257,7 +257,7 @@
           { id: "tasks", title: t("Check assignments and deadlines", "Semak tugasan dan tarikh akhir") }
         ] },
       { id: "evening", remind: "19:30", title: t("After work", "Lepas kerja"), icon: "walk", from: "18:00", to: "21:00", range: "7:30 – 9:00 pm",
-        say: [t("Shift done! Rest a bit, then dinner.", "Syif habis! Rehat sekejap, lepas tu makan."), t("You're doing great.", "Kau buat dengan baik.")],
+        say: [t("Shift done! Rest a bit, then dinner.", "Syif habis! Rehat sekejap, lepas tu makan."), t("You're doing great.", "Hari ni dah buat yang terbaik.")],
         items: [
           { id: "pm-water", title: t("Drink water when you get home", "Minum air bila sampai rumah"), time: "7:30" },
           { id: "dinner", title: t("Dinner", "Makan malam"), note: t("Less rice, add protein and veg", "Kurang nasi, tambah protein dan sayur"), time: "8:00" },
@@ -296,14 +296,14 @@
     tips: [
       t("**Use small gaps.** 15 minutes between class and work is enough to review notes.", "**Guna masa terluang.** 15 minit antara kelas dan kerja cukup untuk ulang kaji."),
       t("**Pack the night before.** Busy mornings get easier.", "**Kemas beg malam sebelumnya.** Pagi sibuk jadi senang."),
-      t("**Sleep is not optional.** Tired brains learn slower.", "**Tidur bukan pilihan.** Otak penat lambat belajar."),
-      t("**Rest on purpose.** One night off a week keeps you going.", "**Rehat dengan sengaja.** Satu malam cuti seminggu buat kau bertahan.")
+      t("**Sleep is not optional.** Tired brains learn slower.", "**Tidur itu wajib.** Otak yang penat lambat belajar."),
+      t("**Rest on purpose.** One night off a week keeps you going.", "**Rancang masa rehat.** Satu malam cuti seminggu bantu bertahan lama.")
     ],
     guide: {
       title: t("Study + work tips", "Tip belajar + kerja"),
       sections: [{ title: t("Balancing both", "Mengimbangi kedua-duanya"), lines: [
         t("**Plan your week on Sunday:** classes, shifts and deadlines in one place.", "**Rancang minggu pada hari Ahad:** kelas, syif dan tarikh akhir di satu tempat."),
-        t("**Tell your boss your exam dates early.** Most will adjust your shifts.", "**Beritahu majikan tarikh peperiksaan awal.** Kebanyakan akan ubah syif kau.") ] }]
+        t("**Tell your boss your exam dates early.** Most will adjust your shifts.", "**Beritahu majikan tarikh peperiksaan awal.** Kebanyakan majikan sanggup ubah syif.") ] }]
     }
   };
 
