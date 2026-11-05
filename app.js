@@ -2404,13 +2404,19 @@ function openFind(today, rand = Math.random) {
   return { item, n };
 }
 const findCard = ({ item, n }) => `<div class="find r${item.r}"><span class="find-art">${findArt(item)}</span><span class="find-txt"><small>${rarityName(item.r)}</small><b>${findName(item.id)}</b><span>${n > 1 ? T("findAgain", n) : T("findNew")}</span></span></div>`;
+// The collection book: every find has a fixed slot (common, then rare, then epic). Ones not found yet show as a
+// silhouette with "? ? ?" and their rarity, so players can see what's left to collect.
 function findsHTML() {
   const f = findsState(), today = dkey(routineDate()), owned = FINDS.filter(x => findCount(f, x.id));
+  const pity = Math.max(1, RARE_PITY - f.dry);
+  const cell = x => { const n = findCount(f, x.id);
+    if (!n) return `<li class="fcell lock r${x.r}" aria-label="${T("findLocked")} · ${rarityName(x.r)}"><span class="find-art">${findArt(x)}</span><b aria-hidden="true">? ? ?</b><small aria-hidden="true">${rarityName(x.r)}</small></li>`;
+    return `<li class="fcell r${x.r}"><span class="find-art">${findArt(x)}</span><b>${findName(x.id)}</b><small>${rarityName(x.r)}${n > 1 ? ` · ×${n}` : ""}</small>${f.log[today] === x.id ? `<i class="b-new">${T("newBadge")}</i>` : ""}</li>`; };
   return `<section class="me-trophy me-finds" aria-labelledby="findsT"><div class="me-th"><h3 id="findsT">${T("findsTitle")}</h3><span>${owned.length} / ${FINDS.length}</span></div>
     <div class="bar"><i style="${fillPct(100 * owned.length / FINDS.length)}"></i></div>
-    ${owned.length ? `<ul class="fgrid">${owned.map(x => { const n = findCount(f, x.id);
-      return `<li class="fcell r${x.r}"><span class="find-art">${findArt(x)}</span><b>${findName(x.id)}</b><small>${rarityName(x.r)}${n > 1 ? ` · ×${n}` : ""}</small>${f.log[today] === x.id ? `<i class="b-new">${T("newBadge")}</i>` : ""}</li>`; }).join("")}</ul>`
-      : `<p class="f-empty">${I.chest}<span>${T("findsEmpty")}</span></p>`}</section>`;
+    ${owned.length ? (owned.length < FINDS.length ? `<p class="f-pity">${I.chest}<span>${T("findsPity", pity)}</span></p>` : "")
+      : `<p class="f-empty">${I.chest}<span>${T("findsEmpty")}</span></p>`}
+    <ul class="fgrid">${FINDS.map(cell).join("")}</ul></section>`;
 }
 
 /* ================= Refresh + comparisons ================= */

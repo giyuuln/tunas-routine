@@ -138,7 +138,7 @@ button:focus-visible,summary:focus-visible,input:focus-visible{outline:3px solid
 .day.today span{color:var(--ink)}
 
 /* Badges */
-.bgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:16px 8px;padding:16px 12px}
+.bgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:16px 8px;padding:16px 12px}
 .badge{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px}
 .medal{width:58px;height:58px;border-radius:18px;transform:rotate(45deg);display:grid;place-items:center;background:var(--c);box-shadow:0 5px 0 var(--cd)}
 .medal span{transform:rotate(-45deg);display:flex;flex-direction:column;align-items:center;line-height:1;font-family:var(--display);font-weight:700;font-size:13px;color:var(--on-bright)}
@@ -858,16 +858,25 @@ a:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-vis
 .find-txt span{font-size:13.5px;color:var(--muted)}
 .find-art{flex:none;display:grid;place-items:center;border-radius:14px;background:var(--soft)}
 .find-art svg{width:78%;height:78%;overflow:visible}
-.find.r1,.fcell.r1{border-color:var(--sky);box-shadow:0 4px 0 var(--sky-d)} .find.r1 small,.fcell.r1 small{color:var(--sky-d)}
-.find.r2,.fcell.r2{border-color:var(--epic);box-shadow:0 4px 0 var(--epic-ink)} .find.r2 small,.fcell.r2 small{color:var(--epic-ink)}
+.find.r1,.fcell.r1{border-color:var(--sky);box-shadow:0 4px 0 var(--sky-d)} .find.r1 small,.fcell.r1:not(.lock) small{color:var(--sky-d)}
+.find.r2,.fcell.r2{border-color:var(--epic);box-shadow:0 4px 0 var(--epic-ink)} .find.r2 small,.fcell.r2:not(.lock) small{color:var(--epic-ink)}
 .find.r2 .find-art{background:linear-gradient(135deg,var(--gold-soft),var(--soft))}
 @keyframes findpop{0%{transform:translateY(18px) scale(.6);opacity:0}100%{transform:none;opacity:1}}
-.fgrid{list-style:none;margin:0;padding:8px 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px 8px}
+.fgrid{list-style:none;margin:0;padding:8px 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:10px 8px}
 .fcell{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 6px 8px;border-radius:16px;border:2px solid var(--line);box-shadow:0 3px 0 var(--line);background:var(--card);text-align:center}
-.fcell .find-art{width:52px;height:52px}
-.fcell b{font-size:13px;font-weight:900;line-height:1.2;color:var(--ink)}
+.fcell .find-art{width:48px;height:48px}
+.fcell b{font-size:12.5px;overflow-wrap:anywhere;font-weight:900;line-height:1.2;color:var(--ink)}
 .fcell small{font-size:11.5px;font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums}
 .fcell .b-new{position:absolute;top:-8px;left:auto;right:-4px;font-style:normal}
 .f-empty{display:flex;align-items:center;gap:10px;margin:0;padding:12px;border:2px dashed var(--line);border-radius:16px;font-size:14px;color:var(--muted)}
 .f-empty svg{flex:none;width:28px;height:28px;fill:var(--gold)}
+.f-pity{display:flex;align-items:center;gap:8px;margin:8px 0 0;font-size:13.5px;font-weight:700;color:var(--muted)}
+.f-pity svg{flex:none;width:22px;height:22px;fill:var(--gold)}
+.fcell.lock{border-style:dashed;border-color:var(--line);box-shadow:none;background:var(--soft)}
+.fcell.lock .find-art{background:transparent;color:var(--control)}
+.fcell.lock .find-art svg{opacity:.4}
+.fcell.lock .find-art svg *{fill:currentColor;stroke:currentColor;opacity:1}
+.fcell.lock.r1{border-color:var(--sky)} .fcell.lock.r2{border-color:var(--epic)}
+.fcell.lock b{color:var(--muted);letter-spacing:.12em}
+.fcell.lock small{color:var(--muted)}
 @media (prefers-reduced-motion: reduce){.find{animation:none}}
