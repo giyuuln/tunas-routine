@@ -290,7 +290,7 @@ const titleOf = n => { const t = T("titles"); return t[Math.min(n - 1, t.length 
 
 /* ================= Progress storage ================= */
 let store = loadJSON(DATA_KEY, v => v && typeof v === "object" && v.days && typeof v.days === "object").value || { days:{}, weeks:{}, logs:{}, seen:{}, rest:{} };
-function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; }
+function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); }
 normStore();
 function save() { return storeSet(DATA_KEY, JSON.stringify(store)); }
 let soundOn = true; try { soundOn = localStorage.getItem(SND_KEY) !== "off"; } catch (e) {}
@@ -1400,6 +1400,7 @@ function renderMe(keep) {
       ${stat("dumb", S.workouts, T("meWorkouts"))}${stat("bolt", S.prs, T("mePRs"))}
     </div>
     <div class="set-group nofold"><h3>${T("tunasColour")}</h3><p>${T("themeHelp")}</p>${themePicker()}</div>
+    ${findsHTML()}
     <section class="me-trophy" aria-labelledby="trophyT"><div class="me-th"><h3 id="trophyT">${T("badges")}</h3><span>${got} / ${BADGES.length}</span></div>
       <div class="bar"><i style="${fillPct(100 * got / BADGES.length)}"></i></div>
       <div class="bgrid" id="bgrid"></div></section>`;
@@ -2260,7 +2261,7 @@ function nextCele() {
   const c = celeQ.shift(); if (!c) { $("cele").hidden = true; contextSay(); setTimeout(playHome, 150); return; }
   if (sheetId && !["settings", "routine", "me", "editor", "packs", "wosetup", "skinsetup"].includes(sheetId) && !sheetId.startsWith("day:") && !sheetId.startsWith("lock:")) closeSheet();
   const el = $("cele"); el.hidden = false;
-  el.innerHTML = `${c.art || `<div class="mascot cheer" id="celeMascot">${MASCOT}</div>`}<h2 class="${c.color || ""}">${c.title}</h2><p>${c.sub}</p>
+  el.innerHTML = `${c.art || `<div class="mascot cheer" id="celeMascot">${MASCOT}</div>`}<h2 class="${c.color || ""}">${c.title}</h2><p>${c.sub}</p>${c.extra || ""}
     ${c.tiles.length ? `<div class="tiles">${c.tiles.map(t => `<div class="tile" style="--c:var(${t.c})"><small>${t.k}</small><b>${t.i ? I[t.i] : ""}${t.v}</b></div>`).join("")}</div>` : ""}
     <button class="btn" type="button" id="celeGo">${c.btn || T("cont")}</button>${c.alt ? `<button class="linkish" type="button" id="celeAlt">${c.alt.t}</button>` : ""}`;
   $("celeGo").onclick = nextCele; $("celeGo").focus({ preventScroll: true });
@@ -2327,17 +2328,90 @@ function renderWeekSum() {
 $("shBody").addEventListener("click", e => { const b = e.target.closest("[data-wsnav]"); if (!b || b.disabled) return; wsBack = Math.max(1, Math.min(52, wsBack + (+b.dataset.wsnav))); renderWeekSum(); });
 
 /* ================= Daily chest ================= */
-// Finishing all daily quests opens today's chest: a celebration only, it adds no XP.
+// Finishing all daily quests opens today's chest. It adds no XP, but it always gives one find to keep (see Chest finds below).
 function checkChest() {
   const today = dkey(routineDate()); store.chest ||= {};
   if (!renderQuests.allWon || store.chest[today]) return;
-  store.chest[today] = 1; Object.keys(store.chest).forEach(k => { if (k < dkey(new Date(Date.now() - 40 * 864e5))) delete store.chest[k]; }); save();
-  queueCele({ title: T("chestTitle"), sub: pick(T("chestLines")), color: "green", sound: "level", art: CHEST, btn: T("chestBtn"), tiles: [] });
+  store.chest[today] = 1; Object.keys(store.chest).forEach(k => { if (k < dkey(new Date(Date.now() - 40 * 864e5))) delete store.chest[k]; });
+  const got = openFind(today); save();
+  queueCele({ title: T("chestTitle"), sub: pick(T("chestLines")), color: "green", sound: "level", art: CHEST, extra: findCard(got), btn: T("chestBtn"), tiles: [] });
 }
 const CHEST = `<div class="chest-art" aria-hidden="true"><svg viewBox="0 0 120 100"><g class="glow"><circle cx="60" cy="40" r="34"/></g>
   <rect class="ch-body" x="18" y="46" width="84" height="44" rx="8"/><rect class="ch-band" x="18" y="58" width="84" height="8"/>
   <g class="ch-lid"><path d="M18 46v-8a22 22 0 0 1 22-22h40a22 22 0 0 1 22 22v8z"/><rect class="ch-band" x="18" y="38" width="84" height="8"/></g>
   <rect class="ch-lock" x="53" y="52" width="14" height="18" rx="3"/></svg></div>`;
+
+/* ================= Chest finds ================= */
+// Each chest gives one find to keep: r 0 = common, 1 = rare, 2 = epic. Names live in i18n (finds).
+// Odds per chest: 70% common, 25% rare, 5% epic. The 5th chest in a row without a rare is always rare or better,
+// and the 15th without an epic is always epic. A new find is picked before a repeat. The very first chest gives the Pandan Leaf.
+const FINDS = [
+  { id: "pandan", s: "leaf", c: ["#5bbf6c", "#2f7d3d"], r: 0 }, { id: "clover", s: "clover", c: ["#6fcf5a", "#36862a"], r: 0 },
+  { id: "rubber", s: "seed", c: ["#b07444", "#6e4322"], r: 0 }, { id: "pebble", s: "seed", c: ["#aab4bb", "#69757d"], r: 0 },
+  { id: "kerang", s: "shell", c: ["#ffb592", "#d0704a"], r: 0 }, { id: "feather", s: "feather", c: ["#7cc8f2", "#2f86b8"], r: 0 },
+  { id: "mushroom", s: "mushroom", c: ["#f0604f", "#b0362a"], r: 0 }, { id: "dew", s: "drop", c: ["#93dcf7", "#3398c9"], r: 0 },
+  { id: "melur", s: "flower", c: ["#ffffff", "#a9b5a3"], r: 0 }, { id: "gugur", s: "leaf", c: ["#ffa04a", "#c4620a"], r: 0 },
+  { id: "pucuk", s: "sprout", c: ["#7fd36f", "#3a8a33"], r: 0 }, { id: "kertas", s: "flower", c: ["#ff7cb4", "#c9407c"], r: 0 },
+  { id: "raya", s: "flower", c: ["#ee3b45", "#a51d26"], r: 1 }, { id: "goldleaf", s: "leaf", c: ["#ffcc33", "#c48a00"], r: 1 },
+  { id: "rambutan", s: "spiky", c: ["#ec4a3c", "#a3241a"], r: 1 }, { id: "lucky", s: "clover4", c: ["#4fd17f", "#1f8a4a"], r: 1 },
+  { id: "moonshell", s: "shell", c: ["#c3cdfd", "#6d7fd8"], r: 1 }, { id: "enggang", s: "feather", c: ["#ff9b3d", "#b85b00"], r: 1 },
+  { id: "kelip", s: "glow", c: ["#e4f75f", "#8fa31c"], r: 1 }, { id: "pearl", s: "seed", c: ["#f6f2ff", "#a99fcf"], r: 1 },
+  { id: "rafflesia", s: "rafflesia", c: ["#e0533a", "#8f2414"], r: 2 }, { id: "crystal", s: "gem", c: ["#8ee6ff", "#2a8fc0"], r: 2 },
+  { id: "star", s: "star", c: ["#ffd23f", "#c48a00"], r: 2 }, { id: "goldsprout", s: "sprout", c: ["#ffcf3a", "#b98200"], r: 2 },
+];
+const FIND_ODDS = [0.70, 0.25, 0.05], RARE_PITY = 5, EPIC_PITY = 15, FIRST_FIND = "pandan";
+// Small chunky art in the app's style: a dark outline (c[1]), a fill (c[0]) and a white shine.
+const FIND_ART = {
+  leaf: (f, d) => `<path d="M24 5c-11 8-15 20-12 31 1.5 5 6 7 12 7s10.5-2 12-7c3-11-1-23-12-31z" fill="${f}" stroke="${d}" stroke-width="3" stroke-linejoin="round"/><path d="M24 15v26M24 26l-6-5M24 33l6-5" stroke="${d}" stroke-width="2.5" stroke-linecap="round" fill="none"/>`,
+  clover: (f, d) => `<path d="M24 30q2 8 8 13" stroke="${d}" stroke-width="3" stroke-linecap="round" fill="none"/>${[[24, 13], [14, 25], [34, 25]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="9" fill="${f}" stroke="${d}" stroke-width="3"/>`).join("")}<circle cx="24" cy="23" r="3" fill="${d}"/>`,
+  clover4: (f, d) => `<path d="M24 30q2 8 8 13" stroke="${d}" stroke-width="3" stroke-linecap="round" fill="none"/>${[[24, 11], [12, 22], [36, 22], [24, 32]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="8.5" fill="${f}" stroke="${d}" stroke-width="3"/>`).join("")}<circle cx="24" cy="22" r="3" fill="${d}"/>`,
+  seed: (f, d) => `<ellipse cx="24" cy="26" rx="15" ry="13" fill="${f}" stroke="${d}" stroke-width="3"/>`,
+  glow: (f, d) => `<circle cx="24" cy="25" r="18" fill="${f}" opacity=".35"/><ellipse cx="24" cy="27" rx="8" ry="10" fill="${f}" stroke="${d}" stroke-width="3"/><path d="M17 18q-6-6-10-3M31 18q6-6 10-3" stroke="${d}" stroke-width="2.5" stroke-linecap="round" fill="none"/>`,
+  shell: (f, d) => `<path d="M24 40L8 22a16 14 0 0 1 32 0z" fill="${f}" stroke="${d}" stroke-width="3" stroke-linejoin="round"/><path d="M24 40L16 13M24 40V10M24 40l8-27" stroke="${d}" stroke-width="2.5" stroke-linecap="round" fill="none"/><rect x="19" y="38" width="10" height="5" rx="2" fill="${d}"/>`,
+  feather: (f, d) => `<path d="M38 7C22 9 11 21 12 36l3 3c14 0 24-12 23-32z" fill="${f}" stroke="${d}" stroke-width="3" stroke-linejoin="round"/><path d="M36 10L10 42M27 20l-7 1M31 24l-8 5" stroke="${d}" stroke-width="2.5" stroke-linecap="round" fill="none"/>`,
+  mushroom: (f, d) => `<path d="M19 28h10v11a3 3 0 0 1-3 3h-4a3 3 0 0 1-3-3z" fill="#fff4e0" stroke="${d}" stroke-width="3"/><path d="M7 28a17 16 0 0 1 34 0z" fill="${f}" stroke="${d}" stroke-width="3" stroke-linejoin="round"/><circle cx="17" cy="20" r="3" fill="#fff"/><circle cx="29" cy="17" r="2.5" fill="#fff"/><circle cx="33" cy="24" r="2" fill="#fff"/>`,
+  drop: (f, d) => `<path d="M24 6C16 18 11 24 11 31a13 13 0 0 0 26 0c0-7-5-13-13-25z" fill="${f}" stroke="${d}" stroke-width="3" stroke-linejoin="round"/>`,
+  flower: (f, d) => `${[0, 72, 144, 216, 288].map(a => `<ellipse cx="24" cy="13" rx="7" ry="10" fill="${f}" stroke="${d}" stroke-width="2.5" transform="rotate(${a} 24 24)"/>`).join("")}<circle cx="24" cy="24" r="5.5" fill="#ffc21a" stroke="#c48a00" stroke-width="2.5"/>`,
+  sprout: (f, d) => `<path d="M24 42V24" stroke="${d}" stroke-width="3.5" stroke-linecap="round"/><path d="M24 26C12 28 7 20 8 11c10-1 16 5 16 15zM24 22c1-9 7-14 16-13 1 9-5 15-16 13z" fill="${f}" stroke="${d}" stroke-width="3" stroke-linejoin="round"/><path d="M15 42h18" stroke="${d}" stroke-width="3.5" stroke-linecap="round"/>`,
+  spiky: (f, d) => `${Array.from({ length: 12 }, (_, i) => `<path d="M24 12V7q0-2.5 3-3" stroke="#4aa85c" stroke-width="3" stroke-linecap="round" fill="none" transform="rotate(${i * 30} 24 25)"/>`).join("")}<circle cx="24" cy="25" r="13" fill="${f}" stroke="${d}" stroke-width="3"/>`,
+  gem: (f, d) => `<path d="M14 8h20l8 11-18 23L6 19z" fill="${f}" stroke="${d}" stroke-width="3" stroke-linejoin="round"/><path d="M6 19h36M18 19l6 23 6-23M14 8l4 11 6-11 6 11 4-11" stroke="${d}" stroke-width="2" stroke-linejoin="round" fill="none"/>`,
+  star: (f, d) => `<path d="M24 5l5.6 11.6 12.7 1.8-9.2 9 2.2 12.6L24 34l-11.3 6 2.2-12.6-9.2-9 12.7-1.8z" fill="${f}" stroke="${d}" stroke-width="3" stroke-linejoin="round"/>`,
+  rafflesia: (f, d) => `${[0, 72, 144, 216, 288].map(a => `<path d="M24 22c-9-2-12-10-8-16 5-3 12-3 16 0 4 6 1 14-8 16z" fill="${f}" stroke="${d}" stroke-width="2.5" stroke-linejoin="round" transform="rotate(${a} 24 25)"/>`).join("")}<circle cx="24" cy="25" r="8" fill="${d}"/><circle cx="24" cy="25" r="4.5" fill="#3a0c05"/><circle cx="18" cy="9" r="1.6" fill="#fff"/><circle cx="38" cy="18" r="1.6" fill="#fff"/><circle cx="34" cy="38" r="1.6" fill="#fff"/><circle cx="12" cy="36" r="1.6" fill="#fff"/><circle cx="9" cy="20" r="1.6" fill="#fff"/>`,
+};
+const SHINE = '<ellipse cx="18" cy="17" rx="4" ry="2.5" fill="#fff" opacity=".55" transform="rotate(-35 18 17)"/>';
+const findArt = f => `<svg viewBox="0 0 48 48" aria-hidden="true">${(FIND_ART[f.s] || FIND_ART.seed)(f.c[0], f.c[1])}${["seed", "drop", "gem", "glow"].includes(f.s) ? SHINE : ""}</svg>`;
+const findName = id => (T("finds") || {})[id] || id, rarityName = r => T("rarity")[r] || "";
+// Saved as store.finds = { got: { id: { n, d } }, log: { day: id }, dry, edry }. Missing or odd values from an old backup fall back to empty.
+function findsState() {
+  const f = store.finds && typeof store.finds === "object" ? store.finds : (store.finds = {});
+  if (!f.got || typeof f.got !== "object") f.got = {}; if (!f.log || typeof f.log !== "object") f.log = {};
+  f.dry = Math.max(0, +f.dry || 0); f.edry = Math.max(0, +f.edry || 0); return f;
+}
+const findCount = (f, id) => Math.max(0, +((f.got[id] || {}).n) || 0);
+function rollRarity(f, rand) {
+  if (f.edry + 1 >= EPIC_PITY) return 2;
+  if (f.dry + 1 >= RARE_PITY) return rand() < FIND_ODDS[2] / (FIND_ODDS[1] + FIND_ODDS[2]) ? 2 : 1;
+  const x = rand(); return x < FIND_ODDS[2] ? 2 : x < FIND_ODDS[2] + FIND_ODDS[1] ? 1 : 0;
+}
+function openFind(today, rand = Math.random) {
+  const f = findsState(), first = !FINDS.some(x => findCount(f, x.id));
+  const r = first ? 0 : rollRarity(f, rand), pool = FINDS.filter(x => x.r === r), fresh = pool.filter(x => !findCount(f, x.id));
+  const item = first ? FINDS.find(x => x.id === FIRST_FIND) : (fresh.length ? fresh : pool)[Math.floor(rand() * (fresh.length || pool.length))];
+  const n = findCount(f, item.id) + 1;
+  f.got[item.id] = { n, d: (f.got[item.id] || {}).d || today }; f.log[today] = item.id;
+  f.dry = r >= 1 ? 0 : f.dry + 1; f.edry = r === 2 ? 0 : f.edry + 1;
+  Object.keys(f.log).forEach(k => { if (k < dkey(new Date(Date.now() - 40 * 864e5))) delete f.log[k]; });
+  return { item, n };
+}
+const findCard = ({ item, n }) => `<div class="find r${item.r}"><span class="find-art">${findArt(item)}</span><span class="find-txt"><small>${rarityName(item.r)}</small><b>${findName(item.id)}</b><span>${n > 1 ? T("findAgain", n) : T("findNew")}</span></span></div>`;
+function findsHTML() {
+  const f = findsState(), today = dkey(routineDate()), owned = FINDS.filter(x => findCount(f, x.id));
+  return `<section class="me-trophy me-finds" aria-labelledby="findsT"><div class="me-th"><h3 id="findsT">${T("findsTitle")}</h3><span>${owned.length} / ${FINDS.length}</span></div>
+    <div class="bar"><i style="${fillPct(100 * owned.length / FINDS.length)}"></i></div>
+    ${owned.length ? `<ul class="fgrid">${owned.map(x => { const n = findCount(f, x.id);
+      return `<li class="fcell r${x.r}"><span class="find-art">${findArt(x)}</span><b>${findName(x.id)}</b><small>${rarityName(x.r)}${n > 1 ? ` · ×${n}` : ""}</small>${f.log[today] === x.id ? `<i class="b-new">${T("newBadge")}</i>` : ""}</li>`; }).join("")}</ul>`
+      : `<p class="f-empty">${I.chest}<span>${T("findsEmpty")}</span></p>`}</section>`;
+}
 
 /* ================= Refresh + comparisons ================= */
 let prevCleared = null;
