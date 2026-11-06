@@ -292,7 +292,7 @@ const titleOf = n => { const t = T("titles"); return t[Math.min(n - 1, t.length 
 // Streak shield rules (see Streak shields). Set here because loading saved data already checks them.
 const SHIELD_MAX = 2, SHIELD_ODDS = 0.25, SHIELD_PITY = 5, SHIELD_MIN_STREAK = 2;
 let store = loadJSON(DATA_KEY, v => v && typeof v === "object" && v.days && typeof v.days === "object").value || { days:{}, weeks:{}, logs:{}, seen:{}, rest:{} };
-function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); }
+function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); }
 normStore();
 function save() { return storeSet(DATA_KEY, JSON.stringify(store)); }
 let soundOn = true; try { soundOn = localStorage.getItem(SND_KEY) !== "off"; } catch (e) {}
@@ -752,7 +752,7 @@ function renderStreak(S) {
   for (let k = 6; k >= 0; k--) { const x = new Date(d); x.setDate(x.getDate() - k); const r = ratio(x), rst = isRest(x), shd = !rst && r < .8 && isShielded(x);
     days += `<div class="day${k === 0 ? " today" : ""}${rst ? " rest" : shd ? " shielded" : r >= .8 ? " full" : r > 0 ? " part" : ""}" title="${rst ? T("lgRest") : shd ? T("lgShield") : Math.round(r*100) + "%"}"><i>${rst ? I.moon : shd ? SHIELD_ICO : I.flame}</i><span>${x.toLocaleDateString(locale(), { weekday: "short" }).slice(0, 2)}</span></div>`; }
   const el = $("streakCard"); if (!el) return;
-  el.innerHTML = `<div class="streak-top"><svg class="big-flame${S.streak ? "" : " off"}" viewBox="0 0 24 24"><path d="${I.flame.match(/d="([^"]+)"/)[1]}"/></svg><div><b>${T("streakDays", S.streak)}</b><span>${S.streak ? T("streakKeep") : T("streakStart")} · ${T("best", S.bestStreak)}</span></div></div><div class="week">${days}</div>${shieldRow()}${restRow(d)}`;
+  el.innerHTML = `<div class="streak-top"><svg class="big-flame${S.streak ? "" : " off"}" viewBox="0 0 24 24"><path d="${I.flame.match(/d="([^"]+)"/)[1]}"/></svg><div><b>${T("streakDays", S.streak)}</b><span>${S.streak ? T("streakKeep") : T("streakStart")} · ${T("best", S.bestStreak)}</span></div></div><div class="week">${days}</div>${shieldRow()}${wchestRow()}${restRow(d)}`;
 }
 $("shBody").addEventListener("click", e => { if (!e.target.closest("#streakCard")) return; const b = e.target.closest("[data-restday]"); if (b) setRest(b.dataset.restday, b.dataset.v === "1"); });
 
@@ -2269,7 +2269,7 @@ function nextCele() {
   el.innerHTML = `${c.art || `<div class="mascot cheer" id="celeMascot">${MASCOT}</div>`}<h2 class="${c.color || ""}">${c.title}</h2><p>${c.sub}</p>${c.extra || ""}
     ${c.tiles.length ? `<div class="tiles">${c.tiles.map(t => `<div class="tile" style="--c:var(${t.c})"><small>${t.k}</small><b>${t.i ? I[t.i] : ""}${t.v}</b></div>`).join("")}</div>` : ""}
     <button class="btn" type="button" id="celeGo">${c.btn || T("cont")}</button>${c.alt ? `<button class="linkish" type="button" id="celeAlt">${c.alt.t}</button>` : ""}`;
-  $("celeGo").onclick = nextCele; $("celeGo").focus({ preventScroll: true });
+  $("celeGo").onclick = () => { nextCele(); if (c.then) c.then(); }; $("celeGo").focus({ preventScroll: true });
   if (c.alt) $("celeAlt").onclick = () => { nextCele(); c.alt.go(); };
   if ($("celeMascot")) jump($("celeMascot")); sfx(c.sound || "clear"); buzz([30,60,30]); confetti();
 }
@@ -2323,7 +2323,9 @@ function checkWeekRecap() {
   const d = routineDate(), wk = wkey(d); if (d.getDay() !== 1 || store.weekRecap === wk) return;
   store.weekRecap = wk; save();
   const s = weekSummary(lastMonday()); if (!s.active) return;
-  queueCele({ title: T("wsTitle", firstName()), sub: [T(s.pct >= 80 ? "wsGoodSub" : "wsOkSub"), ...wsLines(s)].join("<br>"), color: "green", sound: "ding", tiles: wsTiles(s) });
+  const earned = wchestLast() === "open";
+  queueCele({ title: T("wsTitle", firstName()), sub: [T(s.pct >= 80 ? "wsGoodSub" : "wsOkSub"), ...wsLines(s), earned ? `<b>${T("wchestEarned", goalDays(lastMonday()))}</b>` : ""].filter(Boolean).join("<br>"),
+    color: "green", sound: "ding", tiles: wsTiles(s), btn: earned ? T("wchestOpen") : undefined, then: earned ? openWeekChest : undefined });
 }
 // History shows any past week's summary. 1 = last week, 2 = the week before, ...
 let wsBack = 1;
@@ -2332,8 +2334,10 @@ function renderWeekSum() {
   const mon = lastMonday(); mon.setDate(mon.getDate() - 7 * (wsBack - 1)); const s = weekSummary(mon), f = { day: "numeric", month: "short" };
   const range = `${mon.toLocaleDateString(locale(), f)} – ${s.end.toLocaleDateString(locale(), f)}`;
   el.innerHTML = `<div class="h-top"><button class="x" type="button" data-wsnav="1" aria-label="${T("wsPrev")}" ${wsBack >= 52 ? "disabled" : ""}>‹</button><div class="ws-h"><b>${wsBack === 1 ? T("wsLast") : T("wsAgo", wsBack)}</b><span>${range}</span></div><button class="x" type="button" data-wsnav="-1" aria-label="${T("wsNext")}" ${wsBack <= 1 ? "disabled" : ""}>›</button></div>
+    ${wsBack === 1 && wchestLast() === "open" ? `<button class="btn wchest-btn" type="button" data-wchest>${I.chest}${T("wchestOpen")}</button>` : wsBack === 1 && wchestLast() === "done" ? `<p class="ws-line wc-done">${I.chest}${T("wchestDone")}</p>` : ""}
     ${s.active ? `<div class="tiles">${wsTiles(s).map(t => `<div class="tile" style="--c:var(${t.c})"><small>${t.k}</small><b>${t.i ? I[t.i] : ""}${t.v}</b></div>`).join("")}</div>${wsLines(s).map(l => `<p class="ws-line">${l}</p>`).join("")}` : `<p class="ws-line">${T("wsEmpty")}</p>`}`;
 }
+$("shBody").addEventListener("click", e => { if (e.target.closest("[data-wchest]")) { audio(); openWeekChest(); } });
 $("shBody").addEventListener("click", e => { const b = e.target.closest("[data-wsnav]"); if (!b || b.disabled) return; wsBack = Math.max(1, Math.min(52, wsBack + (+b.dataset.wsnav))); renderWeekSum(); });
 
 /* ================= Daily chest ================= */
@@ -2349,6 +2353,42 @@ const CHEST = `<div class="chest-art" aria-hidden="true"><svg viewBox="0 0 120 1
   <rect class="ch-body" x="18" y="46" width="84" height="44" rx="8"/><rect class="ch-band" x="18" y="58" width="84" height="8"/>
   <g class="ch-lid"><path d="M18 46v-8a22 22 0 0 1 22-22h40a22 22 0 0 1 22 22v8z"/><rect class="ch-band" x="18" y="38" width="84" height="8"/></g>
   <rect class="ch-lock" x="53" y="52" width="14" height="18" rx="3"/></svg></div>`;
+
+/* ================= Weekly chest ================= */
+// A week (Monday to Sunday) with 5+ goal days earns a bigger chest. A goal day is one with 80%+ of habits ticked, or a
+// rest day; a day a streak shield covered doesn't count. It holds 2 finds (the first is Rare or better for sure) and a
+// streak shield if there's room. Last week's chest opens after the Monday summary, or from History any time this week.
+// Saved as store.wchest = { Monday of the week: day opened }. Old data without it just has no chests opened yet.
+const WCHEST_GOAL = 5;
+function wchestState() {
+  if (!store.wchest || typeof store.wchest !== "object" || Array.isArray(store.wchest)) store.wchest = {};
+  return store.wchest;
+}
+// Goal days so far in the week that starts on mon (days after today don't count yet).
+function goalDays(mon) {
+  const today = dkey(routineDate()); let n = 0;
+  for (let i = 0; i < 7; i++) { const d = new Date(mon); d.setDate(d.getDate() + i); if (dkey(d) > today) break; if (dayDone(d)) n++; }
+  return n;
+}
+// Last week's chest: "open" when earned and not opened yet, "done" once opened, otherwise null.
+function wchestLast() {
+  const mk = dkey(lastMonday());
+  return wchestState()[mk] ? "done" : goalDays(lastMonday()) >= WCHEST_GOAL ? "open" : null;
+}
+function openWeekChest() {
+  if (wchestLast() !== "open") return;
+  const w = wchestState(), today = dkey(routineDate()); w[dkey(lastMonday())] = today;
+  Object.keys(w).forEach(k => { if (k < dkey(new Date(Date.now() - 70 * 864e5))) delete w[k]; });
+  const a = openFind(today, Math.random, 1), b = openFind(today), sh = rollShield(today, () => 0); save();
+  queueCele({ title: T("wchestTitle"), sub: T("wchestSub", goalDays(lastMonday())), color: "green", sound: "level", art: CHEST.replace('class="chest-art"', 'class="chest-art wk"'),
+    extra: `<div class="find-list">${findCard(a)}${findCard(b)}${sh ? shieldCard() : ""}</div>`, btn: T("chestBtn"), tiles: [] });
+  refresh(true);
+}
+// This week's progress toward the next weekly chest, for the streak card in History.
+function wchestRow() {
+  const n = Math.min(WCHEST_GOAL, goalDays(keyToDate(wkey(routineDate())))), pips = Array.from({ length: WCHEST_GOAL }, (_, i) => `<i class="${i < n ? "on" : ""}"></i>`).join("");
+  return `<div class="wchest-row">${I.chest}<span><b>${T("wchestName")}</b> ${n >= WCHEST_GOAL ? T("wchestReady") : T("wchestProgress", n, WCHEST_GOAL)}</span><span class="wc-pips" role="img" aria-label="${n}/${WCHEST_GOAL}">${pips}</span></div>`;
+}
 
 /* ================= Chest finds ================= */
 // Each chest gives one find to keep: r 0 = common, 1 = rare, 2 = epic. Names live in i18n (finds).
@@ -2397,14 +2437,15 @@ function findsState() {
   f.dry = Math.max(0, +f.dry || 0); f.edry = Math.max(0, +f.edry || 0); return f;
 }
 const findCount = (f, id) => Math.max(0, +((f.got[id] || {}).n) || 0);
-function rollRarity(f, rand) {
+// minR 1 = Rare or better for sure (the weekly chest's first find).
+function rollRarity(f, rand, minR = 0) {
   if (f.edry + 1 >= EPIC_PITY) return 2;
-  if (f.dry + 1 >= RARE_PITY) return rand() < FIND_ODDS[2] / (FIND_ODDS[1] + FIND_ODDS[2]) ? 2 : 1;
+  if (minR >= 1 || f.dry + 1 >= RARE_PITY) return rand() < FIND_ODDS[2] / (FIND_ODDS[1] + FIND_ODDS[2]) ? 2 : 1;
   const x = rand(); return x < FIND_ODDS[2] ? 2 : x < FIND_ODDS[2] + FIND_ODDS[1] ? 1 : 0;
 }
-function openFind(today, rand = Math.random) {
-  const f = findsState(), first = !FINDS.some(x => findCount(f, x.id));
-  const r = first ? 0 : rollRarity(f, rand), pool = FINDS.filter(x => x.r === r), fresh = pool.filter(x => !findCount(f, x.id));
+function openFind(today, rand = Math.random, minR = 0) {
+  const f = findsState(), first = !minR && !FINDS.some(x => findCount(f, x.id));
+  const r = first ? 0 : rollRarity(f, rand, minR), pool = FINDS.filter(x => x.r === r), fresh = pool.filter(x => !findCount(f, x.id));
   const item = first ? FINDS.find(x => x.id === FIRST_FIND) : (fresh.length ? fresh : pool)[Math.floor(rand() * (fresh.length || pool.length))];
   const n = findCount(f, item.id) + 1;
   f.got[item.id] = { n, d: (f.got[item.id] || {}).d || today }; f.log[today] = item.id;
