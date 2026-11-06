@@ -227,8 +227,11 @@ button:focus-visible,summary:focus-visible,input:focus-visible{outline:3px solid
 .ex .btn{align-self:flex-start;margin-top:4px}
 
 /* Celebration overlay */
-.cele{position:fixed;inset:0;z-index:70;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px 16px calc(24px + env(safe-area-inset-bottom,0px));text-align:center;animation:fadein .25s ease}
+.cele{position:fixed;inset:0;z-index:70;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;overflow-y:auto;overscroll-behavior:contain;gap:18px;padding:24px 16px calc(24px + env(safe-area-inset-bottom,0px));text-align:center;animation:fadein .25s ease}
 @keyframes fadein{from{opacity:0}}
+/* Centred when it fits, scrolls from the top when gift cards make it taller than the phone (Continue is always reachable). */
+.cele:not(.welcome)>:first-child{margin-top:auto} .cele:not(.welcome)>:last-child{margin-bottom:auto}
+.cele:has(.find-list .find:nth-child(2)) .mascot{width:120px;height:120px}
 .cele .mascot{width:170px;height:170px}
 .cele h2{font-family:var(--display);font-weight:700;font-size:32px;margin:0;color:var(--gold-ink);text-wrap:balance}
 .cele h2.green{color:var(--green-ink)} .cele h2.sky{color:var(--sky-d)}

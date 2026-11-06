@@ -357,7 +357,7 @@ window.TUNAS_I18N = {
     clearedTitle: t => `${t} siap!`, clearedSubs: ["Mantap! Jom yang seterusnya.", "Steady lah. Teruskan laluan.", "Bagus. Usaha hari ni, senang esok."],
     levelTitle: n => `Tahap ${n}!`, levelSub: t => `Pangkat baru: ${t}. Teruskan!`,
     lvNext: (n, w) => `Tahap ${n} nanti dapat: ${w}`, lvGiftTitle: t => `pangkat ${t}`, lvGiftFind: "hadiah Jarang", lvGiftShield: "perisai streak",
-    lvTitleNew: "Pangkat baru", lvTitleSub: "Kini terpapar di sebelah tahap.",
+    lvTitleNew: "Pangkat baru", lvTitleSub: "Kini muncul sebelah tahap.",
     tToday: "Hari ini", tStreak: "Streak", tLevel: "Tahap", tXP: "XP dikumpul", tDone: "Siap", tTotal: "Jumlah XP", tNext: "Ke tahap baru",
     badgeOne: n => `Lencana dibuka: <b>${n}</b>`, badgeMany: n => `<b>${n} lencana</b> dibuka`,
     questDone: xp => `Misi siap! <b>+${xp} XP</b>`, prToast: xp => `Rekod peribadi baru! <b>+${xp} XP</b>`, prSay: "REKOD BARU! Power lah!",
