@@ -503,6 +503,21 @@ body.sheet-top .scrim{z-index:74} body.sheet-top .sheet{z-index:75}
 :root[data-accent="langit"] .mascot .cloud{display:inline;animation:drift 4s ease-in-out infinite}
 :root[data-accent="ungu"] .mascot .shades{display:inline}
 @keyframes drift{50%{transform:translate(-3px,2px)}}
+/* Dress up Tunas: the outfit picked in the Me tab shows on every Tunas; .wp previews show only their own outfit */
+.mascot .wear{display:none}
+:root[data-wear="crown"] .mascot:not(.wp) .w-crown,:root[data-wear="scarf"] .mascot:not(.wp) .w-scarf,:root[data-wear="hat"] .mascot:not(.wp) .w-hat,
+.mascot.wp-crown .w-crown,.mascot.wp-scarf .w-scarf,.mascot.wp-hat .w-hat{display:inline}
+.wears{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;width:100%}
+.wear-opt{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px;border-radius:16px;border:2px solid var(--line);box-shadow:0 3px 0 var(--line);background:var(--card);font-weight:900;font-size:12.5px;line-height:1.2;color:var(--muted);text-align:center;overflow-wrap:anywhere}
+.wear-opt .mascot{width:52px;height:52px}
+.wear-opt[aria-pressed="true"]{border-color:var(--green);box-shadow:0 3px 0 var(--green-d),0 0 0 3px color-mix(in srgb,var(--green) 30%,transparent);color:var(--ink)}
+.wear-opt.lock{border-style:dashed;box-shadow:none;background:var(--soft)}
+.wear-opt.lock .mascot{opacity:.45;filter:grayscale(1)}
+.wear-opt small{font-size:11.5px;font-weight:800;font-variant-numeric:tabular-nums}
+.wear-opt:active{transform:translateY(2px)}
+.find-art>.mascot,.cele .find-list .find .find-art>.mascot{width:58px;height:58px} .find-art>.mascot svg{width:100%;height:100%}
+.wear-find{border-color:var(--green);box-shadow:0 4px 0 var(--green-d)} .wear-find small{color:var(--green-ink)}
+.wear-find .find-art{background:var(--green-soft)}
 :root[data-accent="ungu"] .mascot.cheer .mbody{animation:hype .35s ease-in-out 4}
 @keyframes hype{50%{transform:translateY(-6px) rotate(-4deg)}}
 .swatch small{font-size:12px;font-weight:800;color:var(--muted);margin-top:-4px}

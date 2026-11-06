@@ -47,6 +47,8 @@ const MASCOT = `<svg viewBox="0 0 120 120">
     <ellipse class="arm r" cx="103" cy="72" rx="7.5" ry="12" fill="var(--m-limb)"/>
     <path d="M60 24c26 0 42 18 42 44 0 25-17 39-42 39S18 93 18 68c0-26 16-44 42-44z" fill="var(--m-body)"/>
     <ellipse cx="60" cy="82" rx="25" ry="19" fill="var(--m-belly)"/>
+    <g class="wear w-hat"><ellipse cx="60" cy="28" rx="36" ry="8" fill="#f4c95d" stroke="#b98a25" stroke-width="3"/><path d="M42 28q0-18 18-18t18 18z" fill="#f4c95d" stroke="#b98a25" stroke-width="3" stroke-linejoin="round"/><path d="M43 21.5h34v5.5H43z" fill="#ff6b8a"/><path d="M30 29q30 7 60 0" stroke="#d9a63a" stroke-width="2" fill="none" stroke-linecap="round"/><ellipse cx="51" cy="15" rx="3" ry="1.8" fill="#fff" opacity=".55" transform="rotate(-35 51 15)"/></g>
+    <g class="wear w-crown"><path d="M33 38Q60 17 87 38" stroke="#c48a2c" stroke-width="4.5" fill="none" stroke-linecap="round"/>${[[36, 35, -50], [43, 30, -38], [51, 27, -18], [69, 27, 18], [77, 30, 38], [84, 35, 50]].map(([x, y, a]) => `<ellipse cx="${x}" cy="${y - 2}" rx="3.6" ry="6" fill="#8fd46f" stroke="#2e7d3e" stroke-width="2" transform="rotate(${a} ${x} ${y})"/>`).join("")}<circle cx="47" cy="30" r="3" fill="#fff" stroke="#c9b98f" stroke-width="1.5"/><circle cx="73" cy="30" r="3" fill="#fff" stroke="#c9b98f" stroke-width="1.5"/><circle cx="60" cy="27" r="3.4" fill="#ffd34d" stroke="#c48a00" stroke-width="1.5"/></g>
     <path d="M60 25V13" stroke="var(--m-leaf)" stroke-width="4" stroke-linecap="round"/>
     <path d="M60 15C51 3 39 6 41 15c8 3 14 3 19 0z" fill="var(--m-leaf)"/>
     <path d="M60 15c9-12 21-9 19 0-8 3-14 3-19 0z" fill="var(--m-leaf2)"/>
@@ -68,6 +70,7 @@ const MASCOT = `<svg viewBox="0 0 120 120">
     <g class="mo-big"><path d="M49 71q11 18 22 0z" fill="#8a2338"/><path d="M54 79q6 5 12 0q-6-4-12 0z" fill="#ff7a8f"/></g>
     <path class="mo-flat" d="M54 76q6 2 12 0" fill="none" stroke="var(--m-ink)" stroke-width="4" stroke-linecap="round"/>
     <path class="mo-hmm" d="M55 75.5q5.5 4.5 11 -1" fill="none" stroke="var(--m-ink)" stroke-width="4" stroke-linecap="round"/>
+    <g class="wear w-scarf"><path d="M80 92l5 14 9-4-4-12z" fill="#ff6b4a" stroke="#c43d23" stroke-width="2.5" stroke-linejoin="round"/><path d="M84 103.5l9-4" stroke="#fff" stroke-width="2" opacity=".8"/><path d="M23 85q37 15 74 0l-1 9q-36 15-72 0z" fill="#ff6b4a" stroke="#c43d23" stroke-width="2.5" stroke-linejoin="round"/><path d="M40 92.5v8M52 95v8.5M64 95v8.5M76 93v8" stroke="#fff" stroke-width="3" opacity=".8"/></g>
     <text class="zz" x="88" y="34" font-family="Fredoka, sans-serif" font-weight="700" font-size="16" fill="var(--sky)">z</text>
   </g>
 </svg>`;
@@ -310,13 +313,13 @@ function lvNextText(level) {
 function grantLevels(level) {
   const u = lvupState(); if (u.top == null) { u.top = level; save(); return null; }
   if (level <= u.top) return null;
-  const today = dkey(routineDate()), cards = [];
+  const today = dkey(routineDate()), cards = [], n0 = findsOwned();
   for (let n = u.top + 1; n <= level; n++) {
     if (lvNewTitle(n)) cards.push(titleCard(n));
     if (lvGift(n) === "find") cards.push(findCard(openFind(today, Math.random, 1)));
     else cards.push(rollShield(today, () => 0) ? shieldCard() : findCard(openFind(today)));
   }
-  u.top = level; save(); return cards;
+  u.top = level; save(); return cards.concat(wearCards(n0));
 }
 const TITLE_SVG = `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M15 28 9 44l7-3 4 6 5-15M33 28l6 16-7-3-4 6-5-15" fill="#25aaf0" stroke="#13709f" stroke-width="3" stroke-linejoin="round"/>
   <circle cx="24" cy="20" r="15" fill="#ffcc33" stroke="#c48a00" stroke-width="3"/><path d="M24 11.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" fill="#fff6d6" stroke="#c48a00" stroke-width="2" stroke-linejoin="round"/>
@@ -324,10 +327,12 @@ const TITLE_SVG = `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M15 28 9
 const titleCard = n => `<div class="find title-find"><span class="find-art">${TITLE_SVG}</span><span class="find-txt"><small>${T("lvTitleNew")}</small><b>${esc(titleOf(n))}</b><span>${T("lvTitleSub")}</span></span></div>`;
 
 /* ================= Progress storage ================= */
-// Streak shield rules (see Streak shields). Set here because loading saved data already checks them.
+// Streak shield and outfit rules (see Streak shields, Dress up Tunas). Set here because loading saved data already checks them.
 const SHIELD_MAX = 2, SHIELD_ODDS = 0.25, SHIELD_PITY = 5, SHIELD_MIN_STREAK = 2;
+// Tunas's outfits and how many different finds unlock each (see Dress up Tunas).
+const WEARS = [{ id: "crown", need: 1 }, { id: "scarf", need: 6 }, { id: "hat", need: 12 }];
 let store = loadJSON(DATA_KEY, v => v && typeof v === "object" && v.days && typeof v.days === "object").value || { days:{}, weeks:{}, logs:{}, seen:{}, rest:{} };
-function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); }
+function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); wearState(); }
 normStore();
 function save() { return storeSet(DATA_KEY, JSON.stringify(store)); }
 let soundOn = true; try { soundOn = localStorage.getItem(SND_KEY) !== "off"; } catch (e) {}
@@ -1441,6 +1446,7 @@ function renderMe(keep) {
       ${stat("dumb", S.workouts, T("meWorkouts"))}${stat("bolt", S.prs, T("mePRs"))}
     </div>
     <div class="set-group nofold"><h3>${T("tunasColour")}</h3><p>${T("themeHelp")}</p>${themePicker()}</div>
+    ${wearHTML()}
     ${findsHTML()}
     <section class="me-trophy" aria-labelledby="trophyT"><div class="me-th"><h3 id="trophyT">${T("badges")}</h3><span>${got} / ${BADGES.length}</span></div>
       <div class="bar"><i style="${fillPct(100 * got / BADGES.length)}"></i></div>
@@ -1529,6 +1535,7 @@ $("sheet").addEventListener("click", e => { if (sheetId === "packs" || sheetId =
     if (e.target.closest("[data-packgo]")) return addPacksNow(); }
   const b = e.target.closest("[data-lang]"); if (b) { setLang(b.dataset.lang); return; }
   const lk = e.target.closest("[data-look]"); if (lk) { setLook(lk.dataset.look); return renderSheet(true); }
+  const wp = e.target.closest("[data-wear-pick]"); if (wp) return pickWear(wp.dataset.wearPick);
   const t = e.target.closest("[data-theme-pick]"); if (t) { pickTheme(t.dataset.themePick); if (sheetId === "me") renderSheet(true); } });
 function readFile(input, cb, maxBytes) {
   const f = input.files && input.files[0]; if (!f) return;
@@ -2382,8 +2389,9 @@ function checkChest() {
   const today = dkey(routineDate()); store.chest ||= {};
   if (!renderQuests.allWon || store.chest[today]) return;
   store.chest[today] = 1; Object.keys(store.chest).forEach(k => { if (k < dkey(new Date(Date.now() - 40 * 864e5))) delete store.chest[k]; });
-  const got = openFind(today), sh = rollShield(today); save();
-  queueCele({ title: T("chestTitle"), sub: pick(T("chestLines")), color: "green", sound: "level", art: CHEST, extra: findCard(got) + (sh ? shieldCard() : ""), btn: T("chestBtn"), tiles: [] });
+  const n0 = findsOwned(), got = openFind(today), sh = rollShield(today); save();
+  const extra = findCard(got) + wearCards(n0).join("") + (sh ? shieldCard() : "");
+  queueCele({ title: T("chestTitle"), sub: pick(T("chestLines")), color: "green", sound: "level", art: CHEST, extra: `<div class="find-list">${extra}</div>`, btn: T("chestBtn"), tiles: [] });
 }
 const CHEST = `<div class="chest-art" aria-hidden="true"><svg viewBox="0 0 120 100"><g class="glow"><circle cx="60" cy="40" r="34"/></g>
   <rect class="ch-body" x="18" y="46" width="84" height="44" rx="8"/><rect class="ch-band" x="18" y="58" width="84" height="8"/>
@@ -2415,9 +2423,9 @@ function openWeekChest() {
   if (wchestLast() !== "open") return;
   const w = wchestState(), today = dkey(routineDate()); w[dkey(lastMonday())] = today;
   Object.keys(w).forEach(k => { if (k < dkey(new Date(Date.now() - 70 * 864e5))) delete w[k]; });
-  const a = openFind(today, Math.random, 1), b = openFind(today), sh = rollShield(today, () => 0); save();
+  const n0 = findsOwned(), a = openFind(today, Math.random, 1), b = openFind(today), sh = rollShield(today, () => 0); save();
   queueCele({ title: T("wchestTitle"), sub: T("wchestSub", goalDays(lastMonday())), color: "green", sound: "level", art: CHEST.replace('class="chest-art"', 'class="chest-art wk"'),
-    extra: `<div class="find-list">${findCard(a)}${findCard(b)}${sh ? shieldCard() : ""}</div>`, btn: T("chestBtn"), tiles: [] });
+    extra: `<div class="find-list">${findCard(a)}${findCard(b)}${wearCards(n0).join("")}${sh ? shieldCard() : ""}</div>`, btn: T("chestBtn"), tiles: [] });
   refresh(true);
 }
 // This week's progress toward the next weekly chest, for the streak card in History.
@@ -2505,6 +2513,49 @@ function findsHTML() {
     <ul class="fgrid">${FINDS.map(cell).join("")}</ul></section>`;
 }
 
+/* ================= Dress up Tunas ================= */
+// Collecting finds unlocks small outfits for Tunas: 1 find = Leaf crown, 6 = Cosy scarf, 12 = Straw hat (repeats don't
+// count). The outfit is picked in the Me tab and shows on Tunas everywhere. The first one goes on by itself when it
+// unlocks, until the player picks for themselves. Saved as store.wear = { on: outfit id or "", picked: 1 }. Unlocks come
+// from the collection, so there's nothing else to keep in step: an outfit not unlocked yet (say, from an older backup) stays off.
+const findsOwned = () => { const f = findsState(); return FINDS.filter(x => findCount(f, x.id)).length; };
+const wearName = id => (T("wearNames") || {})[id || "none"] || id;
+function wearState() {
+  const w = store.wear && typeof store.wear === "object" && !Array.isArray(store.wear) ? store.wear : (store.wear = {});
+  if (!WEARS.some(x => x.id === w.on)) w.on = ""; w.picked = w.picked ? 1 : 0; return w;
+}
+const wearOpen = (id, n = findsOwned()) => { const x = WEARS.find(v => v.id === id); return !!x && n >= x.need; };
+function applyWear() {
+  const w = wearState(), r = document.documentElement;
+  if (w.on && wearOpen(w.on)) r.dataset.wear = w.on; else delete r.dataset.wear;
+}
+// Cards for outfits unlocked since the collection had `before` finds. Call after the finds are saved.
+function wearCards(before) {
+  const n = findsOwned(), w = wearState(), fresh = WEARS.filter(x => before < x.need && n >= x.need);
+  if (!fresh.length) return [];
+  const auto = !w.picked && !w.on; if (auto) { w.on = fresh[0].id; save(); applyWear(); }
+  return fresh.map((x, i) => `<div class="find wear-find"><span class="find-art"><span class="mascot happy wp wp-${x.id}">${MASCOT}</span></span><span class="find-txt"><small>${T("wearNew")}</small><b>${wearName(x.id)}</b><span>${T(auto && !i ? "wearOnSub" : "wearNewSub")}</span></span></div>`);
+}
+// The Me tab picker: "None" plus every outfit. Locked ones show how many finds to go and say so when tapped.
+function wearHTML() {
+  const n = findsOwned(), on = wearState().on && wearOpen(wearState().on) ? wearState().on : "";
+  const opt = (id, need) => { const open = !id || n >= need, cls = `wear-opt${open ? "" : " lock"}`;
+    return `<button type="button" class="${cls}" data-wear-pick="${id}" aria-pressed="${open && on === id}"${open ? "" : ` aria-label="${esc(T("wearLockedLabel", wearName(id), n, need))}"`}>
+      <span class="mascot happy wp${id ? " wp-" + id : ""}" aria-hidden="true">${MASCOT}</span><span>${wearName(id)}</span>${open ? "" : `<small aria-hidden="true">${T("wearNeed", n, need)}</small>`}</button>`; };
+  return `<div class="set-group nofold"><h3>${T("wearTitle")}</h3><p>${T("wearHelp")}</p>
+    <div class="wears" role="group" aria-label="${T("wearTitle")}">${opt("", 0)}${WEARS.map(x => opt(x.id, x.need)).join("")}</div></div>`;
+}
+function pickWear(id) {
+  const x = WEARS.find(v => v.id === id), n = findsOwned();
+  if (id && !x) return;
+  if (x && n < x.need) { buzz(8); return toast(T("wearLockedToast", x.need - n), "chest", 3500); }
+  const w = wearState(); if (w.on === id && w.picked) return;
+  w.on = id; w.picked = 1; if (!save()) return; applyWear();
+  sfx("ding"); buzz(12); jump($("mascot"));
+  const m = T(id ? "wearSay" : "wearOffSay", wearName(id)); say(m[0], m[1], id ? "cheer" : "happy", 3500);
+  if (sheetId === "me") { renderSheet(true); const av = document.querySelector(".me-av"); if (av) jump(av); }
+}
+
 /* ================= Streak shields ================= */
 // A finished chest sometimes adds a streak shield (hold up to 2). If a day is missed, a held shield covers it the next
 // time the app opens, so the streak keeps going. Odds per chest: 25%, and the 5th chest in a row without one always has
@@ -2559,7 +2610,7 @@ function shieldRow() {
 /* ================= Refresh + comparisons ================= */
 let prevCleared = null;
 function refresh(keepSheet) {
-  useShields();
+  useShields(); applyWear();
   const d = routineDate(), S = computeAll();
   renderTop(S); renderQuests(S); renderPath(S); renderNudge(); renderStreak(S); renderHistory();
   const got = renderBadges(S);
