@@ -923,3 +923,26 @@ a:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-vis
 .wchest-btn svg{width:22px;height:22px;fill:currentColor}
 .wc-done{display:flex;align-items:center;gap:8px;color:var(--muted);font-weight:700}
 .wc-done svg{flex:none;width:22px;height:22px;fill:var(--epic)}
+/* Dress up Tunas: outfits from chest finds. Worn on every Tunas; the theme's own flower or shades step aside when they'd clash. */
+.mascot .acc{pointer-events:none}
+.mascot svg.no-flower .flower,.mascot svg.no-shades .shades{display:none!important}
+.w-help{margin:4px 0 0;font-size:13.5px;color:var(--muted)}
+.wgrid{list-style:none;margin:0;padding:10px 0 4px;display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:10px 8px}
+.wcell{position:relative;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 6px 8px;border-radius:16px;border:2px solid var(--line);box-shadow:0 3px 0 var(--line);background:var(--card);color:var(--ink);font:inherit;text-align:center;cursor:pointer}
+button.wcell:active{transform:translateY(2px);box-shadow:0 1px 0 var(--line)}
+.wcell .find-art{width:52px;height:52px}
+.wcell .find-art svg{width:84%;height:84%}
+.wcell.none .find-art svg{width:60%;height:60%;fill:var(--green)}
+.wcell b{font-size:12.5px;overflow-wrap:anywhere;font-weight:900;line-height:1.2}
+.wcell small{font-size:11.5px;font-weight:800;color:var(--muted);line-height:1.25}
+.wcell.on{border-color:var(--green);box-shadow:0 3px 0 var(--green-d);background:var(--green-soft)}
+.wcell.on small{color:var(--green-ink)}
+.w-tick{position:absolute;top:-8px;right:-6px;width:24px;height:24px;display:grid;place-items:center;border-radius:50%;background:var(--green);box-shadow:0 2px 0 var(--green-d)}
+.w-tick svg{width:15px;height:15px;fill:#fff}
+.wcell.lock{border-style:dashed;box-shadow:none;background:var(--soft);cursor:default}
+.wcell.lock .find-art{background:transparent;color:var(--control)}
+.wcell.lock .find-art svg{opacity:.4}
+.wcell.lock .find-art svg *{fill:currentColor;stroke:currentColor;opacity:1}
+.wcell.lock b{color:var(--muted)}
+.wear-find{border-color:var(--green);box-shadow:0 4px 0 var(--green-d)} .wear-find small{color:var(--green-ink)}
+.wear-find .find-art svg{width:84%;height:84%}

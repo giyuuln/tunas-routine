@@ -316,6 +316,7 @@ function grantLevels(level) {
     if (lvGift(n) === "find") cards.push(findCard(openFind(today, Math.random, 1)));
     else cards.push(rollShield(today, () => 0) ? shieldCard() : findCard(openFind(today)));
   }
+  const wc = wearNewCards(); if (wc) cards.push(wc);
   u.top = level; save(); return cards;
 }
 const TITLE_SVG = `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M15 28 9 44l7-3 4 6 5-15M33 28l6 16-7-3-4 6-5-15" fill="#25aaf0" stroke="#13709f" stroke-width="3" stroke-linejoin="round"/>
@@ -709,7 +710,7 @@ function renderPath(S) {
     const cls = st.cleared ? "done" : isT ? "go" : st.n > 0 ? "started" : "";
     const fresh = was && st.cleared && !was.cleared[n.id], from = was ? Math.min(was.k[n.id] || 0, k) : k;
     return `<div class="lvl${st.cleared ? " cleared" : ""}${isT ? " is-target" : ""}${fresh ? " just-cleared" : ""}" style="--from:${from}">
-      ${isT ? `<span class="lvl-me mascot happy" aria-hidden="true">${MASCOT}</span>` : ""}
+      ${isT ? `<span class="lvl-me mascot happy" aria-hidden="true">${mascotSVG()}</span>` : ""}
       <button class="lvl-node ${cls}" type="button" data-node="${n.id}" aria-label="${esc(n.title)}, ${T("of", st.n, st.total)}${isT ? ", " + T("upNext") : ""}">${st.cleared ? I.check : I[n.icon] || I.star}</button>
       ${starRow(k, "", from)}<span class="lvl-name">${esc(n.title)}</span></div>`;
   }).join("");
@@ -1427,7 +1428,7 @@ function renderMe(keep) {
   const stat = (ico, n, label) => `<div class="me-stat"><span class="me-n">${I[ico]}<b>${n}</b></span><span>${label}</span></div>`;
   body.innerHTML = `
     <div class="card me-card">
-      <div class="mascot me-av happy" aria-hidden="true">${MASCOT}</div>
+      <div class="mascot me-av happy" aria-hidden="true">${mascotSVG()}</div>
       <div class="me-id">
         <label class="sr" for="setName">${T("yourName")}</label>
         <input class="field me-name" id="setName" value="${esc(CFG.name || "")}" placeholder="${T("namePh")}" autocomplete="given-name" maxlength="30">
@@ -1441,6 +1442,7 @@ function renderMe(keep) {
       ${stat("dumb", S.workouts, T("meWorkouts"))}${stat("bolt", S.prs, T("mePRs"))}
     </div>
     <div class="set-group nofold"><h3>${T("tunasColour")}</h3><p>${T("themeHelp")}</p>${themePicker()}</div>
+    ${wearHTML()}
     ${findsHTML()}
     <section class="me-trophy" aria-labelledby="trophyT"><div class="me-th"><h3 id="trophyT">${T("badges")}</h3><span>${got} / ${BADGES.length}</span></div>
       <div class="bar"><i style="${fillPct(100 * got / BADGES.length)}"></i></div>
@@ -1549,7 +1551,7 @@ function restoreBackupText(text) {
   if (!save()) { store = prevStore; return; }
   if (b.routine && !validateRoutine(b.routine)) { if (saveRoutine(clampText(b.routine))) renderGuide(); }
   if (!$("welcome").hidden) closeWelcome();
-  lastS = null; prevCleared = null; refresh(true); toast(T("restored"), "check");
+  lastS = null; prevCleared = null; paintMascot(); refresh(true); toast(T("restored"), "check");
 }
 // Locked files are bigger (base64), so the file limit here is higher; plain ones are held to 4 MB in restoreBackupText.
 $("fileBackup").addEventListener("change", e => readFile(e.target, text => {
@@ -1864,7 +1866,7 @@ function closeWelcome() { $("welcome").hidden = true; document.body.classList.re
 function renderWelcome() {
   const el = $("welcome");
   if (WEL.step === 1) {
-    el.innerHTML = `<div class="w-in"><div class="mascot cheer" id="wMascot">${MASCOT}</div><h2 class="green">${T("wHi")}</h2><p>${T("wSub")}</p>
+    el.innerHTML = `<div class="w-in"><div class="mascot cheer" id="wMascot">${mascotSVG()}</div><h2 class="green">${T("wHi")}</h2><p>${T("wSub")}</p>
       ${segLang("wLang")}
       <div class="w-label">${T("wTheme")}</div>${themePicker()}
       <label class="w-label" for="wName">${T("wNameQ")}</label><input class="field w-name" id="wName" value="${esc(WEL.name)}" placeholder="${T("namePh")}" maxlength="30" autocomplete="given-name">
@@ -2302,7 +2304,7 @@ function nextCele() {
   const c = celeQ.shift(); if (!c) { $("cele").hidden = true; contextSay(); setTimeout(playHome, 150); return; }
   if (sheetId && !["settings", "routine", "me", "editor", "packs", "wosetup", "skinsetup"].includes(sheetId) && !sheetId.startsWith("day:") && !sheetId.startsWith("lock:")) closeSheet();
   const el = $("cele"); el.hidden = false;
-  el.innerHTML = `${c.art || `<div class="mascot cheer" id="celeMascot">${MASCOT}</div>`}<h2 class="${c.color || ""}">${c.title}</h2><p>${c.sub}</p>${c.extra || ""}
+  el.innerHTML = `${c.art || `<div class="mascot cheer" id="celeMascot">${mascotSVG()}</div>`}<h2 class="${c.color || ""}">${c.title}</h2><p>${c.sub}</p>${c.extra || ""}
     ${c.tiles.length ? `<div class="tiles">${c.tiles.map(t => `<div class="tile" style="--c:var(${t.c})"><small>${t.k}</small><b>${t.i ? I[t.i] : ""}${t.v}</b></div>`).join("")}</div>` : ""}
     <button class="btn" type="button" id="celeGo">${c.btn || T("cont")}</button>${c.alt ? `<button class="linkish" type="button" id="celeAlt">${c.alt.t}</button>` : ""}`;
   $("celeGo").onclick = () => { nextCele(); if (c.then) c.then(); }; $("celeGo").focus({ preventScroll: true });
@@ -2382,8 +2384,8 @@ function checkChest() {
   const today = dkey(routineDate()); store.chest ||= {};
   if (!renderQuests.allWon || store.chest[today]) return;
   store.chest[today] = 1; Object.keys(store.chest).forEach(k => { if (k < dkey(new Date(Date.now() - 40 * 864e5))) delete store.chest[k]; });
-  const got = openFind(today), sh = rollShield(today); save();
-  queueCele({ title: T("chestTitle"), sub: pick(T("chestLines")), color: "green", sound: "level", art: CHEST, extra: findCard(got) + (sh ? shieldCard() : ""), btn: T("chestBtn"), tiles: [] });
+  const got = openFind(today), sh = rollShield(today), wc = wearNewCards(); save();
+  queueCele({ title: T("chestTitle"), sub: pick(T("chestLines")), color: "green", sound: "level", art: CHEST, extra: `<div class="find-list">${findCard(got)}${sh ? shieldCard() : ""}${wc}</div>`, btn: T("chestBtn"), tiles: [] });
 }
 const CHEST = `<div class="chest-art" aria-hidden="true"><svg viewBox="0 0 120 100"><g class="glow"><circle cx="60" cy="40" r="34"/></g>
   <rect class="ch-body" x="18" y="46" width="84" height="44" rx="8"/><rect class="ch-band" x="18" y="58" width="84" height="8"/>
@@ -2415,9 +2417,9 @@ function openWeekChest() {
   if (wchestLast() !== "open") return;
   const w = wchestState(), today = dkey(routineDate()); w[dkey(lastMonday())] = today;
   Object.keys(w).forEach(k => { if (k < dkey(new Date(Date.now() - 70 * 864e5))) delete w[k]; });
-  const a = openFind(today, Math.random, 1), b = openFind(today), sh = rollShield(today, () => 0); save();
+  const a = openFind(today, Math.random, 1), b = openFind(today), sh = rollShield(today, () => 0), wc = wearNewCards(); save();
   queueCele({ title: T("wchestTitle"), sub: T("wchestSub", goalDays(lastMonday())), color: "green", sound: "level", art: CHEST.replace('class="chest-art"', 'class="chest-art wk"'),
-    extra: `<div class="find-list">${findCard(a)}${findCard(b)}${sh ? shieldCard() : ""}</div>`, btn: T("chestBtn"), tiles: [] });
+    extra: `<div class="find-list">${findCard(a)}${findCard(b)}${sh ? shieldCard() : ""}${wc}</div>`, btn: T("chestBtn"), tiles: [] });
   refresh(true);
 }
 // This week's progress toward the next weekly chest, for the streak card in History.
@@ -2504,6 +2506,71 @@ function findsHTML() {
       : `<p class="f-empty">${I.chest}<span>${T("findsEmpty")}</span></p>`}
     <ul class="fgrid">${FINDS.map(cell).join("")}</ul></section>`;
 }
+
+/* ================= Dress up Tunas ================= */
+// Chest finds unlock small outfits Tunas can wear everywhere (home, path, celebrations, Me). One at a time, for fun only:
+// they never change XP or rewards. Unlocks come from the collection, so nothing extra is saved for them: n = different
+// finds owned, r = owns any find of that rarity or better. Saved as store.wear = { on: id or "", told: [ids announced] }.
+// Old data without it starts with nothing worn; unknown or still-locked ids are ignored.
+const LEAF_RING = [-158, -138, -118, -62, -42, -22].map(a => { const r = a * Math.PI / 180, x = 60 + 41 * Math.cos(r), y = 66 + 41 * Math.sin(r);
+  return `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="5" ry="9" transform="rotate(${a + 90 + (a < -90 ? -35 : 35)} ${x.toFixed(1)} ${y.toFixed(1)})"/>`; }).join("");
+const SPROUT_TOP = `<path d="M60 19V12" stroke="var(--m-leaf)" stroke-width="4" stroke-linecap="round"/><path d="M60 15C51 3 39 6 41 15c8 3 14 3 19 0z" fill="var(--m-leaf)"/><path d="M60 15c9-12 21-9 19 0-8 3-14 3-19 0z" fill="var(--m-leaf2)"/>`;
+const WEAR = [
+  { id: "leafcrown", n: 1, box: "16 18 88 44", hide: "flower",
+    svg: `<path d="M22 53A41 41 0 0 1 98 53" fill="none" stroke="#2f7d3d" stroke-width="4" stroke-linecap="round"/><g fill="#5bbf6c" stroke="#2f7d3d" stroke-width="2.5">${LEAF_RING}</g><circle cx="38" cy="33" r="3.2" fill="#ff8fbf" stroke="#c9407c" stroke-width="1.5"/><circle cx="82" cy="33" r="3.2" fill="#ff8fbf" stroke="#c9407c" stroke-width="1.5"/>` },
+  { id: "scarf", n: 4, box: "18 78 84 42",
+    svg: `<path d="M80 94l3 20 10-3-5-19z" fill="#ff6b5a" stroke="#c43f30" stroke-width="3" stroke-linejoin="round"/><path d="M83 112l1 4M88 111l1.5 3.5" stroke="#c43f30" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M22 84q38 16 76 0l-1 11q-37 16-74 0z" fill="#ff6b5a" stroke="#c43f30" stroke-width="3" stroke-linejoin="round"/><path d="M36 92.5q24 7 48 0" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-dasharray="5 6" opacity=".8"/>` },
+  { id: "pin", r: 1, box: "68 20 32 32", hide: "shades",
+    svg: `<path d="M78 42q-6 4-10 2 2-6 9-6zM92 42q6 4 10 2-2-6-9-6z" fill="#4aa85c" stroke="#2f7d3d" stroke-width="2" stroke-linejoin="round"/>${[0, 72, 144, 216, 288].map(a => `<ellipse cx="85" cy="29.5" rx="5" ry="6.5" fill="#ee3b45" stroke="#a51d26" stroke-width="2" transform="rotate(${a} 85 36)"/>`).join("")}<circle cx="85" cy="36" r="3.2" fill="#ffd34d" stroke="#c48a00" stroke-width="1.5"/><path d="M85 36l5-6" stroke="#ffd34d" stroke-width="2" stroke-linecap="round"/>` },
+  { id: "specs", n: 8, box: "22 44 76 30", hide: "shades",
+    svg: `<g fill="rgba(255,255,255,.22)" stroke="#2a2440" stroke-width="3.5"><circle cx="46" cy="59" r="11"/><circle cx="74" cy="59" r="11"/></g><path d="M57 58q3-3.5 6 0M35 57l-9-3M85 57l9-3" fill="none" stroke="#2a2440" stroke-width="3.5" stroke-linecap="round"/><path d="M40 53.5q3-3 7-3M68 53.5q3-3 7-3" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".8"/>` },
+  { id: "sunhat", n: 12, box: "18 2 84 40", hide: "flower shades",
+    svg: `<ellipse cx="60" cy="31" rx="40" ry="9" fill="#f3cf7a" stroke="#b98a2e" stroke-width="3"/><path d="M40 31c0-23 40-23 40 0z" fill="#f3cf7a" stroke="#b98a2e" stroke-width="3" stroke-linejoin="round"/><path d="M40.6 26.5q19.4 4 38.8 0l.3 4q-19.7 4.5-39.4 0z" fill="#ee3b45" stroke="#a51d26" stroke-width="2" stroke-linejoin="round"/><path d="M28 33q32 8 64 0" fill="none" stroke="#b98a2e" stroke-width="2" stroke-linecap="round" opacity=".6"/>${SPROUT_TOP}` },
+  { id: "starcrown", r: 2, box: "20 4 46 40", hide: "flower shades",
+    svg: `<g transform="rotate(-16 42 30)"><path d="M28 36l-3-20 9 7 8-12 8 12 9-7-3 20z" fill="#ffcc33" stroke="#c48a00" stroke-width="3" stroke-linejoin="round"/><rect x="27" y="32" width="30" height="7" rx="3" fill="#ffcc33" stroke="#c48a00" stroke-width="3"/><path d="M42 20.5l1.6 3.3 3.6.5-2.6 2.5.6 3.6-3.2-1.7-3.2 1.7.6-3.6-2.6-2.5 3.6-.5z" fill="#fff6d6" stroke="#c48a00" stroke-width="1.5" stroke-linejoin="round"/><circle cx="25" cy="15" r="2.5" fill="#8ee6ff" stroke="#2a8fc0" stroke-width="1.5"/><circle cx="42" cy="10" r="2.5" fill="#ee3b45" stroke="#a51d26" stroke-width="1.5"/><circle cx="59" cy="15" r="2.5" fill="#8ee6ff" stroke="#2a8fc0" stroke-width="1.5"/><ellipse cx="33" cy="24" rx="3" ry="1.6" fill="#fff" opacity=".6" transform="rotate(-35 33 24)"/></g>` },
+];
+function wearState() {
+  const w = store.wear && typeof store.wear === "object" && !Array.isArray(store.wear) ? store.wear : (store.wear = {});
+  if (typeof w.on !== "string" || !WEAR.some(x => x.id === w.on)) w.on = "";
+  w.told = (Array.isArray(w.told) ? w.told : []).filter(id => WEAR.some(x => x.id === id)); return w;
+}
+const wearOwned = () => { const f = findsState(); return FINDS.filter(x => findCount(f, x.id)); };
+const wearOpen = (x, owned = wearOwned()) => x.r ? owned.some(f => f.r >= x.r) : owned.length >= x.n;
+const wearName = id => (T("wear") || {})[id] || id;
+const wearNeed = x => x.r ? T("wearNeedR")[x.r] : T("wearNeed", x.n);
+// Tunas with today's outfit on. Falls back to plain Tunas if the outfit isn't unlocked (e.g. after restoring an older backup).
+function mascotSVG() {
+  const on = WEAR.find(x => x.id === wearState().on); if (!on || !wearOpen(on)) return MASCOT;
+  return MASCOT.replace("<svg ", `<svg class="${(on.hide || "").split(" ").filter(Boolean).map(h => "no-" + h).join(" ")}" `)
+    .replace(/<\/g>\s*<\/svg>\s*$/, `<g class="acc">${on.svg}</g></g></svg>`);
+}
+function paintMascot() { const m = $("mascot"); if (m) m.innerHTML = mascotSVG(); }
+const wearArt = x => `<svg viewBox="${x.box}" aria-hidden="true">${x.svg}</svg>`;
+// Outfits that just unlocked (from a chest or a level-up) get a card in that celebration, once each.
+function wearNewCards() {
+  const w = wearState(), owned = wearOwned(), fresh = WEAR.filter(x => wearOpen(x, owned) && !w.told.includes(x.id));
+  fresh.forEach(x => w.told.push(x.id));
+  return fresh.map(x => `<div class="find wear-find"><span class="find-art">${wearArt(x)}</span><span class="find-txt"><small>${T("wearNewTag")}</small><b>${wearName(x.id)}</b><span>${T("wearNewSub")}</span></span></div>`).join("");
+}
+function wearHTML() {
+  const w = wearState(), owned = wearOwned(), open = WEAR.filter(x => wearOpen(x, owned)).length;
+  const tile = x => { const ok = wearOpen(x, owned), on = w.on === x.id;
+    if (!ok) return `<li><span class="wcell lock" aria-label="${wearName(x.id)} · ${T("findLocked")} · ${wearNeed(x)}"><span class="find-art">${wearArt(x)}</span><b>${wearName(x.id)}</b><small aria-hidden="true">${wearNeed(x)}</small></span></li>`;
+    return `<li><button type="button" class="wcell${on ? " on" : ""}" data-wear="${x.id}" aria-pressed="${on}"><span class="find-art">${wearArt(x)}</span><b>${wearName(x.id)}</b><small>${on ? T("wearOn") : T("wearTry")}</small>${on ? `<i class="w-tick" aria-hidden="true">${I.check}</i>` : ""}</button></li>`; };
+  return `<section class="me-trophy me-wear" aria-labelledby="wearT"><div class="me-th"><h3 id="wearT">${T("wearTitle")}</h3><span>${open} / ${WEAR.length}</span></div>
+    <p class="w-help">${T("wearHelp")}</p>
+    <ul class="wgrid"><li><button type="button" class="wcell none${w.on ? "" : " on"}" data-wear="" aria-pressed="${!w.on}"><span class="find-art">${I.sprout}</span><b>${T("wearNone")}</b><small>${w.on ? T("wearTry") : T("wearOn")}</small></button></li>${WEAR.map(tile).join("")}</ul></section>`;
+}
+function putOn(id) {
+  const w = wearState(), x = WEAR.find(v => v.id === id);
+  if (id && (!x || !wearOpen(x))) return;
+  if (w.on === id) return; w.on = id; save();
+  paintMascot(); sfx("ding"); buzz(15);
+  if (sheetId === "me") { renderSheet(true); const av = $("shBody").querySelector(".me-av"); if (av) { setMood(av, "cheer"); jump(av); } }
+  say(id ? T("wearSay", wearName(id)) : T("wearSayNone"), "", "cheer", 3000);
+}
+$("shBody").addEventListener("click", e => { const b = e.target.closest("[data-wear]"); if (b) { audio(); putOn(b.dataset.wear); } });
 
 /* ================= Streak shields ================= */
 // A finished chest sometimes adds a streak shield (hold up to 2). If a day is missed, a held shield covers it the next
@@ -2629,6 +2696,7 @@ let booted = false;
 try { applyStatic(); resetIdle(); renderGuide(); refresh(); booted = true; if (ft) ftRun(); }
 catch (e) { logError("boot", e); showRescue(); }
 [...new Set(notices)].forEach(k => setTimeout(() => toast(T(k), "x", 6500), 800));
+paintMascot();
 $("mascot").setAttribute("role", "button"); $("mascot").setAttribute("tabindex", "0"); $("mascot").setAttribute("aria-label", T("tunasLabel")); $("mascot").removeAttribute("aria-hidden");
 $("mascot").addEventListener("click", tapTunas);
 $("mascot").addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tapTunas(); } });
