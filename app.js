@@ -288,11 +288,46 @@ const BADGE_GOAL = { first: S => [S.ticks, 1], quest: S => [S.quests, 1], perfec
 const badgeName = id => (T("badge")[id] || [id, ""])[0], badgeHow = id => (T("badge")[id] || ["", ""])[1];
 const titleOf = n => { const t = T("titles"); return t[Math.min(n - 1, t.length - 1)]; };
 
+/* ================= Level rewards ================= */
+// Every new level gives a gift to keep: even levels a find that is Rare or better, odd levels a streak shield (or a
+// normal find when 2 shields are already held). Levels 2 to 10 also bring a new title. Gifts are given once per level:
+// store.lvup = { top: highest level already rewarded }. Unticking and ticking again can't earn the same level twice.
+// Old data without it starts at the current level, so nothing is handed out in a burst.
+const lvGift = n => (n % 2 ? "shield" : "find"), lvNewTitle = n => n >= 2 && n <= T("titles").length;
+function lvupState() {
+  if (!store.lvup || typeof store.lvup !== "object" || Array.isArray(store.lvup)) store.lvup = {};
+  const t = Math.floor(+store.lvup.top); if (!(t >= 1)) delete store.lvup.top; else store.lvup.top = Math.min(t, 999);
+  return store.lvup;
+}
+// What the next level brings, for the Progress card: "Next at Level 4: Grinder title + a Rare find".
+function lvNextText(level) {
+  const n = level + 1, parts = [];
+  if (lvNewTitle(n)) parts.push(T("lvGiftTitle", titleOf(n)));
+  parts.push(T(lvGift(n) === "find" ? "lvGiftFind" : "lvGiftShield"));
+  return T("lvNext", n, parts.join(" + "));
+}
+// Gives the gifts for levels above the last rewarded one and returns their cards for the celebration.
+function grantLevels(level) {
+  const u = lvupState(); if (u.top == null) { u.top = level; save(); return null; }
+  if (level <= u.top) return null;
+  const today = dkey(routineDate()), cards = [];
+  for (let n = u.top + 1; n <= level; n++) {
+    if (lvNewTitle(n)) cards.push(titleCard(n));
+    if (lvGift(n) === "find") cards.push(findCard(openFind(today, Math.random, 1)));
+    else cards.push(rollShield(today, () => 0) ? shieldCard() : findCard(openFind(today)));
+  }
+  u.top = level; save(); return cards;
+}
+const TITLE_SVG = `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M15 28 9 44l7-3 4 6 5-15M33 28l6 16-7-3-4 6-5-15" fill="#25aaf0" stroke="#13709f" stroke-width="3" stroke-linejoin="round"/>
+  <circle cx="24" cy="20" r="15" fill="#ffcc33" stroke="#c48a00" stroke-width="3"/><path d="M24 11.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" fill="#fff6d6" stroke="#c48a00" stroke-width="2" stroke-linejoin="round"/>
+  <ellipse cx="16" cy="13" rx="3.5" ry="2" fill="#fff" opacity=".55" transform="rotate(-35 16 13)"/></svg>`;
+const titleCard = n => `<div class="find title-find"><span class="find-art">${TITLE_SVG}</span><span class="find-txt"><small>${T("lvTitleNew")}</small><b>${esc(titleOf(n))}</b><span>${T("lvTitleSub")}</span></span></div>`;
+
 /* ================= Progress storage ================= */
 // Streak shield rules (see Streak shields). Set here because loading saved data already checks them.
 const SHIELD_MAX = 2, SHIELD_ODDS = 0.25, SHIELD_PITY = 5, SHIELD_MIN_STREAK = 2;
 let store = loadJSON(DATA_KEY, v => v && typeof v === "object" && v.days && typeof v.days === "object").value || { days:{}, weeks:{}, logs:{}, seen:{}, rest:{} };
-function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); }
+function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); }
 normStore();
 function save() { return storeSet(DATA_KEY, JSON.stringify(store)); }
 let soundOn = true; try { soundOn = localStorage.getItem(SND_KEY) !== "off"; } catch (e) {}
@@ -636,8 +671,9 @@ function renderTop(S) {
 
   $("lvName").innerHTML = `${T("level", S.L.n)} · <span>${titleOf(S.L.n)}</span>`;
   setFill($("lvFill"), 100 * S.L.cur / S.L.span); $("lvBar").textContent = T("xpOf", S.L.cur, S.L.span);
+  $("lvNext").innerHTML = `${I.chest}<span>${esc(lvNextText(S.L.n))}</span>`;
   $("progStreak").className = "prog-fl" + (S.streak ? "" : " off"); $("progStreak").innerHTML = `${I.flame}<b>${T("streakShort", S.streak)}</b>`;
-  $("progressCard").setAttribute("aria-label", `${T("streakDays", S.streak)}. ${T("level", S.L.n)}, ${T("xpOf", S.L.cur, S.L.span)}. ${T("history")}`);
+  $("progressCard").setAttribute("aria-label", `${T("streakDays", S.streak)}. ${T("level", S.L.n)}, ${T("xpOf", S.L.cur, S.L.span)}. ${lvNextText(S.L.n)}. ${T("history")}`);
 }
 function renderQuests(S) {
   const d = routineDate(), W = WORKOUTS[d.getDay()], done = store.days[dkey(d)] || {};
@@ -1456,7 +1492,7 @@ function setLang(l) {
   if (!window.TUNAS_I18N[l] || l === LANG) return;
   LANG = l; try { localStorage.setItem(LANG_KEY, l); } catch (e) {}
   if (RAW_IS_DEFAULT) { RAW = defaultRoutine(); applyRoutine(RAW); }
-  applyStatic(); renderGuide(); lastS = null; prevCleared = null; refresh(true);
+  applyStatic(); renderGuide(); if ($("resetBtn")) resetIdle(); lastS = null; prevCleared = null; refresh(true);
 }
 function settingsAction(act, el) {
   if (act === "addPacks" || act === "woSetup" || act === "skinSetup") {
@@ -2547,11 +2583,15 @@ function refresh(keepSheet) {
           queueCele({ title: T("clearedTitle", esc(n.title)), color: "green", sub: pick(T("clearedSubs")),
             tiles: [{ k:T("tXP"), v:`+${now.xp}`, i:"bolt", c:"--gold" }, { k:T("tDone"), v:`${now.n}/${now.total}`, i:"", c:"--green" }, { k:T("tStreak"), v:S.streak, i:"flame", c:"--orange" }] }); } });
     }
-    if (S.level > lastS.level) queueCele({ title: T("levelTitle", S.level), color: "sky", sub: T("levelSub", titleOf(S.level)), sound: "level",
-      tiles: [{ k:T("tTotal"), v:S.xp, i:"bolt", c:"--gold" }, { k:T("tNext"), v:`${S.L.span - S.L.cur}`, i:"", c:"--sky" }] });
     if (S.questTotal && S.questDone === S.questTotal && lastS.questDone < lastS.questTotal) toast(T("questDone", XP.quest), "star");
     if (S.prsToday > lastS.prsToday) { toast(T("prToast", XP.pr), "trophy"); sfx("pr"); buzz([20,40,20]); say(T("prSay"), "+" + XP.pr + " XP", "cheer", 3000); }
   }
+  // Level up: new levels give their gifts once (see Level rewards). Dropping a level by unticking and climbing back
+  // still celebrates, without gifts.
+  const gifts = grantLevels(S.level);
+  if (gifts || (lastS && S.level > lastS.level)) queueCele({ title: T("levelTitle", S.level), color: "sky", sub: T("levelSub", titleOf(S.level)), sound: "level",
+    extra: gifts ? `<div class="find-list">${gifts.join("")}</div><p class="lv-next-c">${esc(lvNextText(S.level))}</p>` : "",
+    tiles: gifts ? [] : [{ k:T("tTotal"), v:S.xp, i:"bolt", c:"--gold" }, { k:T("tNext"), v:`${S.L.span - S.L.cur}`, i:"", c:"--sky" }] });
   prevCleared = states; lastS = S;
   checkChest(); checkRecap(); checkWeekRecap(); coach();
   if (!mascotTimer) contextSay();

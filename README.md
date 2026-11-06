@@ -4,6 +4,7 @@ A cute, gamified daily routine tracker that you can install on your phone. Tunas
 
 - **Today as game levels:** each part of your day (Morning, After work, Workout, Focus, Night, This week) is a level that earns up to 3 stars. Tunas stands on the level to play next.
 - **XP, levels and streaks:** every tick earns XP; hit 80% of your day to keep your streak
+- **Level rewards:** every new level gives a gift once: even levels a Rare or better find, odd levels a streak shield (or a find if you already hold 2), and levels 2 to 10 a new title. The Progress card shows what the next level unlocks
 - **Daily quests, 16 badges and a daily chest:** finish your quests to open the chest and keep a find (24 to collect, from common to epic) in the Me tab
 - **Workout logger:** log kg × reps per set, get "NEW PR" when you beat your best, plus a rest timer that beeps and vibrates
 - **Celebration screens, sounds and haptics** when you clear a section or have a perfect day
