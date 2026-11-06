@@ -14,6 +14,7 @@ A cute, gamified daily routine tracker that you can install on your phone. Tunas
 - **Focus timer:** start a 25-minute focus round from the focus-hour habit; Tunas ticks it at zero and gives you a 5-minute break
 - **Rest days:** protect your streak when you're sick or busy (2 per month)
 - **Streak shields:** chests sometimes drop a shield (hold up to 2) that covers a missed day automatically
+- **Weekly chest:** reach your goal (80% done, or a rest day) on 5 of 7 days and a bigger chest opens on Monday: 2 finds, one Rare or better for sure, plus a streak shield if you have room
 - **Continue button and home-screen shortcuts:** long-press the app icon for Today, Workout, Night or History
 - **Routine editor:** add, rename, reorder and delete sections, habits, workouts and weekly tasks right in the app
 - **Welcome screen and 4 templates:** Student, Worker, Fitness and Simple, so new users start in seconds

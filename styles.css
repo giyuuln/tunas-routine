@@ -897,3 +897,18 @@ a:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-vis
 .shield-art svg{width:120px;height:120px;animation:shieldpop .6s cubic-bezier(.3,1.6,.5,1) .15s both}
 @keyframes shieldpop{0%{transform:scale(.4) rotate(-12deg);opacity:0}100%{transform:none;opacity:1}}
 @media (prefers-reduced-motion: reduce){.shield-art svg{animation:none}}
+/* Weekly chest: a purple chest with two finds, progress pips in the streak card, and the open button in History */
+.chest-art.wk .ch-body,.chest-art.wk .ch-lid path{fill:var(--epic);stroke:var(--epic-ink)}
+.chest-art.wk .ch-band{fill:var(--gold)} .chest-art.wk .ch-lock{stroke:var(--gold-d)}
+.find-list{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%}
+.find-list .find:nth-child(2){animation-delay:.75s} .find-list .find:nth-child(3){animation-delay:.95s}
+.wchest-row{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted);padding-top:10px;margin-top:10px;border-top:2px solid var(--line)}
+.wchest-row>svg{flex:none;width:28px;height:28px;fill:var(--epic)}
+.wchest-row b{color:var(--epic-ink)}
+.wc-pips{display:flex;gap:3px;flex:none}
+.wc-pips i{width:10px;height:10px;border-radius:50%;background:var(--soft);border:2px solid var(--line)}
+.wc-pips i.on{background:var(--epic);border-color:var(--epic-ink)}
+.wchest-btn{display:flex;align-items:center;justify-content:center;gap:8px}
+.wchest-btn svg{width:22px;height:22px;fill:currentColor}
+.wc-done{display:flex;align-items:center;gap:8px;color:var(--muted);font-weight:700}
+.wc-done svg{flex:none;width:22px;height:22px;fill:var(--epic)}
