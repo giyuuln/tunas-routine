@@ -96,7 +96,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.11.04";
+const APP_VERSION = "2026.11.07";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -335,7 +335,7 @@ const SHIELD_MAX = 2, SHIELD_ODDS = 0.25, SHIELD_PITY = 5, SHIELD_MIN_STREAK = 2
 // Comeback bonus rules (see Comeback bonus): 2+ quiet days in a row, then tick 3 habits on the first day back.
 const BACK_GAP = 2, BACK_TICKS = 3;
 let store = loadJSON(DATA_KEY, v => v && typeof v === "object" && v.days && typeof v.days === "object").value || { days:{}, weeks:{}, logs:{}, seen:{}, rest:{} };
-function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); backState(); }
+function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); backState(); planState(); }
 normStore();
 function save() { return storeSet(DATA_KEY, JSON.stringify(store)); }
 let soundOn = true; try { soundOn = localStorage.getItem(SND_KEY) !== "off"; } catch (e) {}
@@ -357,8 +357,12 @@ const shown = (i, d) => !(i.alt && !isAltDay(d)) && !(i.hide && i.hide.includes(
   && !(i.dt === "work" && workDays() && !isWorkDay(d)) && !(i.dt === "off" && workDays() && isWorkDay(d));
 const firstName = () => esc(CFG.name || (LANG === "ms" ? "Kawan" : "Friend"));
 
-function itemsFor(d) { const out = []; BLOCKS.forEach(b => b.items.forEach(i => { if (shown(i,d)) out.push(i.id); })); if (WORKOUTS[d.getDay()]) out.push("wo-done"); return out; }
-function keyIds(d) { const out = []; BLOCKS.forEach(b => b.items.forEach(i => { if (i.key && shown(i,d)) out.push(i.id); })); if (WORKOUTS[d.getDay()]) out.push("wo-done"); return out; }
+// The habits a day has under the current routine.
+function liveItems(d) { const out = []; BLOCKS.forEach(b => b.items.forEach(i => { if (shown(i,d)) out.push(i.id); })); if (WORKOUTS[d.getDay()]) out.push("wo-done"); return out; }
+function liveKeys(d) { const out = []; BLOCKS.forEach(b => b.items.forEach(i => { if (i.key && shown(i,d)) out.push(i.id); })); if (WORKOUTS[d.getDay()]) out.push("wo-done"); return out; }
+// Past days keep the habits they had (see Day plans), plus any habit of today's routine that was ticked on that day later.
+function itemsFor(d) { const p = planOf(d), live = liveItems(d); if (!p) return live; const done = store.days[dkey(d)] || {}; return [...p.ids, ...live.filter(id => done[id] && !p.ids.includes(id))]; }
+function keyIds(d) { const p = planOf(d), live = liveKeys(d); if (!p) return live; const done = store.days[dkey(d)] || {}; return [...p.keys, ...live.filter(id => done[id] && !p.ids.includes(id))]; }
 function xpFor(id, d) { return id === "wo-done" ? XP.workout : keyIds(d).includes(id) ? XP.key : XP.item; }
 function ratio(d) { const ids = itemsFor(d), done = store.days[dkey(d)] || {}; return ids.length ? ids.filter(id => done[id]).length / ids.length : 0; }
 const REST_PER_MONTH = 2;
@@ -368,6 +372,35 @@ const dayDone = d => isRest(d) || ratio(d) >= 0.8;
 const isShielded = d => !!((store.shield || {}).used || {})[dkey(d)];
 const dayOK = d => dayDone(d) || isShielded(d);
 function restsInMonth(d) { const p = dkey(d).slice(0, 7); return Object.keys(store.rest).filter(k => store.rest[k] && k.startsWith(p)).length; }
+
+/* ================= Day plans ================= */
+// A past day is judged by the habits it had that day, not by today's routine. Adding habits, removing a pack or starting
+// a new routine must never take back a streak, XP, a level or a badge already earned. Each day the app is open, that day's
+// habit list is saved as store.plan = { day: "id,*starId,*wo-done" } (* = ★). Days with no saved list (from before this
+// update, or days the app wasn't opened) use the current routine, as before. The first time it runs, days that already have ticks are
+// saved with the routine as it is now, so what the player sees today is what stays.
+const DAY_RE = /^\d{4}-\d\d-\d\d$/, planCache = new Map();
+function planState() {
+  if (store.plan == null) return; // missing: filled in by recordPlan once the routine is loaded
+  if (typeof store.plan !== "object" || Array.isArray(store.plan)) { delete store.plan; return; } // bad value: rebuild it
+  // Runs while loading, before DAY_RE exists, so the pattern is written out here.
+  Object.keys(store.plan).forEach(k => { if (!/^\d{4}-\d\d-\d\d$/.test(k) || typeof store.plan[k] !== "string") delete store.plan[k]; });
+}
+function planOf(d) {
+  const k = dkey(d), s = store.plan && store.plan[k]; if (typeof s !== "string" || k >= dkey(routineDate())) return null;
+  let p = planCache.get(s);
+  if (!p) { p = { ids: [], keys: [] }; s.split(",").forEach(x => { if (!x) return; const star = x[0] === "*", id = star ? x.slice(1) : x; p.ids.push(id); if (star) p.keys.push(id); }); planCache.set(s, p); }
+  return p;
+}
+const planSig = d => { const keys = new Set(liveKeys(d)); return liveItems(d).map(id => (keys.has(id) ? "*" + id : id)).join(","); };
+// Saves today's habit list (it can still change until the day ends). Returns true when something changed.
+function recordPlan() {
+  const today = dkey(routineDate()); let changed = false;
+  if (!store.plan || typeof store.plan !== "object") { store.plan = {}; changed = true;
+    Object.keys(store.days).forEach(k => { if (k < today && DAY_RE.test(k) && Object.values(store.days[k] || {}).some(Boolean)) store.plan[k] = planSig(keyToDate(k)); }); }
+  const sig = planSig(routineDate()); if (store.plan[today] !== sig) { store.plan[today] = sig; changed = true; }
+  return changed;
+}
 
 /* ================= Workout records ================= */
 function score(ex, s) { if (!ex || !s) return 0; const kg = parseFloat(s[0]) || 0, r = parseFloat(s[1]) || 0; if (!r) return 0; return ex.bw ? r : (kg > 0 ? kg * (1 + r/30) : r * 0.01); }
@@ -2407,8 +2440,9 @@ function weekSummary(mon) {
     if (isRest(d)) continue;
     itemsFor(d).forEach(id => { total++; if (dn[id]) done++; if (id === "wo-done") return; seen[id] = (seen[id] || 0) + 1; if (dn[id]) got[id] = (got[id] || 0) + 1; }); }
   const wk = store.weeks[dkey(mon)] || {}, wkN = Object.values(wk).filter(Boolean).length; xp += wkN * XP.weekly; if (wkN) active++;
-  // The focus-hour habit has a different title each day, so the week calls it by its general name.
-  const ids = Object.keys(seen), name = id => { const h = habitById(id); return !h ? "" : h.i.dyn ? T("focusHabit") : h.i.t; };
+  // The focus-hour habit has a different title each day, so the week calls it by its general name. Habits removed
+  // from the routine since then still count toward the %, but aren't named as best or most missed.
+  const ids = Object.keys(seen).filter(id => habitById(id)), name = id => { const h = habitById(id); return !h ? "" : h.i.dyn ? T("focusHabit") : h.i.t; };
   const best = ids.filter(id => got[id]).sort((a, b) => (got[b] / seen[b] - got[a] / seen[a]) || (got[b] - got[a]))[0];
   const miss = ids.filter(id => id !== best && seen[id] - (got[id] || 0) > 0).sort((a, b) => (seen[b] - (got[b] || 0)) - (seen[a] - (got[a] || 0)))[0];
   const end = new Date(mon); end.setDate(end.getDate() + 6);
@@ -2712,6 +2746,7 @@ const backNeed = d => Math.min(BACK_TICKS, itemsFor(d).length);
 /* ================= Refresh + comparisons ================= */
 let prevCleared = null;
 function refresh(keepSheet) {
+  if (recordPlan()) save();
   useShields();
   const d = routineDate(), S = computeAll();
   renderTop(S); renderQuests(S); renderPath(S); renderNudge(); renderStreak(S); renderHistory();
