@@ -8,6 +8,7 @@ A cute, gamified daily routine tracker that you can install on your phone. Tunas
 - **Daily quests, 16 badges and a daily chest:** the ★ quest stays, the other two change every day; finish them all to open the chest and keep a find (24 to collect, from common to epic) in the Me tab. Find the same one 3 times and it turns shiny, so repeats still count
 - **Workout logger:** log kg × reps per set, get "NEW PR" when you beat your best, plus a rest timer that beeps and vibrates
 - **Celebration screens, sounds and haptics** when you clear a section or have a perfect day
+- **Money (Me → Money):** add what comes in each month and jot spends by category (food, transport, bills, shopping and more). See what's left, a monthly report of where it went, past months, and short, kind tips from Tunas. Any currency (Rupiah shows as Rp 1.500.000), with shortcuts like 25rb, 2k or 1.5jt. Stays on your phone and is part of your backup
 - **History calendar:** tap any past day to see it or fix a tick you forgot
 - **Phone reminders:** add each section to Google Calendar in one tap, or download an `.ics` file
 - **Tick all:** finish a whole section in one tap

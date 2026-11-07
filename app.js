@@ -949,7 +949,7 @@ function openSheet(id) {
   // A day opened from History goes back to History when closed; a locked-backup sheet goes back to Settings.
   if (id === "badges") id = "me"; // badges live in the Me tab now
   parentSheet = (sheetId === "history" && id.startsWith("day:")) || (sheetId === "settings" && id.startsWith("lock:"))
-    || (sheetId === "routine" && ["packs", "wosetup", "skinsetup"].includes(id)) || (sheetId && id.startsWith("habit:")) ? sheetId : null;
+    || (sheetId === "routine" && ["packs", "wosetup", "skinsetup"].includes(id)) || (sheetId === "me" && id === "money") || (sheetId && id.startsWith("habit:")) ? sheetId : null;
   if (!parentSheet) lastFocus = document.activeElement;
   // Restoring a backup from the welcome screen opens a sheet on top of it.
   document.body.classList.toggle("sheet-top", !$("welcome").hidden);
@@ -1023,6 +1023,7 @@ function renderSheet(keep) {
   if (sheetId === "settings") return renderSettings(keep);
   if (sheetId === "routine") return renderRoutinePage(keep);
   if (sheetId === "me") return renderMe(keep);
+  if (sheetId === "money") return renderMoney(keep);
   if (sheetId === "editor") return renderEditor(keep);
   if (sheetId.startsWith("lock:")) return renderLockSheet(keep);
   if (sheetId === "packs") return renderPackSheet(keep);
@@ -1529,6 +1530,7 @@ function renderMe(keep) {
       ${stat("check", S.ticks, T("meTicks"))}${stat("star", S.perfectDays, T("mePerfect"))}
       ${stat("dumb", S.workouts, T("meWorkouts"))}${stat("bolt", S.prs, T("mePRs"))}
     </div>
+    ${moneyCardHTML()}
     <div class="set-group nofold"><h3>${T("tunasColour")}</h3><p>${T("themeHelp")}</p>${themePicker()}</div>
     ${wearHTML()}
     ${findsHTML()}
@@ -1650,7 +1652,7 @@ $("fileBackup").addEventListener("change", e => readFile(e.target, text => {
 /* ================= Bottom navigation ================= */
 // Today, History, Badges and Settings are one tap away, even with a sheet open; the tab bar sits above sheets.
 const ROUTINE_SHEETS = ["routine", "editor", "packs", "wosetup", "skinsetup"];
-const tabOf = id => !id ? "home" : id.startsWith("habit:") ? tabOf(parentSheet) : id === "history" || id.startsWith("day:") ? "history" : id === "me" ? "me"
+const tabOf = id => !id ? "home" : id.startsWith("habit:") ? tabOf(parentSheet) : id === "history" || id.startsWith("day:") ? "history" : id === "me" || id === "money" ? "me"
   : ROUTINE_SHEETS.includes(id) ? "routine" : id === "settings" || id.startsWith("lock:") ? "settings" : "home";
 function syncTabs() {
   const cur = tabOf(sheetId);
@@ -2390,7 +2392,7 @@ const celeQ = [];
 function queueCele(c) { celeQ.push(c); if ($("cele").hidden) nextCele(); }
 function nextCele() {
   const c = celeQ.shift(); if (!c) { $("cele").hidden = true; contextSay(); setTimeout(playHome, 150); return; }
-  if (sheetId && !["settings", "routine", "me", "editor", "packs", "wosetup", "skinsetup"].includes(sheetId) && !sheetId.startsWith("day:") && !sheetId.startsWith("lock:")) closeSheet();
+  if (sheetId && !["settings", "routine", "me", "money", "editor", "packs", "wosetup", "skinsetup"].includes(sheetId) && !sheetId.startsWith("day:") && !sheetId.startsWith("lock:")) closeSheet();
   const el = $("cele"); el.hidden = false;
   el.innerHTML = `${c.art || `<div class="mascot cheer" id="celeMascot">${mascotSVG()}</div>`}<h2 class="${c.color || ""}">${c.title}</h2><p>${c.sub}</p>${c.extra || ""}
     ${c.tiles.length ? `<div class="tiles">${c.tiles.map(t => `<div class="tile" style="--c:var(${t.c})"><small>${t.k}</small><b>${t.i ? I[t.i] : ""}${t.v}</b></div>`).join("")}</div>` : ""}
