@@ -2529,6 +2529,9 @@ function wchestRow() {
 // Each chest gives one find to keep: r 0 = common, 1 = rare, 2 = epic. Names live in i18n (finds).
 // Odds per chest: 70% common, 25% rare, 5% epic. The 5th chest in a row without a rare is always rare or better,
 // and the 15th without an epic is always epic. A new find is picked before a repeat. The very first chest gives the Pandan Leaf.
+// Shiny finds: the 3rd copy of a find makes it shiny (it sparkles in the collection), so repeats still mean something once
+// a rarity is complete. Once every find of a rarity is owned, one that isn't shiny yet is picked before a shiny one.
+// Shiny comes from the copy count already saved (got[id].n), so nothing new is stored and backups carry it as they are.
 const FINDS = [
   { id: "pandan", s: "leaf", c: ["#5bbf6c", "#2f7d3d"], r: 0 }, { id: "clover", s: "clover", c: ["#6fcf5a", "#36862a"], r: 0 },
   { id: "rubber", s: "seed", c: ["#b07444", "#6e4322"], r: 0 }, { id: "pebble", s: "seed", c: ["#aab4bb", "#69757d"], r: 0 },
@@ -2543,7 +2546,7 @@ const FINDS = [
   { id: "rafflesia", s: "rafflesia", c: ["#e0533a", "#8f2414"], r: 2 }, { id: "crystal", s: "gem", c: ["#8ee6ff", "#2a8fc0"], r: 2 },
   { id: "star", s: "star", c: ["#ffd23f", "#c48a00"], r: 2 }, { id: "goldsprout", s: "sprout", c: ["#ffcf3a", "#b98200"], r: 2 },
 ];
-const FIND_ODDS = [0.70, 0.25, 0.05], RARE_PITY = 5, EPIC_PITY = 15, FIRST_FIND = "pandan";
+const FIND_ODDS = [0.70, 0.25, 0.05], RARE_PITY = 5, EPIC_PITY = 15, FIRST_FIND = "pandan", SHINY_AT = 3;
 // Small chunky art in the app's style: a dark outline (c[1]), a fill (c[0]) and a white shine.
 const FIND_ART = {
   leaf: (f, d) => `<path d="M24 5c-11 8-15 20-12 31 1.5 5 6 7 12 7s10.5-2 12-7c3-11-1-23-12-31z" fill="${f}" stroke="${d}" stroke-width="3" stroke-linejoin="round"/><path d="M24 15v26M24 26l-6-5M24 33l6-5" stroke="${d}" stroke-width="2.5" stroke-linecap="round" fill="none"/>`,
@@ -2572,6 +2575,7 @@ function findsState() {
   f.dry = Math.max(0, +f.dry || 0); f.edry = Math.max(0, +f.edry || 0); return f;
 }
 const findCount = (f, id) => Math.max(0, +((f.got[id] || {}).n) || 0);
+const isShiny = (f, id) => findCount(f, id) >= SHINY_AT;
 // minR 1 = Rare or better for sure (the weekly chest's first find).
 function rollRarity(f, rand, minR = 0) {
   if (f.edry + 1 >= EPIC_PITY) return 2;
@@ -2581,26 +2585,34 @@ function rollRarity(f, rand, minR = 0) {
 function openFind(today, rand = Math.random, minR = 0) {
   const f = findsState(), first = !minR && !FINDS.some(x => findCount(f, x.id));
   const r = first ? 0 : rollRarity(f, rand, minR), pool = FINDS.filter(x => x.r === r), fresh = pool.filter(x => !findCount(f, x.id));
-  const item = first ? FINDS.find(x => x.id === FIRST_FIND) : (fresh.length ? fresh : pool)[Math.floor(rand() * (fresh.length || pool.length))];
+  const dull = pool.filter(x => !isShiny(f, x.id)), from = fresh.length ? fresh : dull.length ? dull : pool;
+  const item = first ? FINDS.find(x => x.id === FIRST_FIND) : from[Math.floor(rand() * from.length)];
   const n = findCount(f, item.id) + 1;
   f.got[item.id] = { n, d: (f.got[item.id] || {}).d || today }; f.log[today] = item.id;
   f.dry = r >= 1 ? 0 : f.dry + 1; f.edry = r === 2 ? 0 : f.edry + 1;
   Object.keys(f.log).forEach(k => { if (k < dkey(new Date(Date.now() - 40 * 864e5))) delete f.log[k]; });
   return { item, n };
 }
-const findCard = ({ item, n }) => `<div class="find r${item.r}"><span class="find-art">${findArt(item)}</span><span class="find-txt"><small>${rarityName(item.r)}</small><b>${findName(item.id)}</b><span>${n > 1 ? T("findAgain", n) : T("findNew")}</span></span></div>`;
+const SPARKS = `<i class="spk s1" aria-hidden="true">${I.spark}</i><i class="spk s2" aria-hidden="true">${I.spark}</i>`;
+// A repeat says how close it is to shiny; the copy that makes it shiny gets its own line and sparkles.
+function findCard({ item, n }) {
+  const shiny = n >= SHINY_AT, line = n === 1 ? T("findNew") : n < SHINY_AT ? T("findToShiny", n, SHINY_AT) : n === SHINY_AT ? T("findShinyNow") : T("findAgain", n);
+  return `<div class="find r${item.r}${shiny ? " shiny" : ""}${n === SHINY_AT ? " shiny-new" : ""}"><span class="find-art">${findArt(item)}${shiny ? SPARKS : ""}</span><span class="find-txt"><small>${rarityName(item.r)}${shiny ? " · " + T("shinyTag") : ""}</small><b>${findName(item.id)}</b><span>${line}</span></span></div>`;
+}
 // The collection book: every find has a fixed slot (common, then rare, then epic). Ones not found yet show as a
 // silhouette with "? ? ?" and their rarity, so players can see what's left to collect.
 function findsHTML() {
-  const f = findsState(), today = dkey(routineDate()), owned = FINDS.filter(x => findCount(f, x.id));
+  const f = findsState(), today = dkey(routineDate()), owned = FINDS.filter(x => findCount(f, x.id)), shinyN = FINDS.filter(x => isShiny(f, x.id)).length;
   const pity = Math.max(1, RARE_PITY - f.dry);
   const cell = x => { const n = findCount(f, x.id);
     if (!n) return `<li class="fcell lock r${x.r}" aria-label="${T("findLocked")} · ${rarityName(x.r)}"><span class="find-art">${findArt(x)}</span><b aria-hidden="true">? ? ?</b><small aria-hidden="true">${rarityName(x.r)}</small></li>`;
-    return `<li class="fcell r${x.r}"><span class="find-art">${findArt(x)}</span><b>${findName(x.id)}</b><small>${rarityName(x.r)}${n > 1 ? ` · ×${n}` : ""}</small>${f.log[today] === x.id ? `<i class="b-new">${T("newBadge")}</i>` : ""}</li>`; };
+    const sh = n >= SHINY_AT, label = `${findName(x.id)} · ${rarityName(x.r)}${sh ? " · " + T("shinyTag") : ""} · ×${n}`;
+    return `<li class="fcell r${x.r}${sh ? " shiny" : ""}" aria-label="${esc(label)}"><span class="find-art">${findArt(x)}${sh ? SPARKS : ""}</span><b aria-hidden="true">${findName(x.id)}</b><small aria-hidden="true">${rarityName(x.r)}${n > 1 ? ` · ×${n}` : ""}</small>${f.log[today] === x.id ? `<i class="b-new" aria-hidden="true">${T("newBadge")}</i>` : ""}</li>`; };
   return `<section class="me-trophy me-finds" aria-labelledby="findsT"><div class="me-th"><h3 id="findsT">${T("findsTitle")}</h3><span>${owned.length} / ${FINDS.length}</span></div>
     <div class="bar"><i style="${fillPct(100 * owned.length / FINDS.length)}"></i></div>
     ${owned.length ? (owned.length < FINDS.length ? `<p class="f-pity">${I.chest}<span>${T("findsPity", pity)}</span></p>` : "")
       : `<p class="f-empty">${I.chest}<span>${T("findsEmpty")}</span></p>`}
+    ${owned.length ? `<p class="f-shiny"><i aria-hidden="true">${I.spark}</i><span><b>${T("findsShiny", shinyN, FINDS.length)}</b> ${shinyN === FINDS.length ? T("findsShinyAll") : T("findsShinyHelp", SHINY_AT)}</span></p>` : ""}
     <ul class="fgrid">${FINDS.map(cell).join("")}</ul></section>`;
 }
 
