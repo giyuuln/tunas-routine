@@ -445,7 +445,7 @@ function audio() { try { actx ||= new (window.AudioContext || window.webkitAudio
 function tone(freq, at, dur, vol, type) { const a = audio(); if (!a) return; const o = a.createOscillator(), g = a.createGain(); o.type = type || "sine"; o.frequency.value = freq;
   const t = a.currentTime + at; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol || 0.2, t + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur + 0.02); }
-function sfx(kind) {
+function sfx(kind, n) {
   if (!soundOn) return;
   try {
     if (kind === "ding") { tone(988,0,.12,.18,"triangle"); tone(1319,.08,.22,.18,"triangle"); }
@@ -458,6 +458,7 @@ function sfx(kind) {
     else if (kind === "star1") tone(1047,0,.16,.16,"triangle");
     else if (kind === "star2") tone(1319,0,.16,.16,"triangle");
     else if (kind === "star3") { tone(1568,0,.2,.17,"triangle"); tone(2093,.07,.28,.12,"sine"); }
+    else if (kind === "combo") { const f = 784 * Math.pow(2, Math.min(n || 2, 6) * 2 / 12); tone(f,0,.1,.13,"triangle"); tone(f*1.5,.07,.18,.11,"triangle"); }
     else if (kind === "hop") { tone(523,0,.08,.1,"sine"); tone(784,.07,.12,.1,"sine"); }
   } catch (e) {}
 }
@@ -476,6 +477,22 @@ function flyXP(from) {
 }
 function floatXP(x, y, text) { if (reduced()) return; const f = document.createElement("div"); f.className = "fx"; f.textContent = (THEME === "sakura" ? "♥ " : THEME === "ungu" ? "⚡ " : THEME === "langit" ? "~ " : "") + text;
   const z = bodyZoom(); f.style.left = Math.max(8, Math.min(innerWidth / z - 90, x / z)) + "px"; f.style.top = (y / z - 14) + "px"; document.body.appendChild(f); setTimeout(() => f.remove(), 950); }
+// Combo: ticking habits close together shows a small "x2 / x3" pop with a rising note. It is feedback only, no extra XP,
+// so tapping fast never earns more than doing the habits. Unticking, Undo or Tick all ends the run.
+const COMBO_GAP = 25000; let combo = { n: 0, at: 0 };
+function comboReset() { combo = { n: 0, at: 0 }; }
+function comboHit(rect) {
+  const now = Date.now(); combo = { n: now - combo.at <= COMBO_GAP ? combo.n + 1 : 1, at: now };
+  const n = combo.n; if (n < 2) return 0;
+  document.querySelectorAll(".combo").forEach(o => o.remove()); // one pop at a time, the newest wins
+  const tiers = T("comboTiers"), z = bodyZoom(), c = document.createElement("div");
+  c.className = "combo" + (n >= 5 ? " hot" : ""); c.setAttribute("aria-hidden", "true");
+  c.innerHTML = `<b>x${n}</b><span>${esc(tiers[Math.min(n, 5) - 2])}</span>`;
+  c.style.left = Math.max(8, rect.left / z + 12) + "px"; c.style.top = Math.max(8, rect.top / z - 30) + "px";
+  document.body.appendChild(c); setTimeout(() => c.remove(), 1100);
+  setTimeout(() => { sfx("combo", n); buzz(n >= 5 ? [12, 30, 12, 30, 18] : [10, 30, 14]); }, 140);
+  return n;
+}
 function toast(html, icon, ms, action) { const t = document.createElement("div"); t.className = "toast" + (icon === "x" ? " err" : ""); t.innerHTML = `<i>${I[icon || "star"]}</i><span>${html}</span>`;
   if (action) { const b = document.createElement("button"); b.type = "button"; b.className = "toast-act"; b.textContent = action.label;
     b.onclick = () => { t.remove(); action.fn(); }; t.appendChild(b); t.classList.add("has-act"); }
@@ -1044,7 +1061,7 @@ function tickAll() {
   const done = (store.days[today] ||= {}); let xp = 0;
   const ticked = [];
   node.b.items.forEach(i => { if (shown(i, d) && !done[i.id]) { done[i.id] = true; ticked.push(i.id); xp += xpFor(i.id, d); } });
-  save(); sfx("ding"); buzz([15, 40, 15]); floatXP(innerWidth / 2 - 40, innerHeight / 2, `+${xp} XP`); jump($("mascot"));
+  comboReset(); save(); sfx("ding"); buzz([15, 40, 15]); floatXP(innerWidth / 2 - 40, innerHeight / 2, `+${xp} XP`); jump($("mascot"));
   const tb = document.querySelector("#shBody .tickall"); if (tb) flyXP(tb.getBoundingClientRect());
   refresh(true);
   // One mis-tap shouldn't tick a whole section for good: offer Undo for a few seconds.
@@ -1148,13 +1165,14 @@ $("shBody").addEventListener("click", e => {
   box[id] = v; save();
   const rect = t.getBoundingClientRect();
   if (v) { const xp = sheetId === "weekly" ? XP.weekly : xpFor(id, d); sfx("ding"); buzz(); floatXP(rect.right - 90, rect.top + rect.height/2, `+${xp} XP`); if (!sheetId.startsWith("day:")) flyXP(rect);
+    if (!sheetId.startsWith("day:")) comboHit(rect); else comboReset();
     const it = id === "wo-done" ? { t: T("woDone") } : sheetId === "weekly" ? WEEKLY.find(w => w.id === id) : BLOCKS.flatMap(b => b.items).find(i => i.id === id);
     const node = nodesFor(d).find(n => n.id === sheetId), nx = node && !sheetId.startsWith("day:") ? nextOpen(node, d) : null;
     say(`${pick(T("cheers"))} ${esc(it ? itemTitle(it, d) : "")} ✓`, nx ? T("sayThen", esc(nx.name || itemTitle(nx, d))) + ` · +${xp} XP` : `+${xp} XP`, "happy", 3200); jump($("mascot"));
     // A mis-tap is easy on a phone: offer Undo for 5 seconds, putting back exactly what was there before.
     offerUndo(T("tickedOne", esc(it ? itemTitle(it, d) : "")), () => { if (was === undefined) delete box[id]; else box[id] = was;
-      if (ci) { if (cWas === undefined) delete cBox[id]; else cBox[id] = cWas; } save(); sfx("undo"); lastS = null; prevCleared = null; refresh(true); }); }
-  else { sfx("undo"); dropUndo(); }
+      if (ci) { if (cWas === undefined) delete cBox[id]; else cBox[id] = cWas; } comboReset(); save(); sfx("undo"); lastS = null; prevCleared = null; refresh(true); }); }
+  else { sfx("undo"); dropUndo(); comboReset(); }
   refresh(true);
   const again = document.querySelector(`[data-task="${id}"]`); again && again.focus({ preventScroll: true });
 });

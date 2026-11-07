@@ -213,7 +213,8 @@ window.TUNAS_I18N = {
         sayStartSec: t => `${t} time~ let's go ♡`, sayTickle: ["Hehe~ that tickles!", "Stoppp, I'm shy~ ♡"], sayGreet: (p, n) => `${p}, ${n}~ ♡`,
         clearedSubs: ["You're doing so well~", "Keep blooming, one step at a time ♡", "Cute AND productive. Wow~"],
         perfectSub: n => `Every habit done. So proud of you, ${n} ♡`, levelSub: t => `You're now ${t}~ keep blooming ♡`, tapAgain: "Tap me again~",
-        themeHello: "Sakura mode~ hehe, I'm so cute now ♡", prSay: "New record~ so strong! ♡", letsGo: "Let's go~ ♡"
+        themeHello: "Sakura mode~ hehe, I'm so cute now ♡", prSay: "New record~ so strong! ♡", letsGo: "Let's go~ ♡",
+        comboTiers: ["Combo~", "Ooh, combo~ ♡", "Super combo~!", "Unstoppable~ ♡"]
       },
       langit: {
         cheers: ["Nice and easy.","Smooth.","Well done.","Steady.","Good flow.","Calm and done."],
@@ -226,7 +227,8 @@ window.TUNAS_I18N = {
         sayStartSec: t => `${t} time. Nice and easy.`, sayTickle: ["Hm? Oh, hello.", "Easy there, I'm floating~"], sayGreet: (p, n) => `${p}, ${n}. Take a breath.`,
         clearedSubs: ["One step at a time.", "Slow progress is still progress.", "Breathe. That's one more done."],
         perfectSub: n => `Every habit done, ${n}. Calm and consistent.`, levelSub: t => `You're now ${t}. Steady climb.`, tapAgain: "Tap again for more",
-        themeHello: "Langit mode. Let's keep it calm and steady.", prSay: "New best. Quietly strong.", letsGo: "Nice and easy."
+        themeHello: "Langit mode. Let's keep it calm and steady.", prSay: "New best. Quietly strong.", letsGo: "Nice and easy.",
+        comboTiers: ["Nice rhythm.", "Good flow.", "In the zone.", "Steady and strong."]
       },
       ungu: {
         cheers: ["LET'S GOOO!","COMBO!","Critical hit!","EZ!","W!","Unstoppable!"],
@@ -239,7 +241,8 @@ window.TUNAS_I18N = {
         sayStartSec: t => `${t} quest started!`, sayTickle: ["Hey! No spamming the boss!", "Okay okay, +1 friendship XP!"], sayGreet: (p, n) => `${p}, ${n}! Ready, player one?`,
         clearedSubs: ["Stage cleared. Next!", "That's a W.", "Combo x2. Keep it going!"],
         perfectSub: n => `Every quest cleared. Legendary, ${n}!`, levelSub: t => `LEVEL UP! Rank: ${t}. Keep grinding!`, tapAgain: "Tap again for more intel",
-        themeHello: "Taro mode! LET'S GOOO, player one!", prSay: "NEW PR! BOSS DEFEATED!", letsGo: "LET'S GOOO!"
+        themeHello: "Taro mode! LET'S GOOO, player one!", prSay: "NEW PR! BOSS DEFEATED!", letsGo: "LET'S GOOO!",
+        comboTiers: ["COMBO!", "TRIPLE COMBO!", "MEGA COMBO!", "ULTRA COMBO!"]
       }
     },
     wTheme: "Pick a colour",
@@ -260,7 +263,7 @@ window.TUNAS_I18N = {
     ftPause: "Pause", ftResume: "Resume", ftStop: "Stop",
     ftSay: ["Focus mode on!", "I'll watch the clock. 25 minutes, go!"], ftDoneSay: ["Focus done!", "Take 5. You earned it."],
     ftDone: t => `Focus done! <b>${t}</b> ticked`, ftDoneAlready: "Focus done! Time for a 5 minute break.", ftBreakOver: "Break over. Nice work!",
-    tickedAll: n => `Ticked ${n} habits`, tickedOne: t => `Ticked <b>${t}</b>`,
+    tickedAll: n => `Ticked ${n} habits`, tickedOne: t => `Ticked <b>${t}</b>`, comboTiers: ["Combo!", "Nice combo!", "Super combo!", "On fire!"],
     countOf: (n, g) => `${n} of ${g}`, countTap: "Tap to add one", countMinus: t => `Take one off ${t}`, countAdded: (t, n, g) => `<b>${t}</b>: ${n} / ${g}`,
     edCount: "Times a day", edCountHelp: "Set 2 or more to tap +1 each time, like 8 glasses of water. Leave empty for a normal tick.",
     edStarHelp: "Tap ★ to make a habit a quest habit. Quest habits give bonus XP.", edTimeAny: "--:--",
@@ -492,7 +495,8 @@ window.TUNAS_I18N = {
         sayStartSec: t => `Masa ${t}~ jom ♡`, sayTickle: ["Hehe~ geli!", "Janganlah, malu~ ♡"], sayGreet: (p, n) => `${p}, ${n}~ ♡`,
         clearedSubs: ["Pandainya~", "Mekar sikit-sikit ♡", "Comel DAN rajin. Wow~"],
         perfectSub: n => `Semua tabiat siap. Tunas bangga, ${n} ♡`, levelSub: t => `Pangkat baru: ${t}~ teruskan mekar ♡`, tapAgain: "Tekan Tunas lagi~",
-        themeHello: "Mod Sakura~ hehe, comelnya Tunas ♡", prSay: "Rekod baru~ kuatnya! ♡", letsGo: "Jom~ ♡"
+        themeHello: "Mod Sakura~ hehe, comelnya Tunas ♡", prSay: "Rekod baru~ kuatnya! ♡", letsGo: "Jom~ ♡",
+        comboTiers: ["Combo~", "Comel dan laju~ ♡", "Hebatnya~", "Tak boleh stop~ ♡"]
       },
       langit: {
         cheers: ["Tenang dan siap.","Lancar.","Bagus.","Steady.","Ikut aliran.","Perlahan tapi pasti."],
@@ -505,7 +509,8 @@ window.TUNAS_I18N = {
         sayStartSec: t => `Masa ${t}. Perlahan-lahan.`, sayTickle: ["Hm? Oh, hai.", "Perlahan, Tunas tengah terapung~"], sayGreet: (p, n) => `${p}, ${n}. Tarik nafas.`,
         clearedSubs: ["Satu langkah pada satu masa.", "Perlahan pun tetap maju.", "Tarik nafas. Satu lagi siap."],
         perfectSub: n => `Semua tabiat siap, ${n}. Tenang dan konsisten.`, levelSub: t => `Pangkat baru: ${t}. Naik dengan tenang.`, tapAgain: "Tekan lagi untuk tip lain",
-        themeHello: "Mod Langit. Jom buat dengan tenang.", prSay: "Rekod baru. Kuat dalam diam.", letsGo: "Perlahan-lahan."
+        themeHello: "Mod Langit. Jom buat dengan tenang.", prSay: "Rekod baru. Kuat dalam diam.", letsGo: "Perlahan-lahan.",
+        comboTiers: ["Rentak yang baik.", "Lancar.", "Fokus betul.", "Tenang dan mantap."]
       },
       ungu: {
         cheers: ["JOMMM!","COMBO!","Pukulan maut!","Senang je!","Menang!","Tak boleh stop!"],
@@ -518,7 +523,8 @@ window.TUNAS_I18N = {
         sayStartSec: t => `Misi ${t} bermula!`, sayTickle: ["Hoi! Jangan spam boss!", "Okay okay, +1 XP persahabatan!"], sayGreet: (p, n) => `${p}, ${n}! Sedia, player one?`,
         clearedSubs: ["Tahap siap. Seterusnya!", "Itu satu kemenangan.", "Combo x2. Teruskan!"],
         perfectSub: n => `Semua misi siap. Legenda, ${n}!`, levelSub: t => `NAIK TAHAP! Pangkat: ${t}. Teruskan grind!`, tapAgain: "Tekan lagi untuk info lanjut",
-        themeHello: "Mod Taro! JOMMM, player one!", prSay: "REKOD BARU! BOSS TUMBANG!", letsGo: "JOMMM!"
+        themeHello: "Mod Taro! JOMMM, player one!", prSay: "REKOD BARU! BOSS TUMBANG!", letsGo: "JOMMM!",
+        comboTiers: ["COMBO!", "TRIPLE COMBO!", "MEGA COMBO!", "ULTRA COMBO!"]
       }
     },
     wTheme: "Pilih warna",
@@ -539,7 +545,7 @@ window.TUNAS_I18N = {
     ftPause: "Jeda", ftResume: "Sambung", ftStop: "Berhenti",
     ftSay: ["Mod fokus on!", "Tunas jaga masa. 25 minit, jom!"], ftDoneSay: ["Fokus siap!", "Rehat 5 minit. Memang layak."],
     ftDone: t => `Fokus siap! <b>${t}</b> dah ditanda`, ftDoneAlready: "Fokus siap! Masa rehat 5 minit.", ftBreakOver: "Rehat dah habis. Syabas!",
-    tickedAll: n => `${n} tabiat ditanda`, tickedOne: t => `<b>${t}</b> ditanda`,
+    tickedAll: n => `${n} tabiat ditanda`, tickedOne: t => `<b>${t}</b> ditanda`, comboTiers: ["Combo!", "Mantap!", "Power!", "Laju gila!"],
     countOf: (n, g) => `${n} daripada ${g}`, countTap: "Tekan untuk tambah satu", countMinus: t => `Tolak satu dari ${t}`, countAdded: (t, n, g) => `<b>${t}</b>: ${n} / ${g}`,
     edCount: "Berapa kali sehari", edCountHelp: "Letak 2 ke atas untuk tekan +1 setiap kali, macam 8 gelas air. Biar kosong untuk tanda biasa.",
     edStarHelp: "Tekan ★ untuk jadikan tabiat misi. Tabiat misi beri XP bonus.", edTimeAny: "--:--",
