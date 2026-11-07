@@ -121,6 +121,8 @@ The easiest way to get a routine file is **Routine tab → Download my routine**
 
 A day counts toward your streak at 80% or more, when you mark it as a rest day, or when a streak shield covers a missed day. A new day starts at 4am, so late nights count for the day before.
 
+Each past day keeps the habits it had that day. Adding habits, removing a pack or starting a new routine never takes back a streak, XP, a level or a badge you already earned. Ticking a habit on a past day can only help that day.
+
 ## Translations
 
 All interface text is in [`i18n.js`](i18n.js). To add a language, copy the `en` block, translate it, and add a button for it in `segLang()` in `app.js`.
