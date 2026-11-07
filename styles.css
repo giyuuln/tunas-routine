@@ -101,6 +101,7 @@ button:focus-visible,summary:focus-visible,input:focus-visible{outline:3px solid
 .q-rew{flex:none;display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:900;color:var(--gold-ink);background:var(--gold-soft);padding:4px 9px;border-radius:99px}
 .q-rew svg{width:14px;height:14px;fill:currentColor}
 .quest.won .q-rew{background:var(--green);color:var(--on-color)}
+.q-fresh{margin:0;padding:8px 0 6px;border-top:2px solid var(--line);text-align:center;font-size:12px;font-weight:800;color:var(--muted)}
 
 
 /* Week streak strip */

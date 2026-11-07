@@ -676,11 +676,35 @@ function renderTop(S) {
   $("progStreak").className = "prog-fl" + (S.streak ? "" : " off"); $("progStreak").innerHTML = `${I.flame}<b>${T("streakShort", S.streak)}</b>`;
   $("progressCard").setAttribute("aria-label", `${T("streakDays", S.streak)}. ${T("level", S.L.n)}, ${T("xpOf", S.L.cur, S.L.span)}. ${lvNextText(S.L.n)}. ${T("history")}`);
 }
+/* ================= Rotating daily quests ================= */
+// The ★ quest stays every day. The other two change each day: a light one (or the workout on workout days) and a big
+// one. The pick comes from the date, so it stays the same all day, needs no saved state and is the same after a restore.
+// Only quests the routine can actually finish today are picked; anything else falls back to "Complete the whole day".
+function dayHash(k, salt) { let h = 2166136261; for (const c of k + "|" + salt) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
+function dailyQuests(d, S) {
+  const k = dkey(d), W = WORKOUTS[d.getDay()], done = store.days[k] || {}, ids = itemsFor(d), total = S.totalToday;
+  const secs = nodesFor(d).filter(n => n.kind !== "weekly"), cleared = secs.filter(n => nodeState(n, d).cleared).length;
+  // XP goal: half of what a full day can give, rounded to 10, between 30 and 150, so small routines can still win it.
+  const maxXP = ids.reduce((s, id) => s + xpFor(id, d), 0) + (ids.length ? XP.perfect : 0) + (keyIds(d).length ? XP.quest : 0);
+  const xpGoal = Math.max(30, Math.min(150, Math.round(maxXP / 20) * 10));
+  const half = Math.ceil(total / 2), most = Math.ceil(total * 0.8);
+  const POOL = {
+    xp:   { ok: total > 0, q: () => ({ ico:"flame", t:T("qXPn", xpGoal), n: Math.min(S.todayXP, xpGoal), of: xpGoal, rew: 0 }) },
+    sec:  { ok: secs.length >= 2, q: () => ({ ico:"check", t:T("qSec"), n: Math.min(cleared, 1), of: 1, rew: 0 }) },
+    half: { ok: total >= 4, q: () => ({ ico:"check", t:T("qHalf"), n: Math.min(S.doneToday, half), of: half, rew: 0 }) },
+    day:  { ok: total > 0, q: () => ({ ico:"trophy", t:T("qDay"), n: S.doneToday, of: total, rew: XP.perfect }) },
+    sec2: { ok: secs.length >= 3, q: () => ({ ico:"trophy", t:T("qSec2"), n: Math.min(cleared, 2), of: 2, rew: 0 }) },
+    most: { ok: total >= 5, q: () => ({ ico:"flame", t:T("qMost"), n: Math.min(S.doneToday, most), of: most, rew: 0 }) } };
+  const pickFrom = (ids, salt) => { const ok = ids.filter(id => POOL[id].ok); return ok.length ? ok[dayHash(k, salt) % ok.length] : null; };
+  const light = W ? null : pickFrom(["xp", "sec", "half"], "light"), big = pickFrom(["day", "day", "sec2", "most"], "big") || "day";
+  const Q = [{ ico:"star", t:T("qStar"), n:S.questDone, of:S.questTotal, rew:XP.quest }];
+  if (W) Q.push({ ico:"bolt", t:T("qWorkout", esc(W.name)), n: done["wo-done"] ? 1 : 0, of: 1, rew: XP.workout });
+  else if (light) Q.push(POOL[light].q());
+  Q.push(POOL[big].q());
+  return Q;
+}
 function renderQuests(S) {
-  const d = routineDate(), W = WORKOUTS[d.getDay()], done = store.days[dkey(d)] || {};
-  const Q = [{ ico:"star", t:T("qStar"), n:S.questDone, of:S.questTotal, rew:XP.quest }, { ico:"trophy", t:T("qDay"), n:S.doneToday, of:S.totalToday, rew:XP.perfect }];
-  if (W) Q.splice(1, 0, { ico:"bolt", t:T("qWorkout", esc(W.name)), n: done["wo-done"] ? 1 : 0, of: 1, rew: XP.workout });
-  else Q.splice(1, 0, { ico:"flame", t:T("qXP"), n: Math.min(S.todayXP, 150), of: 150, rew: 0 });
+  const Q = dailyQuests(routineDate(), S);
   const QS = Q.filter(q => q.of > 0), wonN = QS.filter(q => q.n >= q.of).length; renderQuests.allWon = QS.length > 0 && wonN === QS.length;
   // A pip pops when its quest was finished while home was out of view.
   const prevOn = renderQuests.on, liveQ = homeVisible() && prevOn && !reduced();
@@ -688,7 +712,7 @@ function renderQuests(S) {
   if (homeVisible() || !prevOn) renderQuests.on = QS.map(q => q.n >= q.of);
   $("questCount").textContent = T("of", wonN, QS.length);
   $("quests").innerHTML = QS.map(q => { const won = q.n >= q.of;
-    return `<div class="quest${won ? " won" : ""}"><div class="q-ico">${I[q.ico]}</div><div class="q-main"><div class="q-t">${q.t}</div><div class="bar${won ? " green" : ""}"><i style="${fillPct(100*q.n/q.of)}"></i><b>${q.n} / ${q.of}</b></div></div><span class="q-rew${!won && !q.rew ? " chest" : ""}">${won ? T("done") : q.rew ? "+" + q.rew : I.chest + T("chestTag")}</span></div>`; }).join("");
+    return `<div class="quest${won ? " won" : ""}"><div class="q-ico">${I[q.ico]}</div><div class="q-main"><div class="q-t">${q.t}</div><div class="bar${won ? " green" : ""}"><i style="${fillPct(100*q.n/q.of)}"></i><b>${q.n} / ${q.of}</b></div></div><span class="q-rew${!won && !q.rew ? " chest" : ""}">${won ? T("done") : q.rew ? "+" + q.rew : I.chest + T("chestTag")}</span></div>`; }).join("") + `<p class="q-fresh">${T("qFresh")}</p>`;
 }
 /* ================= Today: game-level strip ================= */
 // Each section is a level. Stars show progress in thirds; the little Tunas stands on the level to play next.
