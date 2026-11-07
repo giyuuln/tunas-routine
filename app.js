@@ -531,13 +531,23 @@ function comboHit(rect) {
   setTimeout(() => { sfx("combo", n); buzz(n >= 5 ? [12, 30, 12, 30, 18] : [10, 30, 14]); }, 140);
   return n;
 }
+// While a celebration screen is up (chest, level up, perfect day, recap), toasts wait and show once it closes, so they
+// never cover the chest, the gifts or the title. Toasts already on screen when it opens step aside and come back after
+// with their full time. Error toasts always show right away.
+const heldToasts = [], celeUp = () => !$("cele").hidden;
 function toast(html, icon, ms, action) { const t = document.createElement("div"); t.className = "toast" + (icon === "x" ? " err" : ""); t.innerHTML = `<i>${I[icon || "star"]}</i><span>${html}</span>`;
   if (action) { const b = document.createElement("button"); b.type = "button"; b.className = "toast-act"; b.textContent = action.label;
     b.onclick = () => { t.remove(); action.fn(); }; t.appendChild(b); t.classList.add("has-act"); }
-  $("toasts").appendChild(t); setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 320); }, ms || 2800); return t; }
+  t.dataset.ms = ms || 2800;
+  if (icon !== "x" && celeUp()) heldToasts.push(t); else showToast(t);
+  return t; }
+function showToast(t) { clearTimeout(t._out); t.classList.remove("out"); $("toasts").appendChild(t);
+  t._out = setTimeout(() => { t.classList.add("out"); t._out = setTimeout(() => t.remove(), 320); }, +t.dataset.ms); }
+function holdToasts() { $("toasts").querySelectorAll(".toast:not(.err):not(.out)").forEach(t => { clearTimeout(t._out); t.remove(); heldToasts.push(t); }); }
+function flushToasts() { heldToasts.splice(0).filter(t => !t.dataset.gone).forEach((t, i) => setTimeout(() => { if (!t.dataset.gone && !celeUp()) showToast(t); else if (!t.dataset.gone) heldToasts.push(t); }, 250 + i * 220)); }
 // One Undo toast at a time: a new tick replaces the old offer instead of stacking toasts.
 let undoToast = null;
-function dropUndo() { if (undoToast) { undoToast.remove(); undoToast = null; } }
+function dropUndo() { if (undoToast) { undoToast.dataset.gone = 1; clearTimeout(undoToast._out); undoToast.remove(); undoToast = null; } }
 function offerUndo(html, fn) { dropUndo(); const t = toast(html, "check", 5000, { label: T("undo"), fn: () => { undoToast = null; fn(); } }); undoToast = t; }
 function confetti() {
   if (reduced()) return;
@@ -2391,7 +2401,8 @@ function welGo(d) { const L = welSteps(), i = Math.max(0, L.indexOf(WEL.step)); 
 const celeQ = [];
 function queueCele(c) { celeQ.push(c); if ($("cele").hidden) nextCele(); }
 function nextCele() {
-  const c = celeQ.shift(); if (!c) { $("cele").hidden = true; contextSay(); setTimeout(playHome, 150); return; }
+  const c = celeQ.shift(); if (!c) { $("cele").hidden = true; contextSay(); setTimeout(playHome, 150); flushToasts(); return; }
+  holdToasts();
   if (sheetId && !["settings", "routine", "me", "money", "editor", "packs", "wosetup", "skinsetup"].includes(sheetId) && !sheetId.startsWith("day:") && !sheetId.startsWith("lock:")) closeSheet();
   const el = $("cele"); el.hidden = false;
   el.innerHTML = `${c.art || `<div class="mascot cheer" id="celeMascot">${mascotSVG()}</div>`}<h2 class="${c.color || ""}">${c.title}</h2><p>${c.sub}</p>${c.extra || ""}
