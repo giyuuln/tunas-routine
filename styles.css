@@ -972,3 +972,68 @@ button.wcell:active{transform:translateY(2px);box-shadow:0 1px 0 var(--line)}
 .combo.hot{color:var(--orange-ink);border-color:var(--orange-ink);box-shadow:0 3px 0 var(--orange-ink)}
 @keyframes combo{0%{transform:scale(.5) rotate(-6deg);opacity:0}18%{transform:scale(1.12) rotate(2deg);opacity:1}32%{transform:scale(1) rotate(0)}75%{opacity:1;transform:translateY(-8px)}100%{opacity:0;transform:translateY(-22px)}}
 @media (prefers-reduced-motion: reduce){.combo{animation:none}}
+
+/* Money: monthly money in, spends by category, report and Tunas tips (Me → Money) */
+.mn-entry{display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px;text-align:left;box-shadow:0 4px 0 var(--line)}
+.mn-entry:active{transform:translateY(3px);box-shadow:0 1px 0 var(--line)}
+.mn-entry-ico{flex:none;display:grid;place-items:center;width:44px;height:44px;border-radius:14px;background:var(--gold-soft);border:2px solid var(--gold)}
+.mn-entry-ico svg{width:24px;height:24px;fill:var(--gold-ink)}
+.mn-entry-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.mn-entry-t b{font-family:var(--display);font-weight:700;font-size:18px}
+.mn-entry-t span{font-size:13.5px;color:var(--muted);font-weight:800;font-variant-numeric:tabular-nums}
+.mn{display:flex;flex-direction:column;gap:16px}
+.mn-month{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.mn-month h3{margin:0;font-family:var(--display);font-weight:700;font-size:20px;text-align:center}
+.mn-arrow{flex:none;display:grid;place-items:center;width:44px;height:44px;border-radius:14px;border:2px solid var(--line);background:var(--card);box-shadow:0 3px 0 var(--line)}
+.mn-arrow:active{transform:translateY(2px);box-shadow:0 1px 0 var(--line)}
+.mn-arrow[disabled]{opacity:.35;cursor:default;box-shadow:none}
+.mn-arrow .chev{margin:0}
+.chev.l{transform:rotate(135deg)}
+.mn-now{align-self:center;margin-top:-12px;padding-block:6px}
+.mn-sum{display:flex;flex-direction:column;gap:10px;padding:14px}
+.mn-in{display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:900}
+.mn-amt{display:flex;align-items:stretch;gap:8px}
+.mn-amt .field{font-family:var(--display);font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+.mn-amt .field{flex:1;min-width:0}
+.mn-sym{flex:none;display:grid;place-items:center;min-width:48px;padding:0 10px;border-radius:12px;border:2px solid var(--gold);background:var(--gold-soft);color:var(--gold-ink);font-family:var(--display);font-weight:700;font-size:17px;white-space:nowrap}
+.mn-help{margin:0;font-size:13px;color:var(--muted);font-weight:700}
+.mn-rows{display:flex;flex-direction:column;gap:4px}
+.mn-rows p{margin:0;display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:15px}
+.mn-rows b{font-family:var(--display);font-weight:700;font-size:20px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;text-align:right}
+.mn-left b{color:var(--green-ink)} .mn-left.over b{color:var(--warn-ink)}
+.mn-bar i{background:var(--green)} .mn-bar.tight i{background:var(--gold)} .mn-bar.over i{background:var(--orange)}
+.mn-cats{display:flex;flex-wrap:wrap;gap:8px}
+.mn-cat{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:8px 12px;border-radius:999px;border:2px solid var(--line);background:var(--card);box-shadow:0 3px 0 var(--line);font-weight:800;font-size:14px;color:var(--ink)}
+.mn-cat span{font-size:17px;line-height:1}
+.mn-cat[aria-pressed="true"]{border-color:var(--c);background:color-mix(in srgb,var(--c) 16%,var(--card));box-shadow:0 3px 0 var(--c)}
+.mn-cat:active{transform:translateY(2px);box-shadow:0 1px 0 var(--line)}
+.mn-report,.mn-list,.mn-past{display:flex;flex-direction:column;gap:10px}
+.mn-report h4{margin:4px 0 0;font-size:15px;font-weight:900}
+.mn-tunas{display:flex;align-items:flex-start;gap:12px}
+.mn-av{flex:none;width:72px;height:72px}
+.mn-tunas .bubble{font-size:14.5px;font-weight:700}
+.mn-tunas .bubble::before{top:30px}
+.mn-tunas .bubble > b{display:block;font-family:var(--display);font-weight:700;font-size:16px;color:var(--green-ink);margin-bottom:4px}
+.mn-tunas ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+.mn-tunas li b{font-weight:900;font-variant-numeric:tabular-nums}
+.mn-cbars,.mn-list ul,.mn-past ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.mn-cbars li,.mn-list li{display:flex;align-items:center;gap:10px}
+.mn-ce{flex:none;display:grid;place-items:center;width:38px;height:38px;border-radius:12px;font-size:19px;background:var(--soft);border:2px solid var(--line);background:color-mix(in srgb,var(--c) 16%,var(--card));border:2px solid color-mix(in srgb,var(--c) 55%,var(--line))}
+.mn-ct{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.mn-cl{display:flex;align-items:baseline;gap:6px;font-size:14px}
+.mn-cl small{color:var(--muted);font-weight:800;font-size:12.5px}
+.mn-ca{margin-left:auto;font-variant-numeric:tabular-nums;white-space:nowrap}
+.mn-cbars .bar{height:8px} .mn-cbars .bar i{background:var(--c)} .mn-cbars .bar i::after{display:none}
+.mn-list li{padding:8px 0;border-bottom:2px solid var(--line)}
+.mn-list li:last-child{border-bottom:0}
+.mn-lt{flex:1;min-width:0;display:flex;flex-direction:column}
+.mn-lt b{font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mn-lt small{font-size:12.5px;color:var(--muted);font-weight:800}
+.mn-la{font-variant-numeric:tabular-nums;white-space:nowrap;font-size:15px}
+.mn-del{flex:none;display:grid;place-items:center;width:44px;height:44px;margin:-6px -8px -6px -4px;border:0;background:none;color:var(--control);border-radius:12px}
+.mn-del svg{width:18px;height:18px;fill:currentColor}
+.mn-past-b{display:flex;align-items:center;gap:10px;width:100%;min-height:52px;padding:10px 14px;border-radius:16px;border:2px solid var(--line);background:var(--card);box-shadow:0 3px 0 var(--line);text-align:left}
+.mn-past-b b{font-size:15px;white-space:nowrap}
+.mn-past-b span:not(.chev){flex:1;min-width:0;text-align:right;font-size:13px;color:var(--muted);font-weight:800;font-variant-numeric:tabular-nums}
+.mn-cur select{font-size:15px}
+.mn-priv{margin:0;font-size:12.5px;color:var(--muted);font-weight:700;text-align:center}
