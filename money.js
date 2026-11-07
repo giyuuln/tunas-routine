@@ -16,7 +16,7 @@ const MONEY_FALLBACK = [...MONEY_POPULAR, "CAD", "CHF", "NZD", "TWD", "PKR", "BD
 // Currencies that read better in their home number style (Rp 1.500.000 rather than IDR 1,500,000).
 const MONEY_LOC = { IDR: "id-ID", MYR: "ms-MY", SGD: "en-SG", BND: "ms-BN", THB: "th-TH-u-nu-latn", PHP: "en-PH", VND: "vi-VN", JPY: "ja-JP" };
 const MONEY_ICO = `<svg class="ico" viewBox="0 0 24 24"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4H18v3H6.5a.5.5 0 0 0 0 1H20a1 1 0 0 1 1 1v9.5a1.5 1.5 0 0 1-1.5 1.5h-13A2.5 2.5 0 0 1 4 17.5zm12 7.5a1.5 1.5 0 1 0 3 0 1.5 1.5 0 0 0-3 0z"/></svg>`;
-const MN = { month: null, cat: "food" };
+const MN = { month: null, cat: "food", picking: false, top: 0 };
 
 let moneyCurList = null;
 const moneyCurAll = () => { if (!moneyCurList) { moneyCurList = MONEY_FALLBACK; try { if (Intl.supportedValuesOf) moneyCurList = Intl.supportedValuesOf("currency").filter(c => c !== "XXX"); } catch (e) {} } return moneyCurList; };
@@ -141,17 +141,73 @@ function moneyCardHTML() {
   return `<button class="card mn-entry" type="button" data-mnopen><span class="mn-entry-ico" aria-hidden="true">${MONEY_ICO}</span>
     <span class="mn-entry-t"><b>${T("mnTitle")}</b><span>${line}</span></span><span class="chev" aria-hidden="true"></span></button>`;
 }
-function moneyCurOptions(cur) {
-  const all = moneyCurAll();
-  let dn = null; try { dn = new Intl.DisplayNames([locale()], { type: "currency" }); } catch (e) {}
-  const name = c => { let n = c; try { n = dn ? dn.of(c) : c; } catch (e) {} return n && n !== c ? `${c} · ${n}` : c; };
-  const pop = MONEY_POPULAR.filter(moneyCurOK), rest = all.filter(c => !pop.includes(c) && moneyCurOK(c));
-  if (!pop.includes(cur) && !rest.includes(cur)) rest.unshift(cur);
-  const opt = c => `<option value="${c}"${c === cur ? " selected" : ""}>${esc(name(c))}</option>`;
-  return `<optgroup label="${T("mnCurPop")}">${pop.map(opt).join("")}</optgroup><optgroup label="${T("mnCurAll")}">${rest.map(opt).join("")}</optgroup>`;
+/* ---------- Currency picker ----------
+   A full list people can scan and search (by name, code or country: "rupiah", "IDR", "Indonesia"), with a flag, the name in
+   their language and a sample amount, so they can see straight away how money will look. Opened from the currency pill or
+   the symbol box next to any amount, and offered once at the top of Money until a currency is picked. */
+const moneyFlag = c => {
+  if (c === "EUR") return "🇪🇺";
+  const r = c.slice(0, 2); if (c[0] === "X" || !moneyRegionName(r)) return "💱";
+  return String.fromCodePoint(...[...r].map(ch => 0x1F1E6 + ch.charCodeAt(0) - 65));
+};
+let moneyDN = {};
+function moneyDNof(type, lang) { const key = type + lang; if (!(key in moneyDN)) { try { moneyDN[key] = new Intl.DisplayNames([lang], { type }); } catch (e) { moneyDN[key] = null; } } return moneyDN[key]; }
+const moneyRegionName = (r, lang) => { const d = moneyDNof("region", lang || locale()); try { const n = d && d.of(r); return n && n !== r ? n : ""; } catch (e) { return ""; } };
+const moneyCurName = (c, lang) => { const d = moneyDNof("currency", lang || locale()); try { const n = d && d.of(c); return n && n !== c ? n : c; } catch (e) { return c; } };
+// The few currencies to show as big buttons: the phone's guess first, then the region's neighbours.
+const moneyQuick = () => [...new Set([moneyGuessCur(), "IDR", "MYR", "SGD", "USD"])].filter(moneyCurOK).slice(0, 4);
+function moneyCurRow(c, cur) {
+  const name = moneyCurName(c), country = c === "EUR" ? "" : moneyRegionName(c.slice(0, 2));
+  // Search words: code, the name in the app's language and in English, and the country, so "rupiah", "Indonesia" or "idr" all find IDR.
+  const words = [c, name, moneyCurName(c, "en"), country, moneyRegionName(c.slice(0, 2), "en"), moneySym(c)].join(" ").toLowerCase();
+  return `<li data-q="${esc(words)}"><button type="button" class="mn-cur-row" data-mncur="${c}" aria-pressed="${c === cur}">
+    <span class="mn-flag" aria-hidden="true">${moneyFlag(c)}</span><span class="mn-cur-t"><b>${esc(name)}</b><small>${c} · ${esc(moneyFmt(1500, c))}</small></span>
+    ${c === cur ? `<span class="mn-cur-on" aria-hidden="true">${I.check}</span>` : ""}</button></li>`;
 }
+function renderMoneyCur() {
+  const cur = moneyCur(), body = $("shBody"), guess = moneyGuessCur();
+  $("shHead").innerHTML = sheetHead("star", T("mnCurPick"), T("mnCurPickSub", esc(moneyFmt(1500, cur))), null, "--gold");
+  $("shHead").querySelector(".sh-ico").innerHTML = MONEY_ICO;
+  $("shClose").onclick = () => moneyCurClose();
+  const sug = [...new Set([cur, guess])].filter(moneyCurOK);
+  const pop = MONEY_POPULAR.filter(c => moneyCurOK(c) && !sug.includes(c));
+  const rest = moneyCurAll().filter(c => moneyCurOK(c) && !sug.includes(c) && !pop.includes(c)).sort((a, b) => moneyCurName(a).localeCompare(moneyCurName(b), locale()));
+  const group = (t, list) => list.length ? `<section class="mn-cur-g"><h4>${t}</h4><ul>${list.map(c => moneyCurRow(c, cur)).join("")}</ul></section>` : "";
+  body.innerHTML = `<div class="mn mn-picker">
+    <button class="linkish mn-back" type="button" data-mn="curBack"><span class="chev l" aria-hidden="true"></span>${T("mnCurBack")}</button>
+    <label class="sr" for="mnCurQ">${T("mnCurSearch")}</label>
+    <input class="field mn-cur-q" id="mnCurQ" type="search" enterkeyhint="search" autocomplete="off" placeholder="${T("mnCurSearch")}">
+    ${group(T("mnCurSuggest"), sug)}${group(T("mnCurPop"), pop)}${group(T("mnCurAll"), rest)}
+    <p class="mn-help mn-cur-none" hidden>${T("mnCurNone")}</p>
+    <p class="mn-help">${T("mnCurHelp")}</p></div>`;
+  body.scrollTop = 0;
+}
+function moneyCurFilter(q) {
+  const body = $("shBody"), w = q.trim().toLowerCase().split(/\s+/).filter(Boolean); let any = false;
+  body.querySelectorAll(".mn-cur-g").forEach(g => { let n = 0;
+    g.querySelectorAll("li").forEach(li => { const ok = w.every(x => li.dataset.q.includes(x)); li.hidden = !ok; if (ok) n++; });
+    g.hidden = !n; if (n) any = true; });
+  body.querySelector(".mn-cur-none").hidden = any;
+}
+function moneyCurClose() { MN.picking = false; renderMoney(false); $("shBody").scrollTop = MN.top || 0; }
+function moneyCurSet(c) {
+  if (!moneyCurOK(c)) return;
+  const m = moneyState(), was = m.cur; m.cur = c;
+  if (!save()) { m.cur = was; return; }
+  sfx("ding"); buzz(10); toast(T("mnCurSaved", esc(moneyCurName(c))), "check");
+  if (MN.picking) moneyCurClose(); else renderMoney(true);
+}
+// Big buttons for the first-use card. Two "$" side by side don't help anyone, so a symbol that repeats shows its code instead.
+function moneyQuickHTML(cur) {
+  const list = moneyQuick(), syms = list.map(moneySym);
+  return list.map((c, i) => `<button type="button" class="mn-q" data-mnset="${c}" aria-pressed="${c === cur}"><span class="mn-flag" aria-hidden="true">${moneyFlag(c)}</span>
+    <b>${esc(syms.indexOf(syms[i]) !== syms.lastIndexOf(syms[i]) ? c : syms[i])}</b><small>${esc(moneyCurName(c))}</small></button>`).join("");
+}
+const moneyCurBtn = (cur, cls) => `<button type="button" class="${cls}" data-mn="cur" aria-label="${esc(T("mnCurChange", moneyCurName(cur)))}">`;
 
 function renderMoney(keep) {
+  if (MN.picking && keep) return renderMoneyCur();
+  MN.picking = false;
   const m = moneyState(), cur = moneyCur(), body = $("shBody"), top = keep ? body.scrollTop : 0, nowK = moneyKey(new Date());
   if (!MN.month || MN.month > nowK) MN.month = nowK;
   const k = MN.month, R = moneyReport(k), f = n => esc(moneyFmt(n));
@@ -160,8 +216,9 @@ function renderMoney(keep) {
   $("shClose").onclick = closeSheet;
   const over = R.inc && R.left < 0;
   const sum = `<section class="card mn-sum" aria-labelledby="mnMonthT">
-      <label class="mn-in"><span>${T("mnIn")}</span><span class="mn-amt"><span class="mn-sym" aria-hidden="true">${esc(moneySym(cur))}</span>
-        <input class="field" id="mnInc" inputmode="decimal" enterkeyhint="done" autocomplete="off" value="${R.inc ? esc(moneyPlain(R.inc)) : ""}" placeholder="${T("mnAmtPh")}"></span></label>
+      <div class="mn-in"><div class="mn-in-h"><label for="mnInc">${T("mnIn")}</label>${moneyCurBtn(cur, "mn-cur-pill")}<span aria-hidden="true">${moneyFlag(cur)}</span>${cur}<span class="mn-caret" aria-hidden="true"></span></button></div>
+        <div class="mn-amt">${moneyCurBtn(cur, "mn-sym")}${esc(moneySym(cur))}</button>
+        <input class="field" id="mnInc" inputmode="decimal" enterkeyhint="done" autocomplete="off" value="${R.inc ? esc(moneyPlain(R.inc)) : ""}" placeholder="${T("mnAmtPh")}"></div></div>
       <p class="mn-help">${T("mnInHelp")}</p>
       <div class="mn-rows">
         <p><span>${T("mnSpent")}</span><b>${f(R.spent)}</b></p>
@@ -171,8 +228,8 @@ function renderMoney(keep) {
     </section>`;
   const chips = MONEY_CATS.map(c => `<button type="button" class="mn-cat" data-mncat="${c.id}" aria-pressed="${MN.cat === c.id}" style="--c:var(${c.c})"><span aria-hidden="true">${c.e}</span>${esc(moneyCatName(c.id))}</button>`).join("");
   const add = `<section class="set-group nofold mn-add"><h3>${T("mnAddT")}</h3>
-      <label class="mn-amt"><span class="mn-sym" aria-hidden="true">${esc(moneySym(cur))}</span><span class="sr">${T("mnAmt")}</span>
-        <input class="field" id="mnAmt" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="${T("mnAmtPh")}"></label>
+      <div class="mn-amt">${moneyCurBtn(cur, "mn-sym")}${esc(moneySym(cur))}</button><label class="sr" for="mnAmt">${T("mnAmt")}</label>
+        <input class="field" id="mnAmt" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="${T("mnAmtPh")}"></div>
       <div class="mn-cats" role="group" aria-label="${T("mnCat")}">${chips}</div>
       <label class="sr" for="mnNote">${T("mnNotePh")}</label><input class="field" id="mnNote" maxlength="${MONEY_NOTE}" enterkeyhint="done" autocomplete="off" placeholder="${T("mnNotePh")}">
       <button class="btn" type="button" data-mn="add">${T("mnAddBtn")}</button>
@@ -197,9 +254,11 @@ function renderMoney(keep) {
       <h3 id="mnMonthT">${esc(moneyMonthName(k))}</h3>
       <button class="mn-arrow" type="button" data-mn="next" aria-label="${T("mnNext")}" ${k >= nowK ? "disabled" : ""}><span class="chev" aria-hidden="true"></span></button></div>
     ${k !== nowK ? `<button class="linkish mn-now" type="button" data-mn="now">${T("mnBackNow")}</button>` : ""}
+    ${m.cur ? "" : `<section class="card mn-first" aria-labelledby="mnFirstT"><h3 id="mnFirstT">${T("mnCurQ")}</h3><p class="mn-help">${T("mnCurQSub")}</p>
+      <div class="mn-quick">${moneyQuickHTML(cur)}</div>
+      <button class="btn ghost small" type="button" data-mn="cur">${T("mnCurOther")}</button></section>`}
     ${sum}${add}${report}${list}
     ${past ? `<section class="mn-past" aria-labelledby="mnPastT"><div class="me-th"><h3 id="mnPastT">${T("mnPast")}</h3></div><ul>${past}</ul></section>` : ""}
-    <div class="set-group nofold mn-cur"><h3><label for="mnCur">${T("mnCur")}</label></h3><p>${T("mnCurHelp")}</p><select class="field" id="mnCur">${moneyCurOptions(cur)}</select></div>
     <p class="mn-priv">${T("mnPriv")}</p></div>`;
   if (keep) body.scrollTop = top;
 }
@@ -235,6 +294,7 @@ function moneySetInc(v) {
 $("shBody").addEventListener("click", e => {
   if (e.target.closest("[data-mnopen]")) { audio(); return openSheet("money"); }
   if (sheetId !== "money") return;
+  const pick = e.target.closest("[data-mncur],[data-mnset]"); if (pick) return moneyCurSet(pick.dataset.mncur || pick.dataset.mnset);
   const c = e.target.closest("[data-mncat]");
   if (c) { MN.cat = c.dataset.mncat; buzz(8); $("shBody").querySelectorAll("[data-mncat]").forEach(b => b.setAttribute("aria-pressed", b === c)); return; }
   const del = e.target.closest("[data-mndel]"); if (del) return moneyDelete(del.dataset.mndel);
@@ -242,6 +302,8 @@ $("shBody").addEventListener("click", e => {
   const b = e.target.closest("[data-mn]"); if (!b) return;
   const a = b.dataset.mn;
   if (a === "add") return moneyAdd();
+  if (a === "cur") { MN.top = $("shBody").scrollTop; MN.picking = true; audio(); sfx("pop"); renderMoneyCur(); const q = $("mnCurQ"); if (q && matchMedia("(pointer:fine)").matches) q.focus({ preventScroll: true }); return; }
+  if (a === "curBack") return moneyCurClose();
   if (a === "prev" || a === "next" || a === "now") {
     const nowK = moneyKey(new Date());
     MN.month = a === "now" ? nowK : moneyShift(MN.month || nowK, a === "prev" ? -1 : 1);
@@ -252,8 +314,8 @@ $("shBody").addEventListener("click", e => {
 $("shBody").addEventListener("change", e => {
   if (sheetId !== "money") return;
   if (e.target.id === "mnInc") return moneySetInc(e.target.value);
-  if (e.target.id === "mnCur" && moneyCurOK(e.target.value)) { moneyState().cur = e.target.value; if (save()) toast(T("mnCurSaved", esc(e.target.value)), "check"); renderMoney(true); }
 });
+$("shBody").addEventListener("input", e => { if (sheetId === "money" && e.target.id === "mnCurQ") moneyCurFilter(e.target.value); });
 $("shBody").addEventListener("keydown", e => {
   if (sheetId !== "money" || e.key !== "Enter") return;
   if (e.target.id === "mnAmt" || e.target.id === "mnNote") { e.preventDefault(); moneyAdd(); setTimeout(() => { const f = $("mnAmt"); f && f.focus({ preventScroll: true }); }, 0); }

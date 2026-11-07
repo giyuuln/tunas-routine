@@ -986,6 +986,7 @@ document.addEventListener("keydown", e => { if (e.key === "Escape") { if (!$("ce
 window.addEventListener("popstate", () => {
   if (!sheetId) return;
   if (sheetId === "editor" && ED && ED.dirty) { try { history.pushState({ tunasSheet: 1 }, ""); } catch (e) {} requestCloseEditor(); return; }
+  if (sheetId === "money" && MN.picking) { try { history.pushState({ tunasSheet: 1 }, ""); } catch (e) {} moneyCurClose(); return; } // back from the currency list goes to Money
   closeSheet(true);
 });
 // Tapping anywhere on a switch row flips its switch, so the target isn't just the small pill.
