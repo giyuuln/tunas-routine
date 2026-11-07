@@ -272,7 +272,7 @@ function saveRoutine(r) {
 }
 
 /* ================= Game rules ================= */
-const XP = { item: 10, key: 20, workout: 50, perfect: 50, quest: 40, pr: 25, weekly: 15 };
+const XP = { item: 10, key: 20, workout: 50, perfect: 50, quest: 40, pr: 25, weekly: 15, back: 60 };
 const COLORS = [["--gold","--gold-d"],["--sky","--sky-d"],["--green","--green-d"],["--orange","--orange-d"],["--pink","--pink-d"]];
 const BADGES = [
   { id:"first", ic:"check", n:"1", test:S=>S.ticks>=1 }, { id:"quest", ic:"star", n:"", test:S=>S.quests>=1 }, { id:"perfect", ic:"trophy", n:"", test:S=>S.perfectDays>=1 },
@@ -327,8 +327,10 @@ const titleCard = n => `<div class="find title-find"><span class="find-art">${TI
 /* ================= Progress storage ================= */
 // Streak shield rules (see Streak shields). Set here because loading saved data already checks them.
 const SHIELD_MAX = 2, SHIELD_ODDS = 0.25, SHIELD_PITY = 5, SHIELD_MIN_STREAK = 2;
+// Comeback bonus rules (see Comeback bonus): 2+ quiet days in a row, then tick 3 habits on the first day back.
+const BACK_GAP = 2, BACK_TICKS = 3;
 let store = loadJSON(DATA_KEY, v => v && typeof v === "object" && v.days && typeof v.days === "object").value || { days:{}, weeks:{}, logs:{}, seen:{}, rest:{} };
-function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); }
+function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); backState(); }
 normStore();
 function save() { return storeSet(DATA_KEY, JSON.stringify(store)); }
 let soundOn = true; try { soundOn = localStorage.getItem(SND_KEY) !== "off"; } catch (e) {}
@@ -385,6 +387,7 @@ function dayXP(k, prByDay) {
   ids.forEach(id => { if (done[id]) { c++; xp += xpFor(id, d); } });
   if (ids.length && c === ids.length) xp += XP.perfect;
   if (keys.length && keys.every(id => done[id])) xp += XP.quest;
+  if (backOn(k) && c >= backNeed(d)) xp += XP.back;
   return xp + (prByDay[k] || 0) * XP.pr;
 }
 function computeAll() {
@@ -407,7 +410,8 @@ function computeAll() {
     topQuestCount: Math.max(0, ...Object.values(count)),
     fullWeeks: Object.values(woWeeks).filter(n => n >= perWeek).length, streak, bestStreak, todayXP: dayXP(today, pr.byDay),
     doneToday: tIds.filter(id => tDone[id]).length, totalToday: tIds.length,
-    questDone: tKeys.filter(id => tDone[id]).length, questTotal: tKeys.length, woToday: !!tDone["wo-done"] };
+    questDone: tKeys.filter(id => tDone[id]).length, questTotal: tKeys.length, woToday: !!tDone["wo-done"],
+    back: backOn(today), backNeed: backNeed(d), backWon: backOn(today) && tIds.filter(id => tDone[id]).length >= backNeed(d) };
 }
 
 /* ================= Path nodes ================= */
@@ -711,7 +715,9 @@ function renderQuests(S) {
   $("questPips").innerHTML = QS.map((q, i) => { const on = q.n >= q.of; return `<i class="${on ? "on" : ""}${liveQ && on && !prevOn[i] ? " pop" : ""}"></i>`; }).join("");
   if (homeVisible() || !prevOn) renderQuests.on = QS.map(q => q.n >= q.of);
   $("questCount").textContent = T("of", wonN, QS.length);
-  $("quests").innerHTML = QS.map(q => { const won = q.n >= q.of;
+  // Comeback bonus row: shown on top, apart from the 3 quests, so it never makes the chest harder to win.
+  const bk = S.back ? `<div class="quest back${S.backWon ? " won" : ""}"><div class="q-ico">${I.heart}</div><div class="q-main"><div class="q-t">${T("qBack", S.backNeed)}</div><div class="bar${S.backWon ? " green" : ""}"><i style="${fillPct(100 * Math.min(S.doneToday, S.backNeed) / S.backNeed)}"></i><b>${Math.min(S.doneToday, S.backNeed)} / ${S.backNeed}</b></div></div><span class="q-rew">${S.backWon ? T("done") : "+" + XP.back}</span></div>` : "";
+  $("quests").innerHTML = bk + QS.map(q => { const won = q.n >= q.of;
     return `<div class="quest${won ? " won" : ""}"><div class="q-ico">${I[q.ico]}</div><div class="q-main"><div class="q-t">${q.t}</div><div class="bar${won ? " green" : ""}"><i style="${fillPct(100*q.n/q.of)}"></i><b>${q.n} / ${q.of}</b></div></div><span class="q-rew${!won && !q.rew ? " chest" : ""}">${won ? T("done") : q.rew ? "+" + q.rew : I.chest + T("chestTag")}</span></div>`; }).join("") + `<p class="q-fresh">${T("qFresh")}</p>`;
 }
 /* ================= Today: game-level strip ================= */
@@ -2344,6 +2350,14 @@ function checkRecap() {
   const y = new Date(d); y.setDate(y.getDate() - 1); const yk = dkey(y);
   const hadBefore = Object.keys(store.days).some(k => k < today && Object.values(store.days[k] || {}).some(Boolean));
   store.recap = today; save(); if (!hadBefore) return;
+  // Back after 2+ quiet days and the streak wasn't saved by a shield: a warm welcome and a bonus instead of a recap.
+  const gap = quietBefore(today);
+  if (gap >= BACK_GAP && !dayOK(y) && backNeed(d)) {
+    backState().days[today] = gap; save(); const S = computeAll(), need = backNeed(d); lastS = S; renderQuests(S);
+    const qd = $("quests").closest("details"); if (qd) qd.open = true; // so the bonus row is in view
+    return queueCele({ title: T("backTitle", firstName()), sub: T("backSub", need, XP.back), color: "sky", sound: "level", btn: T("backBtn"),
+      tiles: [{ k: T("meBest"), v: S.bestStreak, i: "flame", c: "--orange" }, { k: T("tLevel"), v: S.level, i: "shield", c: "--sky" }, { k: T("bonus"), v: `+${XP.back}`, i: "bolt", c: "--gold" }] });
+  }
   const ids = itemsFor(y), done = store.days[yk] || {}, n = ids.filter(id => done[id]).length, pct = ids.length ? Math.round(100 * n / ids.length) : 0;
   const stars = nodesFor(y).reduce((s2, nd) => s2 + starsFor(nodeState(nd, y)), 0), S = lastS || computeAll();
   const xp = dayXP(yk, computePRs().byDay), rest = isRest(y);
@@ -2647,6 +2661,29 @@ function shieldRow() {
   return `<div class="shield-row"><span class="sh-slots" role="img" aria-label="${T("shieldCount", n, SHIELD_MAX)}">${slots}</span><span><b>${T("shieldCount", n, SHIELD_MAX)}</b> ${T(n ? "shieldHelp" : "shieldHelpNone")}</span></div>`;
 }
 
+/* ================= Comeback bonus ================= */
+// After 2+ quiet days in a row (nothing ticked, not a rest day, not covered by a shield), the first day back says
+// welcome back instead of showing a zero, and ticking 3 habits that day (or all of them, if fewer) gives +60 XP once.
+// The day is marked when the morning greeting shows, so old history never earns bonus XP after an update. The XP is
+// worked out from the ticks like all other XP: untick and it goes away, and if the quiet days are fixed later (they
+// weren't really quiet), the bonus goes too. Saved as store.back = { days: { day back: quiet days } }.
+function backState() {
+  const s = store.back && typeof store.back === "object" && !Array.isArray(store.back) ? store.back : (store.back = {});
+  if (!s.days || typeof s.days !== "object" || Array.isArray(s.days)) s.days = {};
+  const old = new Date(Date.now() - 400 * 864e5).toISOString().slice(0, 10); // runs while loading, before dkey exists
+  Object.keys(s.days).forEach(k => { const n = Math.floor(+s.days[k]); if (!/^\d{4}-\d\d-\d\d$/.test(k) || !(n >= 1) || k < old) delete s.days[k]; else s.days[k] = Math.min(n, 400); });
+  return s;
+}
+const quietDay = k => !isRest(keyToDate(k)) && !isShielded(keyToDate(k)) && !Object.values(store.days[k] || {}).some(Boolean);
+// Quiet days in a row just before day k (up to 60, and only if something was done before them).
+function quietBefore(k) {
+  const x = keyToDate(k); let n = 0; x.setDate(x.getDate() - 1);
+  while (n < 60 && quietDay(dkey(x))) { n++; x.setDate(x.getDate() - 1); }
+  return n < 60 ? n : 0;
+}
+const backOn = k => !!(store.back && store.back.days && store.back.days[k]) && quietBefore(k) >= BACK_GAP;
+const backNeed = d => Math.min(BACK_TICKS, itemsFor(d).length);
+
 /* ================= Refresh + comparisons ================= */
 let prevCleared = null;
 function refresh(keepSheet) {
@@ -2675,6 +2712,7 @@ function refresh(keepSheet) {
             tiles: [{ k:T("tXP"), v:`+${now.xp}`, i:"bolt", c:"--gold" }, { k:T("tDone"), v:`${now.n}/${now.total}`, i:"", c:"--green" }, { k:T("tStreak"), v:S.streak, i:"flame", c:"--orange" }] }); } });
     }
     if (S.questTotal && S.questDone === S.questTotal && lastS.questDone < lastS.questTotal) toast(T("questDone", XP.quest), "star");
+    if (S.backWon && !lastS.backWon) { toast(T("backWon", XP.back), "bolt", 3500); setTimeout(() => sfx("level"), 250); buzz([20, 40, 20]); say(T("backSay"), `+${XP.back} XP`, "cheer", 3200); }
     if (S.prsToday > lastS.prsToday) { toast(T("prToast", XP.pr), "trophy"); sfx("pr"); buzz([20,40,20]); say(T("prSay"), "+" + XP.pr + " XP", "cheer", 3000); }
   }
   // Level up: new levels give their gifts once (see Level rewards). Dropping a level by unticking and climbing back
