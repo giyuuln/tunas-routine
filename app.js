@@ -285,6 +285,11 @@ const BADGES = [
 const BADGE_GOAL = { first: S => [S.ticks, 1], quest: S => [S.quests, 1], perfect: S => [S.perfectDays, 1], streak3: S => [S.bestStreak, 3], streak7: S => [S.bestStreak, 7],
   streak30: S => [S.bestStreak, 30], iron: S => [S.workouts, 1], fullweek: S => [S.fullWeeks, 1], w12: S => [S.workouts, 12], pr1: S => [S.prs, 1], pr10: S => [S.prs, 10],
   habit14: S => [S.topQuestCount, 14], perfect7: S => [S.perfectDays, 7], ticks500: S => [S.ticks, 500], lv5: S => [S.level, 5], lv10: S => [S.level, 10] };
+// Some badges need workout days or ★ habits. A badge the routine can't earn is left out (and out of the count) until the
+// routine has what it needs, so nobody is shown a goal they can never reach. A badge already earned always stays.
+const hasWO = () => Object.keys(WORKOUTS).length > 0, hasStar = () => BLOCKS.some(b => b.items.some(i => i.key));
+const BADGE_NEEDS = { iron: hasWO, fullweek: hasWO, w12: hasWO, pr1: hasWO, pr10: hasWO, habit14: hasStar, quest: () => hasStar() || hasWO() };
+const badgesFor = S => BADGES.filter(b => !BADGE_NEEDS[b.id] || BADGE_NEEDS[b.id]() || b.test(S));
 const badgeName = id => (T("badge")[id] || [id, ""])[0], badgeHow = id => (T("badge")[id] || ["", ""])[1];
 const titleOf = n => { const t = T("titles"); return t[Math.min(n - 1, t.length - 1)]; };
 
@@ -865,17 +870,19 @@ $("shBody").addEventListener("click", e => {
   const c = e.target.closest("[data-day]"); if (c && !c.disabled) openSheet("day:" + c.dataset.day);
 });
 function renderBadges(S) {
-  const got = BADGES.filter(b => b.test(S)); $("badgeMeta").textContent = got.length ? String(got.length) : ""; $("badgeMeta").setAttribute("aria-label", `${got.length}/${BADGES.length}`);
+  const got = BADGES.filter(b => b.test(S)), vis = badgesFor(S), hid = BADGES.length - vis.length;
+  $("badgeMeta").textContent = got.length ? String(got.length) : ""; $("badgeMeta").setAttribute("aria-label", `${got.length}/${vis.length}`);
   const grid = $("bgrid"); if (!grid) return got;
   const near = b => { const [h, n] = (BADGE_GOAL[b.id] || (() => [0, 1]))(S); return Math.min(1, h / n); };
-  const list = BADGES.map((b, i) => ({ b, i, ok: b.test(S), p: near(b) })).sort((x, y) => (y.ok - x.ok) || (y.p - x.p) || (x.i - y.i));
+  const list = vis.map(b => ({ b, i: BADGES.indexOf(b), ok: b.test(S), p: near(b) })).sort((x, y) => (y.ok - x.ok) || (y.p - x.p) || (x.i - y.i));
   grid.innerHTML = list.map(({ b, i, ok }) => { const c = COLORS[i % COLORS.length];
     const [have, need] = (BADGE_GOAL[b.id] || (() => [0, 1]))(S), pct = Math.min(100, 100 * have / need);
     const when = ok && typeof store.seen[b.id] === "string" ? store.seen[b.id] : null, fresh = when === dkey(routineDate()), left = need - Math.min(have, need);
     const prog = ok ? `<div class="bp won">${I.check}<span>${T("earned")}</span></div>${when ? `<time class="b-when" datetime="${when}">${keyToDate(when).toLocaleDateString(locale(), { day: "numeric", month: "short" })}</time>` : ""}`
       : `<div class="bp${pct >= 60 ? " near" : ""}"><span class="bar"><i style="${fillPct(pct)}"></i></span><b>${pct >= 60 ? T("toGo", left) : `${Math.min(have, need)} / ${need}`}</b></div>`;
     const spark = ok ? `<i class="spk s1" aria-hidden="true">${I.spark}</i><i class="spk s2" aria-hidden="true">${I.spark}</i>` : "";
-    return `<div class="badge${ok ? " won" : " locked"}" style="--c:var(${c[0]});--cd:var(${c[1]})"><div class="medal-wrap">${spark}<div class="medal"><span>${I[b.ic] || I.star}${b.n ? `<small>${b.n}</small>` : ""}</span></div>${fresh ? `<b class="b-new">${T("newBadge")}</b>` : ""}</div><div class="bn">${badgeName(b.id)}</div><div class="bh">${badgeHow(b.id)}</div>${prog}</div>`; }).join("");
+    return `<div class="badge${ok ? " won" : " locked"}" style="--c:var(${c[0]});--cd:var(${c[1]})"><div class="medal-wrap">${spark}<div class="medal"><span>${I[b.ic] || I.star}${b.n ? `<small>${b.n}</small>` : ""}</span></div>${fresh ? `<b class="b-new">${T("newBadge")}</b>` : ""}</div><div class="bn">${badgeName(b.id)}</div><div class="bh">${badgeHow(b.id)}</div>${prog}</div>`; }).join("")
+    + (hid ? `<p class="b-more">${T("badgesMore", hid)}</p>` : "");
   return got;
 }
 // The routine's guide and daily tip live on the Routine page; refresh it if it's open.
@@ -892,8 +899,8 @@ function renderProgressSheet(kind, keep) {
     body.innerHTML = `<div class="card streak-card" id="streakCard"></div><div class="card hist wsum" id="wsum"></div><div class="card hist" id="hist"></div>${habitListHTML()}`;
     renderStreak(S); renderWeekSum(); renderHistory();
   } else {
-    const n = BADGES.filter(b => b.test(S)).length;
-    $("shHead").innerHTML = sheetHead("trophy", T("badges"), T("badgesSub", n, BADGES.length), { n, total: BADGES.length }, "--gold");
+    const n = BADGES.filter(b => b.test(S)).length, total = badgesFor(S).length;
+    $("shHead").innerHTML = sheetHead("trophy", T("badges"), T("badgesSub", n, total), { n, total }, "--gold");
     body.innerHTML = `<div class="bgrid" id="bgrid"></div>`; renderBadges(S);
   }
   $("shClose").onclick = closeSheet;
@@ -1469,7 +1476,7 @@ function renderRoutinePage(keep) {
 // Me: who you are in Tunas. Your name, Tunas's colour, your level, lifetime stats and the trophy case.
 function renderMe(keep) {
   const body = $("shBody"), top = keep ? body.scrollTop : 0, S = lastS || computeAll();
-  const got = BADGES.filter(b => b.test(S)).length;
+  const got = BADGES.filter(b => b.test(S)).length, bTotal = badgesFor(S).length;
   $("shHead").innerHTML = sheetHead("star", T("tabMe"), T("meSub"), null, "--green");
   $("shHead").querySelector(".sh-ico").innerHTML = I.sprout;
   $("shClose").onclick = closeSheet;
@@ -1492,8 +1499,8 @@ function renderMe(keep) {
     <div class="set-group nofold"><h3>${T("tunasColour")}</h3><p>${T("themeHelp")}</p>${themePicker()}</div>
     ${wearHTML()}
     ${findsHTML()}
-    <section class="me-trophy" aria-labelledby="trophyT"><div class="me-th"><h3 id="trophyT">${T("badges")}</h3><span>${got} / ${BADGES.length}</span></div>
-      <div class="bar"><i style="${fillPct(100 * got / BADGES.length)}"></i></div>
+    <section class="me-trophy" aria-labelledby="trophyT"><div class="me-th"><h3 id="trophyT">${T("badges")}</h3><span>${got} / ${bTotal}</span></div>
+      <div class="bar"><i style="${fillPct(100 * got / bTotal)}"></i></div>
       <div class="bgrid" id="bgrid"></div></section>`;
   renderBadges(S);
   $("setName").addEventListener("change", e => { const v = e.target.value.trim().slice(0, 30); const r = { ...RAW, name: v || (LANG === "ms" ? "Kawan" : "Friend") }; if (saveRoutine(r)) { toast(T("nameSaved"), "check"); contextSay(); } });
