@@ -885,7 +885,20 @@ a:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-vis
 .fcell.lock.r1{border-color:var(--sky)} .fcell.lock.r2{border-color:var(--epic)}
 .fcell.lock b{color:var(--muted);letter-spacing:.12em}
 .fcell.lock small{color:var(--muted)}
-@media (prefers-reduced-motion: reduce){.find{animation:none}}
+/* Shiny finds: a gold ring, a warm glow behind the art and two twinkling sparkles (the badge sparkles). */
+.find-art{position:relative}
+.fcell.shiny,.find.shiny{border-color:var(--gold);box-shadow:0 4px 0 var(--gold-d)}
+.fcell.shiny{box-shadow:0 3px 0 var(--gold-d)}
+.fcell.shiny .find-art,.find.shiny .find-art{background:radial-gradient(circle at 50% 45%,var(--gold-soft) 0 55%,var(--soft) 75%)}
+.fcell.shiny:not(.lock) small,.find.shiny small{color:var(--gold-ink)}
+.find-art .spk.s1{top:-3px;right:-3px} .find-art .spk.s2{bottom:-2px;left:-2px}
+.fcell .find-art .spk.s1{width:12px;height:12px} .fcell .find-art .spk.s2{width:9px;height:9px}
+.find.shiny-new .find-art{animation:shinypop .7s cubic-bezier(.3,1.6,.5,1) 1s both}
+@keyframes shinypop{0%{transform:scale(1)}40%{transform:scale(1.18) rotate(-6deg)}100%{transform:none}}
+.f-shiny{display:flex;align-items:center;gap:8px;margin:4px 0 0;font-size:13.5px;font-weight:700;color:var(--muted)}
+.f-shiny i{flex:none;width:20px;height:20px;color:var(--gold)} .f-shiny i svg{width:100%;height:100%;fill:currentColor}
+.f-shiny b{color:var(--gold-ink);font-weight:900}
+@media (prefers-reduced-motion: reduce){.find{animation:none}.find.shiny-new .find-art{animation:none}}
 /* Streak shields */
 .shield-row{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted);padding-top:10px;margin-top:10px;border-top:2px solid var(--line)}
 .shield-row b{color:var(--sky-d)}
