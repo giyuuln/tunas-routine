@@ -96,7 +96,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.11.07";
+const APP_VERSION = "2026.11.08";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -1183,7 +1183,7 @@ $("shBody").addEventListener("click", e => { if (Date.now() - holdFired < 800) {
 const countItem = id => { for (const b of BLOCKS) { const i = b.items.find(x => x.id === id); if (i) return i.goal ? i : null; } return null; };
 // +1 or −1 on a count habit that isn't finished by this tap. −1 on a finished one unticks it.
 function countStep(id, step, el) {
-  const ci = countItem(id); if (!ci) return;
+  const ci = countItem(id); if (!ci || !sheetId) return;
   const dayKey = sheetId.startsWith("day:") ? sheetId.slice(4) : dkey(routineDate()), day = (store.days[dayKey] ||= {}), cBox = (store.counts[dayKey] ||= {});
   const wasDone = day[id], wasN = cBox[id], n = Math.max(0, countOf(ci, dayKey, !!wasDone) + step);
   if (wasDone) day[id] = false;
@@ -1199,6 +1199,7 @@ function countStep(id, step, el) {
 }
 $("shBody").addEventListener("click", e => {
   if (sheetId === "editor") return editorClick(e);
+  if (!sheetId) return; // a tap on a list that is already sliding away
   const ra = e.target.closest("[data-remadd]"); if (ra) { store.rem[ra.dataset.remadd] = Date.now(); save(); setTimeout(() => { if (sheetId === "routine") renderSheet(true); }, 400); return; }
   const ru = e.target.closest("[data-remundo]"); if (ru) { delete store.rem[ru.dataset.remundo]; save(); renderSheet(true); return; }
   const rd = e.target.closest("[data-restday]"); if (rd) return setRest(rd.dataset.restday, rd.dataset.v === "1");
@@ -2400,11 +2401,24 @@ function welGo(d) { const L = welSteps(), i = Math.max(0, L.indexOf(WEL.step)); 
 
 /* ================= Celebration screens ================= */
 const celeQ = [];
+// A celebration in the middle of a section (a level-up, the chest) closes its list so the moment gets the whole screen.
+// When the last one closes, the list opens again where it was, so people carry on ticking instead of tapping Start again.
+// A section that is cleared stays closed, so the path can play its stars.
+let celeBack = null;
 function queueCele(c) { celeQ.push(c); if ($("cele").hidden) nextCele(); }
+function celeReturn() {
+  const back = celeBack; celeBack = null;
+  if (!back || sheetId || !$("cele").hidden || !$("welcome").hidden) return;
+  const d = routineDate(), n = nodesFor(d).find(x => x.id === back.id); if (!n || nodeState(n, d).cleared) return;
+  const nb = document.querySelector(`#path [data-node="${back.id}"]`); if (nb) nb.focus({ preventScroll: true }); // Close comes back here
+  openSheet(back.id); $("shBody").scrollTop = back.top;
+}
 function nextCele() {
-  const c = celeQ.shift(); if (!c) { $("cele").hidden = true; contextSay(); setTimeout(playHome, 150); flushToasts(); return; }
+  const c = celeQ.shift(); if (!c) { $("cele").hidden = true; contextSay(); setTimeout(playHome, 150); flushToasts(); if (celeBack) setTimeout(celeReturn, 250); return; }
   holdToasts();
-  if (sheetId && !["settings", "routine", "me", "money", "editor", "packs", "wosetup", "skinsetup"].includes(sheetId) && !sheetId.startsWith("day:") && !sheetId.startsWith("lock:")) closeSheet();
+  if (sheetId && !["settings", "routine", "me", "money", "editor", "packs", "wosetup", "skinsetup"].includes(sheetId) && !sheetId.startsWith("day:") && !sheetId.startsWith("lock:")) {
+    celeBack = nodesFor(routineDate()).some(n => n.id === sheetId) ? { id: sheetId, top: $("shBody").scrollTop } : null;
+    closeSheet(); }
   const el = $("cele"); el.hidden = false;
   el.innerHTML = `${c.art || `<div class="mascot cheer" id="celeMascot">${mascotSVG()}</div>`}<h2 class="${c.color || ""}">${c.title}</h2><p>${c.sub}</p>${c.extra || ""}
     ${c.tiles.length ? `<div class="tiles">${c.tiles.map(t => `<div class="tile" style="--c:var(${t.c})"><small>${t.k}</small><b>${t.i ? I[t.i] : ""}${t.v}</b></div>`).join("")}</div>` : ""}
