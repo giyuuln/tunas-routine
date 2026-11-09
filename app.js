@@ -2480,10 +2480,11 @@ function weekSummary(mon) {
 const wsTiles = s => [{ k: T("tDone"), v: `${s.pct}%`, i: "", c: "--green" }, { k: T("tWorkouts"), v: s.workouts, i: "dumb", c: "--sky" }, { k: T("tXP"), v: `+${s.xp}`, i: "bolt", c: "--gold" }];
 const wsLines = s => [s.best ? T("wsBest", esc(s.best.t), s.best.n, s.best.of) : "", s.miss ? T("wsMiss", esc(s.miss.t), s.miss.n) : s.best ? T("wsNoMiss") : ""].filter(Boolean);
 const lastMonday = () => { const m = keyToDate(wkey(routineDate())); m.setDate(m.getDate() - 7); return m; };
-// On Monday, the first open shows last week's summary once (after the morning recap).
+// The first open of a new week shows last week's summary once (after the morning recap), on whatever day that is.
+// It used to wait for Monday only, so anyone who skipped Monday never heard about the weekly chest they had earned.
 function checkWeekRecap() {
   if (sheetId || !$("welcome").hidden) return;
-  const d = routineDate(), wk = wkey(d); if (d.getDay() !== 1 || store.weekRecap === wk) return;
+  const d = routineDate(), wk = wkey(d); if (store.weekRecap === wk) return;
   store.weekRecap = wk; save();
   const s = weekSummary(lastMonday()); if (!s.active) return;
   const earned = wchestLast() === "open";
@@ -2520,7 +2521,8 @@ const CHEST = `<div class="chest-art" aria-hidden="true"><svg viewBox="0 0 120 1
 /* ================= Weekly chest ================= */
 // A week (Monday to Sunday) with 5+ goal days earns a bigger chest. A goal day is one with 80%+ of habits ticked, or a
 // rest day; a day a streak shield covered doesn't count. It holds 2 finds (the first is Rare or better for sure) and a
-// streak shield if there's room. Last week's chest opens after the Monday summary, or from History any time this week.
+// streak shield if there's room. Last week's chest opens after last week's summary (first open of the new week), or
+// from History any time this week.
 // Saved as store.wchest = { Monday of the week: day opened }. Old data without it just has no chests opened yet.
 const WCHEST_GOAL = 5;
 function wchestState() {
