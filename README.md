@@ -19,6 +19,7 @@ A cute, gamified daily routine tracker that you can install on your phone. Tunas
 - **Weekly chest:** reach your goal (80% done, or a rest day) on 5 of 7 days and a bigger chest opens with last week's summary the first time you open Tunas in the new week (any day, not just Monday): 2 finds, one Rare or better for sure, plus a streak shield if you have room
 - **Comeback bonus:** back after 2+ quiet days? Tunas says welcome back instead of showing a zero, and ticking 3 habits that first day gives +60 XP
 - **Continue button and home-screen shortcuts:** long-press the app icon for Today, Workout, Night or History
+- **A page for every tab:** Routine, Progress, Me and Settings are full pages. Each one shows its main controls up front and opens bigger groups (your week, packs, reminders, backup, badges, chest finds...) as their own pages with a back arrow, so nothing hides in a dropdown
 - **Routine editor:** add, rename, reorder and delete sections, habits, workouts and weekly tasks right in the app
 - **Welcome screen and 4 templates:** Student, Worker, Fitness and Simple, so new users start in seconds
 - **English and Bahasa Melayu:** switch anytime in the Settings tab
