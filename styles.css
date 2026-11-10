@@ -70,8 +70,8 @@ button:focus-visible,summary:focus-visible,input:focus-visible{outline:3px solid
 .mascot .e-happy,.mascot .e-sleep,.mascot .mo-big,.mascot .mo-flat,.mascot .mo-hmm,.mascot .zz{display:none}
 .mascot.happy .e-open,.mascot.cheer .e-open,.mascot.sleepy .e-open{display:none}
 .mascot.happy .e-happy,.mascot.cheer .e-happy{display:inline}
-.mascot.happy .mo-smile,.mascot.cheer .mo-smile,.mascot.sleepy .mo-smile{display:none}
-.mascot.happy .mo-big,.mascot.cheer .mo-big{display:inline}
+/* Face C (picked 10 Nov): happy and cheer keep the :3 cat smile instead of the big open laugh */
+.mascot.sleepy .mo-smile{display:none}
 .mascot.sleepy .e-sleep,.mascot.sleepy .mo-flat,.mascot.sleepy .zz{display:inline}
 .arm{transform-box:fill-box;transform-origin:50% 15%}
 .mascot.cheer .arm.l{animation:wavel .5s ease-in-out 3}
@@ -1141,10 +1141,10 @@ body.sheet-top .sheet.page{bottom:0}
 :root[data-style]{ --green:var(--tile); --green-d:color-mix(in srgb,var(--tile) 70%,#000); --green-ink:var(--tile-ink); --on-color:#fff; --sky-d:#1E6896;
   --m-belly:#fff; --m-leaf:var(--tile); --m-leaf2:var(--petal); --m-ink:#1E1C1A; --m-line:#1E1C1A }
 :root[data-style="calm"]{ --bg:#F1ECE3; --card:#FAF7F1; --soft:#ECE6DA; --line:#DCD4C6; --ink:#1E1C1A; --muted:#5E5852; --control:#8C8478; --edge:#1E1C1A;
-  --green-soft:color-mix(in srgb,var(--tile) 9%,#FAF7F1); --m-body:#FAF7F1; --m-limb:#FAF7F1;
+  --green-soft:color-mix(in srgb,var(--tile) 9%,#FAF7F1); --m-body:#FAF7F1; --m-limb:#FAF7F1; --m-belly:color-mix(in srgb,var(--petal) 60%,#fff);
   --display:"Shippori Mincho B1","Nunito",Georgia,serif; --body:"Zen Kaku Gothic New","Nunito",system-ui,sans-serif }
 :root[data-style="festive"]{ --bg:var(--fbg); --card:#fff; --soft:color-mix(in srgb,var(--tile) 6%,#fff); --line:color-mix(in srgb,var(--tile) 18%,#E4DCE0); --ink:#2B2440; --muted:#5F5775; --control:#8A809A; --edge:#2B2440;
-  --green-soft:color-mix(in srgb,var(--petal) 45%,#fff); --m-body:var(--tbody); --m-limb:var(--tbody); --m-leaf:var(--petal); --m-leaf2:var(--ochre); --m-ink:#2B2440; --m-line:#2B2440;
+  --green-soft:color-mix(in srgb,var(--petal) 45%,#fff); --m-body:var(--tbody); --m-limb:var(--tbody); --m-belly:color-mix(in srgb,var(--petal) 70%,#fff); --m-leaf:var(--petal); --m-leaf2:var(--ochre); --m-ink:#2B2440; --m-line:#2B2440;
   --display:"Shippori Mincho B1","Fredoka",Georgia,serif; --body:"Kumbh Sans","Nunito",system-ui,sans-serif }
 /* Tile Lantern: the dark mode of both styles */
 @media (prefers-color-scheme: dark){ :root[data-style]:not([data-theme="light"]){
@@ -1158,7 +1158,6 @@ body.sheet-top .sheet.page{bottom:0}
 
 /* Tunas: ink outline, tiled belly, petal cheeks */
 .mascot .tbelly{display:none}
-:root[data-style] .mascot .tbelly{display:inline}
 :root[data-style] .mascot .tbelly circle{fill:var(--petal)}
 :root[data-style="festive"] .mascot .tbelly circle{fill:var(--tile)}
 :root[data-style] .mascot .tbelly .tb-c{fill:var(--ochre)}
