@@ -347,7 +347,7 @@ const WO_WHY = ["rain", "late", "tired"];
 // Comeback bonus rules (see Comeback bonus): 2+ quiet days in a row, then tick 3 habits on the first day back.
 const BACK_GAP = 2, BACK_TICKS = 3;
 let store = loadJSON(DATA_KEY, v => v && typeof v === "object" && v.days && typeof v.days === "object").value || { days:{}, weeks:{}, logs:{}, seen:{}, rest:{} };
-function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); backState(); planState(); woState(); }
+function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); backState(); planState(); woState(); if (typeof asstState === "function") asstState(); }
 normStore();
 function save() { return storeSet(DATA_KEY, JSON.stringify(store)); }
 let soundOn = true; try { soundOn = localStorage.getItem(SND_KEY) !== "off"; } catch (e) {}
@@ -1519,6 +1519,7 @@ function renderSettings(keep) {
         <button class="btn ghost small danger-ghost" type="button" data-act="restore">${T("restoreBackup")}</button></div></div>` },
     share: { ico: "share", t: T("share"), html: () => `<div class="set-group"><p>${T("shareHelp")}</p><div class="row"><button class="btn small" type="button" data-act="share">${T("shareBtn")}</button></div></div>` },
     errlog: { ico: "warn", t: T("errLog"), html: () => `<div class="set-group"><p>${T("errLogHelp")}</p>${errLogHTML()}</div>` },
+    assistant: { ico: "sprout", t: T("asName"), html: () => typeof asstSettingsHTML === "function" ? asstSettingsHTML() : "" },
     rain: { ico: "rain", t: T("wxTitle"), html: () => typeof wxSettingsHTML === "function" ? wxSettingsHTML() : "" },
     about: { ico: "info", t: T("about"), html: () => `<div class="set-group"><p>${T("aboutText")}</p><p class="ver">v${APP_VERSION}</p></div>` },
   };
@@ -1534,6 +1535,7 @@ function renderSettings(keep) {
     ${navList(T("setMore"), [
       navRow({ sub: "display", ico: "sun", t: T("display"), s: `${T("look_" + LOOK.style)} · ${T("look_" + LOOK.mode)} · ${T("look_" + LOOK.text)}`, c: "gold" }),
       navRow({ sub: "backup", ico: "down", t: T("backup"), s: T("lastBackup", bAge), c: "info", tag: due ? T("rowDue") : "" }),
+      navRow({ sub: "assistant", ico: "sprout", t: T("asName"), s: store.asstOff ? T("wxRowOff") : T("asRowOn"), c: "green" }),
       navRow({ sub: "rain", ico: "rain", t: T("wxTitle"), s: store.wxOn ? T("wxRowOn") : T("wxRowOff"), c: "info" }),
       navRow({ sub: "share", ico: "share", t: T("share"), s: T("shareRow"), c: "pink" }),
       navRow({ sub: "errlog", ico: "warn", t: T("errLog"), s: errN ? T("errRow", errN) : T("errLogEmpty"), c: "warn" }),
@@ -2908,7 +2910,7 @@ function refresh(keepSheet) {
   if (recordPlan()) save();
   useShields();
   const d = routineDate(), S = computeAll();
-  renderTop(S); renderQuests(S); renderPath(S); renderNudge(); renderStreak(S); renderHistory();
+  renderTop(S); renderQuests(S); renderPath(S); renderNudge(); if (typeof renderAssist === "function") renderAssist(S); renderStreak(S); renderHistory();
   const got = renderBadges(S);
   if (sheetId && sheetId !== "editor" && keepSheet !== false) renderSheet(true);
   else if (sheetId && keepSheet === false && !["settings", "routine", "me", "editor"].includes(sheetId) && !sheetId.startsWith("day:")) {
