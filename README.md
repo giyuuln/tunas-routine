@@ -26,7 +26,8 @@ A cute, gamified daily routine tracker that you can install on your phone. Tunas
 - **Easy on the eyes:** pick light, dark or same-as-phone, and switch to large text in Settings → Display
 - **Share button:** send the app to friends from the phone's share sheet
 - **Works offline** and installs like a normal app
-- **Private:** no account, no server. Everything is saved on your phone only.
+- **Workout check-in:** can't train today? Tell Tunas it's raining, you're home late or you're tired, and get a plan B (indoor, 10-minute mini, or stretch and rest) that still counts. With the optional rain check on, real rain at your workout time keeps your streak safe
+- **Private:** no account, no server. Everything is saved on your phone only. The one exception is the optional rain check (off by default): on your tap it sends your rough area, rounded to about 10 km, to the free Open-Meteo weather service. Your location is never saved
 
 ## Install on your phone
 
