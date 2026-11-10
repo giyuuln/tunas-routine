@@ -371,6 +371,8 @@ const isRest = d => !!store.rest[dkey(d)];
 const dayDone = d => isRest(d) || ratio(d) >= 0.8;
 const isShielded = d => !!((store.shield || {}).used || {})[dkey(d)];
 const dayOK = d => dayDone(d) || isShielded(d);
+// A day a shield covered before it came back (see Streak shields): counts for the best streak only.
+const isKept = d => !!((store.shield || {}).kept || {})[dkey(d)];
 function restsInMonth(d) { const p = dkey(d).slice(0, 7); return Object.keys(store.rest).filter(k => store.rest[k] && k.startsWith(p)).length; }
 
 /* ================= Day plans ================= */
@@ -441,7 +443,7 @@ function computeAll() {
   let streak = 0; const x = new Date(d); if (!dayOK(x)) x.setDate(x.getDate() - 1);
   while (dayOK(x) && streak < 3650) { streak++; x.setDate(x.getDate() - 1); }
   let bestStreak = 0, run = 0; const dk = [...Object.keys(store.days), ...Object.keys(store.rest)].sort();
-  if (dk.length) { const c = keyToDate(dk[0]); let g = 0; while (dkey(c) <= today && g++ < 3650) { if (dayOK(c)) { run++; bestStreak = Math.max(bestStreak, run); } else run = 0; c.setDate(c.getDate() + 1); } }
+  if (dk.length) { const c = keyToDate(dk[0]); let g = 0; while (dkey(c) <= today && g++ < 3650) { if (dayOK(c) || isKept(c)) { run++; bestStreak = Math.max(bestStreak, run); } else run = 0; c.setDate(c.getDate() + 1); } }
   const perWeek = Object.keys(WORKOUTS).length || 99;
   const L = levelOf(xp), tIds = itemsFor(d), tDone = store.days[today] || {}, tKeys = keyIds(d);
   return { xp, level: L.n, L, ticks, perfectDays, workouts, quests, prs: pr.total, prsToday: pr.byDay[today] || 0,
@@ -2716,12 +2718,20 @@ $("shBody").addEventListener("click", e => { const b = e.target.closest("[data-w
 // time the app opens, so the streak keeps going. Odds per chest: 25%, and the 5th chest in a row without one always has
 // one. No rolls while holding 2, so none are wasted. Shields only cover days after they were earned, are only used when
 // the streak is 2+ days and every missed day can be covered, and come back if the missed day is fixed later.
-// Saved as store.shield = { held: [day earned, ...], used: { missed day: day earned }, dry }. Bad values from an old backup are cleaned up.
+// A shield also comes back when the streak restarts anyway: if the next missed day can't be covered, the shields on the
+// days just before it saved nothing, so they go back in the pocket and those days count as quiet (for the comeback
+// bonus). Before, opening the app on the in-between day cost the shield AND the comeback bonus, while not opening kept both.
+// If the breaking day is fixed later (within a week), the shields cover the gap again.
+// Saved as store.shield = { held: [day earned, ...], used: { missed day: day earned }, kept: { day: 1 }, dry }.
+// kept = days a shield covered before it came back: they still count toward the best streak (and its badges), never
+// toward the current streak. Old data without kept is fine. Bad values from an old backup are cleaned up.
 function shieldState() {
   const s = store.shield && typeof store.shield === "object" ? store.shield : (store.shield = {}), isK = k => typeof k === "string" && /^\d{4}-\d\d-\d\d$/.test(k);
   s.held = (Array.isArray(s.held) ? s.held : []).filter(isK).sort().slice(-SHIELD_MAX);
   if (!s.used || typeof s.used !== "object" || Array.isArray(s.used)) s.used = {};
   Object.keys(s.used).forEach(k => { if (!isK(k) || !isK(s.used[k])) delete s.used[k]; });
+  if (!s.kept || typeof s.kept !== "object" || Array.isArray(s.kept)) s.kept = {};
+  Object.keys(s.kept).forEach(k => { if (!isK(k) || s.kept[k] !== 1) delete s.kept[k]; });
   s.dry = Math.max(0, Math.min(SHIELD_PITY, +s.dry || 0)); return s;
 }
 function rollShield(today, rand = Math.random) {
@@ -2730,25 +2740,32 @@ function rollShield(today, rand = Math.random) {
   s.dry = 0; s.held.push(today); s.held.sort(); return true;
 }
 function useShields() {
-  const s = shieldState(), d = routineDate(), today = dkey(d); let back = 0, changed = false;
+  const s = shieldState(), d = routineDate(), today = dkey(d); let back = 0, freed = 0, changed = false;
   // Fixed a covered day (ticked it to 80%, or made it a rest day)? The shield goes back in the pocket.
   Object.keys(s.used).forEach(k => { if (k >= today) return; if (!dayDone(keyToDate(k))) return;
     if (s.held.length < SHIELD_MAX) { s.held.push(s.used[k]); s.held.sort(); back++; } delete s.used[k]; changed = true; });
-  Object.keys(s.used).forEach(k => { if (k < dkey(new Date(Date.now() - 400 * 864e5))) { delete s.used[k]; changed = true; } });
-  if (s.held.length) {
-    // Missed days since the last good day, counting back from yesterday. Today isn't over, so it never needs a shield.
-    const gap = [], x = new Date(d); x.setDate(x.getDate() - 1);
-    while (gap.length <= s.held.length && !dayOK(x)) { gap.push(dkey(x)); x.setDate(x.getDate() - 1); }
-    let run = 0; while (run < SHIELD_MIN_STREAK && dayOK(x)) { run++; x.setDate(x.getDate() - 1); }
-    const first = gap[gap.length - 1], can = s.held.filter(e => e < first);
-    if (gap.length && gap.length <= can.length && run >= SHIELD_MIN_STREAK) {
-      gap.reverse().forEach((k, i) => { s.used[k] = can[i]; s.held.splice(s.held.indexOf(can[i]), 1); }); changed = true;
-      // The morning recap tells the story; if it already showed today, a toast does.
-      if (store.recap === today) toast(T("shieldUsedToast", gap.length), "shield", 4500);
-    }
+  const old = dkey(new Date(Date.now() - 400 * 864e5));
+  Object.keys(s.used).forEach(k => { if (k < old) { delete s.used[k]; changed = true; } });
+  Object.keys(s.kept).forEach(k => { if (k < old || dayDone(keyToDate(k))) { delete s.kept[k]; changed = true; } });
+  // The latest missed stretch, counting back from yesterday (today isn't over, so it never needs a shield). Days already
+  // covered are part of it. Up to a week of good days just before yesterday is skipped, so a day fixed later re-joins.
+  const x = new Date(d); x.setDate(x.getDate() - 1); const yk = dkey(x);
+  for (let i = 0; i < 7 && dayDone(x); i++) x.setDate(x.getDate() - 1);
+  const gap = []; while (gap.length < 60 && !dayDone(x)) { gap.push(dkey(x)); x.setDate(x.getDate() - 1); }
+  let run = 0; while (run < SHIELD_MIN_STREAK && dayOK(x)) { run++; x.setDate(x.getDate() - 1); }
+  const open = gap.filter(k => !s.used[k]), first = gap[gap.length - 1], can = s.held.filter(e => e < first);
+  if (open.length && open.length <= can.length && run >= SHIELD_MIN_STREAK && gap.length < 60) {
+    open.reverse().forEach((k, i) => { s.used[k] = can[i]; s.held.splice(s.held.indexOf(can[i]), 1); delete s.kept[k]; }); changed = true;
+    // The morning recap tells the story; if it already showed today, a toast does.
+    if (store.recap === today) toast(T("shieldUsedToast", open.length, open[0] !== yk), "shield", 4500);
+  } else if (open.length) {
+    // The streak restarts anyway, so shields on this stretch saved nothing: they come back (see above).
+    gap.forEach(k => { if (!s.used[k]) return; if (s.held.length < SHIELD_MAX) { s.held.push(s.used[k]); s.held.sort(); freed++; }
+      delete s.used[k]; s.kept[k] = 1; changed = true; });
   }
   if (changed) save();
   if (back) toast(T("shieldBack"), "shield", 3500);
+  if (freed) toast(T("shieldFreed", freed), "shield", 5000);
 }
 const SHIELD_SVG = `<path d="M24 4 8 10v11c0 10.5 6.8 19.4 16 23 9.2-3.6 16-12.5 16-23V10z" fill="#25aaf0" stroke="#13709f" stroke-width="3" stroke-linejoin="round"/>
   <path d="M24 13c1 5 7.5 7.5 7.5 14.5a7.5 7.5 0 0 1-15 0c0-4 2-6.5 4.5-8.5 0 3 1 4.5 3 5.5 1.2-3.5 0-7.5 0-11.5z" fill="#ff8a1f" stroke="#d26a00" stroke-width="2.5" stroke-linejoin="round"/>
