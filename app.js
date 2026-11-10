@@ -71,6 +71,9 @@ const MASCOT = `<svg viewBox="0 0 120 120">
     <g class="mo-big"><path d="M49 71q11 18 22 0z" fill="#8a2338"/><path d="M54 79q6 5 12 0q-6-4-12 0z" fill="#ff7a8f"/></g>
     <path class="mo-flat" d="M54 76q6 2 12 0" fill="none" stroke="var(--m-ink)" stroke-width="4" stroke-linecap="round"/>
     <path class="mo-hmm" d="M55 75.5q5.5 4.5 11 -1" fill="none" stroke="var(--m-ink)" stroke-width="4" stroke-linecap="round"/>
+    <g class="m-worry"><path d="M39 47q8 0 13-6M81 47q-8 0-13-6" fill="none" stroke="var(--m-ink)" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M52 78q4-4 8 0t8 0" fill="none" stroke="var(--m-ink)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+      <path class="sweat" d="M95 46c3 5 4 8 4 10a4 4 0 0 1-8 0c0-2 1-5 4-10z" fill="var(--sky)" stroke="var(--on-info)" stroke-width="1.2"/></g>
     <text class="zz" x="88" y="34" font-family="Fredoka, sans-serif" font-weight="700" font-size="16" fill="var(--sky)">z</text>
   </g>
 </svg>`;
@@ -99,7 +102,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.11.08";
+const APP_VERSION = "2026.11.10";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -570,7 +573,7 @@ function confetti() {
 $("mascot").innerHTML = MASCOT;
 $("questIco").innerHTML = I.star;
 let mascotTimer = null;
-function setMood(el, mood) { el.classList.remove("happy","cheer","sleepy","think"); if (mood && mood !== "idle") el.classList.add(mood); }
+function setMood(el, mood) { el.classList.remove("happy","cheer","sleepy","think","worry"); if (mood && mood !== "idle") el.classList.add(mood); }
 function jump(el) { if (!el || reduced()) return; el.classList.remove("jump"); void el.offsetWidth; el.classList.add("jump"); setTimeout(() => el.classList.remove("jump"), 600); }
 let typeTimer = null, lastSaid = "";
 function say(text, sub, mood, ms) {
@@ -612,7 +615,7 @@ function contextSay() {
   }
   // 3. Streak at risk in the evening
   if (h >= 21 && S.streak > 0 && S.totalToday && S.doneToday / S.totalToday < 0.8 && !isRest(d)) {
-    const need = Math.ceil(0.8 * S.totalToday) - S.doneToday; return say2(T("sayStreakRisk", need, S.streak), "think");
+    const need = Math.ceil(0.8 * S.totalToday) - S.doneToday; return say2(T("sayStreakRisk", need, S.streak), "worry");
   }
   // 4. The section happening right now
   if (now) {
@@ -1573,7 +1576,7 @@ function renderRoutinePage(keep) {
       navRow({ sub: "reminders", ico: "bell", t: T("reminders"), s: T("remCount", added, L.length), c: "gold" }),
       navRow({ sub: "guide", ico: "book", t: esc((g && g.title) || T("guide")), s: T("guideRow"), c: "pink" }),
       navRow({ sub: "file", ico: "file", t: T("fileTitle"), s: T("fileRow"), c: "muted" })])}
-    ${navList(T("rtStartOver"), [navRow({ attr: 'data-act="template"', ico: "plus", t: T("newTemplate"), s: T("rtStartOverHelp"), c: "danger", cls: "danger" })])}`;
+    ${navList(T("rtStartOver"), [navRow({ attr: 'data-act="clearDay"', ico: "x", t: T("clearToday"), s: T("clearTodayHelp"), c: "danger", cls: "danger" }), navRow({ attr: 'data-act="template"', ico: "plus", t: T("newTemplate"), s: T("rtStartOverHelp"), c: "danger", cls: "danger" })])}`;
   }
   body.querySelectorAll("[data-week]").forEach(f => f.addEventListener("change", () => { if (!/^\d{2}:\d{2}$/.test(f.value)) return;
     saveWeek(A => ({ ...A, [f.dataset.week]: f.value })); }));
@@ -1660,7 +1663,7 @@ function setLang(l) {
   if (!window.TUNAS_I18N[l] || l === LANG) return;
   LANG = l; try { localStorage.setItem(LANG_KEY, l); } catch (e) {}
   if (RAW_IS_DEFAULT) { RAW = defaultRoutine(); applyRoutine(RAW); }
-  applyStatic(); renderGuide(); if ($("resetBtn")) resetIdle(); lastS = null; prevCleared = null; refresh(true);
+  applyStatic(); renderGuide(); lastS = null; prevCleared = null; refresh(true);
 }
 function settingsAction(act, el) {
   if (act === "addPacks" || act === "woSetup" || act === "skinSetup") {
@@ -1670,6 +1673,11 @@ function settingsAction(act, el) {
     if (settingsPane !== "rm:" + id) { settingsPane = "rm:" + id; return renderSheet(true); }
     settingsPane = ""; return removePackNow(id); }
   if (act === "tickAll") return tickAll();
+  if (act === "clearDay") { const box = document.createElement("div"); box.className = "confirm nl-confirm"; box.setAttribute("role", "group");
+    box.innerHTML = `<span>${T("clearConfirm")}</span><button class="btn small danger" type="button" data-cd="yes">${T("clear")}</button><button class="btn ghost small" type="button" data-cd="no">${T("keep")}</button>`;
+    el.replaceWith(box); box.querySelector('[data-cd="no"]').focus();
+    box.querySelector('[data-cd="yes"]').onclick = () => { clearTodayTicks(); renderSheet(true); };
+    box.querySelector('[data-cd="no"]').onclick = () => renderSheet(true); return; }
   if (act === "toggleWo") { const r = { ...RAW, showWorkouts: CFG.showWorkouts === false }; if (!saveRoutine(r)) return renderSheet(true); lastS = null; prevCleared = null; refresh(true); toast(r.showWorkouts ? T("woShown") : T("woHidden"), "check"); return; }
   if (act === "edit") return openEditor();
   if (act === "editGuide") return openEditor("guide");
@@ -2918,14 +2926,12 @@ $("stSnd").onclick = toggleSound;
 $("stStreak").onclick = () => { const S = lastS || computeAll(); toast(T("statStreak", S.streak) + (shieldState().held.length ? " " + T("shieldHave", shieldState().held.length) : ""), "flame", 3500); };
 $("stXP").onclick = () => { const S = lastS || computeAll(); toast(T("statXP", S.todayXP, S.xp), "bolt", 3500); };
 $("stLv").onclick = () => { const S = lastS || computeAll(); toast(T("statLv", S.L.n, esc(titleOf(S.L.n)), S.L.span - S.L.cur), "shield", 3500); };
-const area = $("resetArea");
-function resetIdle() { area.innerHTML = `<button class="btn ghost small danger-ghost" type="button" id="resetBtn">${T("clearToday")}</button>`;
-  $("resetBtn").onclick = () => { area.innerHTML = `<div class="confirm"><span>${T("clearConfirm")}</span><button class="btn small danger" id="yesBtn" type="button">${T("clear")}</button><button class="btn ghost small" id="noBtn" type="button">${T("keep")}</button></div>`;
-    // Count habits (2 / 8 glasses) are cleared too, and Undo puts everything back for a few seconds.
-    $("yesBtn").onclick = () => { const k = dkey(routineDate()), was = { d: store.days[k], c: store.counts[k] };
-      delete store.days[k]; delete store.counts[k]; save(); lastS = null; prevCleared = null; refresh(); resetIdle();
-      offerUndo(T("clearedDay"), () => { if (was.d) store.days[k] = was.d; if (was.c) store.counts[k] = was.c; save(); sfx("undo"); lastS = null; prevCleared = null; refresh(true); }); };
-    $("noBtn").onclick = resetIdle; }; }
+// Clearing today's ticks lives in Routine > Start over, away from the Today screen, with a confirm and Undo.
+function clearTodayTicks() {
+  const k = dkey(routineDate()), was = { d: store.days[k], c: store.counts[k] };
+  delete store.days[k]; delete store.counts[k]; save(); lastS = null; prevCleared = null; refresh();
+  offerUndo(T("clearedDay"), () => { if (was.d) store.days[k] = was.d; if (was.c) store.counts[k] = was.c; save(); sfx("undo"); lastS = null; prevCleared = null; refresh(true); });
+}
 
 
 function showRescue() {
@@ -2940,7 +2946,7 @@ function showRescue() {
     downloadText(`tunas-rescue-${dkey(new Date())}.json`, JSON.stringify(all, null, 2), "application/json"); };
 }
 let booted = false;
-try { applyStatic(); resetIdle(); renderGuide(); refresh(); booted = true; if (ft) ftRun(); }
+try { applyStatic(); renderGuide(); refresh(); booted = true; if (ft) ftRun(); }
 catch (e) { logError("boot", e); showRescue(); }
 [...new Set(notices)].forEach(k => setTimeout(() => toast(T(k), "x", 6500), 800));
 paintMascot();
