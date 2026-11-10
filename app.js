@@ -51,6 +51,7 @@ const MASCOT = `<svg viewBox="0 0 120 120">
     <ellipse class="arm r" cx="103" cy="72" rx="7.5" ry="12" fill="var(--m-limb)"/>
     <path d="M60 24c26 0 42 18 42 44 0 25-17 39-42 39S18 93 18 68c0-26 16-44 42-44z" fill="var(--m-body)"/>
     <ellipse cx="60" cy="82" rx="25" ry="19" fill="var(--m-belly)"/>
+    <ellipse class="bhl" cx="51" cy="75" rx="7" ry="3.5" fill="#fff" opacity=".7" transform="rotate(-20 51 75)"/>
     <g class="tbelly">${[[49, 79], [71, 79], [60, 91]].map(([x, y]) => `<g transform="translate(${x} ${y})"><circle cy="-3" r="2.8"/><circle cy="3" r="2.8"/><circle cx="-3" r="2.8"/><circle cx="3" r="2.8"/><circle class="tb-c" r="1.8"/></g>`).join("")}</g>
     <path d="M60 25V13" stroke="var(--m-leaf)" stroke-width="4" stroke-linecap="round"/>
     <path d="M60 15C51 3 39 6 41 15c8 3 14 3 19 0z" fill="var(--m-leaf)"/>
@@ -69,7 +70,7 @@ const MASCOT = `<svg viewBox="0 0 120 120">
     <g class="e-sleep" fill="none" stroke="var(--m-ink)" stroke-width="4" stroke-linecap="round"><path d="M38 60q8 5 16 0"/><path d="M66 60q8 5 16 0"/></g>
     <g class="cheeks"><ellipse cx="34" cy="72" rx="6.5" ry="4" fill="#ff8fb3" opacity=".75"/><ellipse cx="86" cy="72" rx="6.5" ry="4" fill="#ff8fb3" opacity=".75"/></g>
     <g class="hearts" fill="#ff6fa8"><path d="M34 77c-5-3.4-7.2-5.6-7.2-8.2a3.6 3.6 0 0 1 7.2-1.1 3.6 3.6 0 0 1 7.2 1.1c0 2.6-2.2 4.8-7.2 8.2z"/><path d="M86 77c-5-3.4-7.2-5.6-7.2-8.2a3.6 3.6 0 0 1 7.2-1.1 3.6 3.6 0 0 1 7.2 1.1c0 2.6-2.2 4.8-7.2 8.2z"/></g>
-    <path class="mo-smile" d="M52 74q8 8 16 0" fill="none" stroke="var(--m-ink)" stroke-width="4" stroke-linecap="round"/>
+    <path class="mo-smile" d="M49 73q5.5 6 11 0q5.5 6 11 0" fill="none" stroke="var(--m-ink)" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"/>
     <g class="mo-big"><path d="M49 71q11 18 22 0z" fill="#8a2338"/><path d="M54 79q6 5 12 0q-6-4-12 0z" fill="#ff7a8f"/></g>
     <path class="mo-flat" d="M54 76q6 2 12 0" fill="none" stroke="var(--m-ink)" stroke-width="4" stroke-linecap="round"/>
     <path class="mo-hmm" d="M55 75.5q5.5 4.5 11 -1" fill="none" stroke="var(--m-ink)" stroke-width="4" stroke-linecap="round"/>
@@ -104,7 +105,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.11.10b";
+const APP_VERSION = "2026.11.10d";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
