@@ -733,13 +733,6 @@ button:disabled,.btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;tra
 .coach p{flex:1;margin:0;font-size:13.5px;font-weight:800;line-height:1.35}
 .coach .btn{flex:none;min-height:44px;background:var(--info-ink);color:var(--on-info);box-shadow:none}
 /* settings: each group folds to one 44 px row */
-details.set-group.fold{gap:0;padding:0}
-details.set-group.fold > summary{display:flex;align-items:center;justify-content:space-between;min-height:52px;padding:4px 14px;cursor:pointer;list-style:none}
-details.set-group.fold > summary::-webkit-details-marker{display:none}
-details.set-group.fold > summary .chev{width:10px;height:10px;border-right:3px solid var(--muted);border-bottom:3px solid var(--muted);transform:rotate(45deg);transition:transform .2s}
-details.set-group.fold[open] > summary .chev{transform:rotate(225deg)}
-details.set-group.fold[open]{gap:10px;padding:0 14px 14px}
-details.set-group.fold[open] > summary{padding:4px 0}
 .tiles:has(> .tile:nth-child(4)){display:grid;grid-template-columns:repeat(2,minmax(130px,1fr))}
 
 /* Routine editor: guide tab */
@@ -1068,3 +1061,59 @@ button.wcell:active{transform:translateY(2px);box-shadow:0 1px 0 var(--line)}
 .mn-cur-t small{font-size:12.5px;color:var(--muted);font-weight:800;font-variant-numeric:tabular-nums}
 .mn-cur-on{flex:none;display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--green)}
 .mn-cur-on svg{width:18px;height:18px;fill:var(--on-color)}
+
+/* ================= Pages: tabs are full pages, groups open as sub-pages ================= */
+/* A tab fills the screen above the tab bar, with no scrim or grab handle. It fades in instead of sliding up. */
+.sheet.page{top:0;bottom:var(--tab-h);max-height:none;border-radius:0;box-shadow:none;transform:none;opacity:0;transition:opacity .16s ease-out}
+.sheet.page.show{opacity:1}
+body.page-open .scrim{display:none}
+body.sheet-top .sheet.page{bottom:0}
+:root[data-text="large"] .sheet.page{max-height:none}
+.sheet.page .sh-head{padding:calc(12px + env(safe-area-inset-top,0px)) 16px 12px}
+.sheet.page .sh-row h2{font-size:24px}
+.sh-row .x[hidden]{display:none}
+.sh-row .x.back{margin-left:0}
+.sh-row .x.back .chev{margin:0 0 0 4px;transform:rotate(135deg);border-color:var(--ink)}
+/* A sub-page shows its title in the header, so its one group doesn't repeat it. */
+.sheet.page .sh-body > .set-group:only-child > h3:first-child{display:none}
+
+/* A list of rows that open something: icon, title, status line, chevron. */
+.nav-list{display:flex;flex-direction:column;gap:8px}
+.nl-h{margin:6px 4px 0;font-family:var(--display);font-weight:700;font-size:15px;color:var(--muted)}
+.nl-card{display:flex;flex-direction:column;border:2px solid var(--line);border-radius:18px;background:var(--card);overflow:hidden;box-shadow:0 4px 0 var(--line)}
+.nav-row{display:flex;align-items:center;gap:12px;width:100%;min-height:64px;padding:10px 12px 10px 14px;border:0;border-top:2px solid var(--line);background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.nav-row:first-child{border-top:0}
+.nav-row:active{background:var(--soft)}
+.nav-row:focus-visible,.nav-tile:focus-visible{outline:3px solid var(--green-ink);outline-offset:-3px}
+.nr-ico{flex:none;display:grid;place-items:center;width:42px;height:42px;border-radius:13px;background:var(--cs);border:2px solid var(--c)}
+.nr-ico svg{width:22px;height:22px;fill:var(--ci)}
+.nr-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.nr-t b{font-family:var(--display);font-weight:700;font-size:17px;line-height:1.2}
+.nr-t span{font-size:13px;line-height:1.35;color:var(--muted);font-weight:800;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.nr-tag{flex:none;max-width:38%;padding:3px 9px;border-radius:999px;background:var(--warn-soft);color:var(--warn-ink);font-size:12px;font-weight:900;text-align:center}
+.nav-row.danger .nr-t b{color:var(--danger-ink)}
+
+/* Collection tiles: a count and a bar, opening their own page. */
+.tile-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.nav-tile{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0;padding:12px 10px;border:2px solid var(--line);border-radius:18px;background:var(--card);box-shadow:0 4px 0 var(--line);color:var(--ink);font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.nav-tile:active{transform:translateY(3px);box-shadow:0 1px 0 var(--line)}
+.nt-top{position:relative;display:flex;align-items:flex-start;justify-content:space-between;width:100%;margin-bottom:2px}
+.nav-tile b{font-family:var(--display);font-weight:700;font-size:15px;line-height:1.15}
+.nt-n{font-size:13px;font-weight:900;color:var(--muted);font-variant-numeric:tabular-nums}
+.nav-tile .bar{width:100%;height:8px;margin-top:2px}
+.nav-tile .bar i{background:var(--c)}
+.nav-tile .bar i::after{display:none}
+.nav-tile .b-new{position:static;transform:rotate(-6deg);font-style:normal}
+@media (prefers-reduced-motion:reduce){.sheet.page{transition:none}.nav-tile:active{transform:none}}
+
+/* Routine: the routine itself, with Edit right there. */
+.rt-hero{display:flex;flex-direction:column;gap:12px;padding:14px;box-shadow:0 4px 0 var(--line)}
+.rt-hero-top{display:flex;align-items:center;gap:12px}
+.rt-hero-top .nr-ico{--cs:var(--green-soft);--c:var(--green);--ci:var(--green-ink);width:50px;height:50px;border-radius:15px}
+.rt-hero-top .nr-ico svg{width:26px;height:26px}
+.rt-hero-top small{display:block;font-size:12.5px;color:var(--muted);font-weight:800}
+.rt-hero-top b{display:block;font-family:var(--display);font-size:20px;font-weight:700;line-height:1.2}
+.rt-hero-top span{font-size:13px;color:var(--muted);font-weight:800}
+.rt-hero .row{display:flex;flex-wrap:wrap;gap:8px}
+.rt-hero .btn svg{width:17px;height:17px;fill:currentColor;margin-right:6px;vertical-align:-3px}
+.rt-hero .sw-row.inline{padding:12px 0 0;border-bottom:0}
