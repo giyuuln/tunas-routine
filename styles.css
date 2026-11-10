@@ -1245,3 +1245,37 @@ body.sheet-top .sheet.page{bottom:0}
 @media (prefers-reduced-motion: reduce){:root[data-style] .stars i{transform:none}}
 :root[data-style] .stat.fire:not(.off){color:var(--orange-ink)}
 :root[data-style] .stat.fire.off{color:var(--muted)}
+
+/* ================= Workout check-in: reasons, plan B and the rain check ================= */
+.wo-ci-open{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border:2px dashed var(--line);border-radius:16px;background:var(--card);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.wo-ci-open > span:first-child{flex:none;font-size:18px;letter-spacing:-2px}
+.wo-ci-open > span:nth-child(2){flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.wo-ci-open b{font-family:var(--display);font-weight:700;font-size:16px}
+.wo-ci-open small{font-size:13px;color:var(--muted);font-weight:800}
+.wo-ci-open:focus-visible,.wo-chip:focus-visible{outline:3px solid var(--green-ink);outline-offset:2px}
+.wo-ci{display:flex;flex-direction:column;gap:10px;padding:14px;border:2px solid var(--info);border-radius:16px;background:var(--info-soft)}
+.wo-ci > b{font-family:var(--display);font-weight:700;font-size:17px}
+.wo-ci.done{flex-direction:row;align-items:center;gap:8px;border-color:var(--green);background:var(--green-soft);font-weight:800;font-size:14px}
+.wo-ci.done svg{flex:none;width:20px;height:20px;fill:var(--green-ink)}
+.wo-why{display:flex;flex-wrap:wrap;gap:8px}
+.wo-chip{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:8px 14px;border:2px solid var(--line);border-radius:999px;background:var(--card);color:var(--ink);font:inherit;font-weight:900;font-size:14px;box-shadow:0 3px 0 var(--line);cursor:pointer}
+.wo-chip:active{transform:translateY(2px);box-shadow:0 1px 0 var(--line)}
+.wo-say{margin:0;display:flex;flex-direction:column;gap:8px;font-size:14px;font-weight:700;color:var(--ink)}
+p.wo-say{display:block}
+.wo-say p{margin:0;font-size:13.5px;color:var(--muted)}
+.wo-say .linkish{padding:0 0 0 4px;min-height:0;font-size:13.5px}
+.wo-say.ok b{color:var(--info-ink)}
+.wo-say .row,.pb .btn{display:flex;flex-wrap:wrap;gap:8px}
+.wo-ci .btn svg{width:17px;height:17px;fill:currentColor;margin-right:6px;vertical-align:-3px}
+.wo-err{margin:0;padding:8px 10px;border-radius:10px;background:var(--danger-soft);color:var(--danger-ink);font-size:13.5px;font-weight:800}
+.wo-spin{display:inline-block;width:14px;height:14px;margin-right:8px;vertical-align:-2px;border:3px solid var(--line);border-top-color:var(--info-ink);border-radius:50%;animation:wospin .8s linear infinite}
+@keyframes wospin{to{transform:rotate(360deg)}}
+.pb{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:14px;background:var(--card);border:2px solid var(--line)}
+.pb-h{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 10px}
+.pb-h b{font-family:var(--display);font-weight:700;font-size:16px}
+.pb-h span{font-size:13px;font-weight:900;color:var(--muted)}
+.pb-list{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:4px;font-size:14px;font-weight:700}
+.pb .btn{align-self:flex-start;align-items:center}
+.nd-ico.wo{border-color:var(--info)}
+.nd-ico.wo svg{fill:var(--info-ink)}
+.nudge .wo-why{margin-top:-2px}

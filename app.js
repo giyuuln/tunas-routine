@@ -26,6 +26,7 @@ const I = {
   warn:'<svg class="ico" viewBox="0 0 24 24"><path d="M12 2 1 21h22L12 2zm1 15h-2v-2h2v2zm0-4h-2V9h2v4z"/></svg>',
   bell:'<svg class="ico" viewBox="0 0 24 24"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6v-5a7 7 0 0 0-5.5-6.84V3a1.5 1.5 0 0 0-3 0v1.16A7 7 0 0 0 5 11v5l-2 2v1h18v-1z"/></svg>',
   file:'<svg class="ico" viewBox="0 0 24 24"><path d="M6 2h8l6 6v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zm7 1.5V9h5.5zM8 13h8v2H8zm0 4h8v2H8z"/></svg>',
+  rain:'<svg class="ico" viewBox="0 0 24 24"><path d="M7 15a5 5 0 0 1-.6-9.96A6 6 0 0 1 17.6 6.1 4.5 4.5 0 0 1 17.5 15zM8 17l-1.5 4h2L10 17zm4 0-1.5 4h2L14 17zm4 0-1.5 4h2L18 17z"/></svg>',
   info:'<svg class="ico" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1 8v7h2v-7zm0-4v2h2V6z"/></svg>',
   chest:'<svg class="ico" viewBox="0 0 24 24"><path d="M4 9a5 5 0 0 1 5-5h6a5 5 0 0 1 5 5v1H4V9zm0 3h7v2h2v-2h7v8H4v-8z"/></svg>',
   cog:'<svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M10.3 2h3.4l.5 2.6a8 8 0 0 1 1.9 1.1l2.5-.9 1.7 3-2 1.7a8 8 0 0 1 0 2.2l2 1.7-1.7 3-2.5-.9a8 8 0 0 1-1.9 1.1l-.5 2.6h-3.4l-.5-2.6a8 8 0 0 1-1.9-1.1l-2.5.9-1.7-3 2-1.7a8 8 0 0 1 0-2.2l-2-1.7 1.7-3 2.5.9a8 8 0 0 1 1.9-1.1zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg>',
@@ -281,7 +282,7 @@ function saveRoutine(r) {
 }
 
 /* ================= Game rules ================= */
-const XP = { item: 10, key: 20, workout: 50, perfect: 50, quest: 40, pr: 25, weekly: 15, back: 60 };
+const XP = { item: 10, key: 20, workout: 50, planB: 30, perfect: 50, quest: 40, pr: 25, weekly: 15, back: 60 };
 const COLORS = [["--gold","--gold-d"],["--sky","--sky-d"],["--green","--green-d"],["--orange","--orange-d"],["--pink","--pink-d"]];
 const BADGES = [
   { id:"first", ic:"check", n:"1", test:S=>S.ticks>=1 }, { id:"quest", ic:"star", n:"", test:S=>S.quests>=1 }, { id:"perfect", ic:"trophy", n:"", test:S=>S.perfectDays>=1 },
@@ -341,10 +342,12 @@ const titleCard = n => `<div class="find title-find"><span class="find-art">${TI
 /* ================= Progress storage ================= */
 // Streak shield rules (see Streak shields). Set here because loading saved data already checks them.
 const SHIELD_MAX = 2, SHIELD_ODDS = 0.25, SHIELD_PITY = 5, SHIELD_MIN_STREAK = 2;
+// Workout check-in reasons (see woState). Set here because loading saved data already checks them.
+const WO_WHY = ["rain", "late", "tired"];
 // Comeback bonus rules (see Comeback bonus): 2+ quiet days in a row, then tick 3 habits on the first day back.
 const BACK_GAP = 2, BACK_TICKS = 3;
 let store = loadJSON(DATA_KEY, v => v && typeof v === "object" && v.days && typeof v.days === "object").value || { days:{}, weeks:{}, logs:{}, seen:{}, rest:{} };
-function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); backState(); planState(); }
+function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); backState(); planState(); woState(); }
 normStore();
 function save() { return storeSet(DATA_KEY, JSON.stringify(store)); }
 let soundOn = true; try { soundOn = localStorage.getItem(SND_KEY) !== "off"; } catch (e) {}
@@ -372,8 +375,23 @@ function liveKeys(d) { const out = []; BLOCKS.forEach(b => b.items.forEach(i => 
 // Past days keep the habits they had (see Day plans), plus any habit of today's routine that was ticked on that day later.
 function itemsFor(d) { const p = planOf(d), live = liveItems(d); if (!p) return live; const done = store.days[dkey(d)] || {}; return [...p.ids, ...live.filter(id => done[id] && !p.ids.includes(id))]; }
 function keyIds(d) { const p = planOf(d), live = liveKeys(d); if (!p) return live; const done = store.days[dkey(d)] || {}; return [...p.keys, ...live.filter(id => done[id] && !p.ids.includes(id))]; }
-function xpFor(id, d) { return id === "wo-done" ? XP.workout : keyIds(d).includes(id) ? XP.key : XP.item; }
-function ratio(d) { const ids = itemsFor(d), done = store.days[dkey(d)] || {}; return ids.length ? ids.filter(id => done[id]).length / ids.length : 0; }
+function xpFor(id, d) { return id === "wo-done" ? (woPlanB(d) ? XP.planB : XP.workout) : keyIds(d).includes(id) ? XP.key : XP.item; }
+// Workout check-in (see checkin.js). Saved as store.wo = { day: { why: "rain" | "late" | "tired", rain: true/false once the
+// weather was checked, b: 1 when plan B was done } }. A workout skipped on a day the rain check confirmed rain doesn't count
+// against the day's 80% (like a rest day, but only for the workout, and with no XP). Plan B ticks the workout for XP.planB.
+function woState() {
+  if (!store.wo || typeof store.wo !== "object" || Array.isArray(store.wo)) store.wo = {};
+  const old = new Date(Date.now() - 400 * 864e5).toISOString().slice(0, 10); // runs while loading, before dkey exists
+  Object.keys(store.wo).forEach(k => { const w = store.wo[k];
+    if (!/^\d{4}-\d\d-\d\d$/.test(k) || k < old || !w || typeof w !== "object" || !WO_WHY.includes(w.why)) return void delete store.wo[k];
+    store.wo[k] = { why: w.why, ...(typeof w.rain === "boolean" && w.why === "rain" ? { rain: w.rain } : {}), ...(w.b === 1 ? { b: 1 } : {}) }; });
+  if (typeof store.wxOn !== "boolean") delete store.wxOn;
+  return store.wo;
+}
+const woOf = d => (store.wo && store.wo[dkey(d)]) || null;
+const woExcused = d => { const w = woOf(d); return !!(w && w.why === "rain" && w.rain === true); };
+const woPlanB = d => { const w = woOf(d); return !!(w && w.b === 1); };
+function ratio(d) { const done = store.days[dkey(d)] || {}, ids = woExcused(d) && !done["wo-done"] ? itemsFor(d).filter(id => id !== "wo-done") : itemsFor(d); return ids.length ? ids.filter(id => done[id]).length / ids.length : 0; }
 const REST_PER_MONTH = 2;
 const isRest = d => !!store.rest[dkey(d)];
 // A day counts for the streak at 80% done, as a rest day, or when a streak shield covered it (see Streak shields).
@@ -1111,6 +1129,7 @@ function renderSheet(keep) {
     h += `<div class="note">${T("weeklyNote")}</div>`;
   } else {
     const W = node.W, wk = programWeek(d), nSets = W.sets || (wk <= 4 ? 2 : 3), logs = store.logs[today] || {};
+    if (typeof woCheckHTML === "function") h += woCheckHTML(d);
     h += `<div class="rules">${T("woRules", wk, nSets, XP.pr)}</div>`;
     W.ex.forEach(ex => {
       const last = lastLog(ex.id, today), prev = bestBefore(ex.id, today), P = PROG[ex.id] || { start: "", step: 2 };
@@ -1372,7 +1391,8 @@ function moveHTML() {
 let nudgeHTML = "";
 function renderNudge() {
   const el = $("nudge");
-  const html = OLD_HOME ? moveHTML() : !needsBackup() ? "" : `<div class="nd-top"><div class="nd-ico">${I.warn}</div><div><b id="nudgeT">${T("nudgeTitle")}</b><span>${T("nudgeSub", backupAge())}</span></div></div>
+  const wc = !OLD_HOME && typeof woNudgeHTML === "function" ? woNudgeHTML() : "";
+  const html = OLD_HOME ? moveHTML() : wc ? wc : !needsBackup() ? "" : `<div class="nd-top"><div class="nd-ico">${I.warn}</div><div><b id="nudgeT">${T("nudgeTitle")}</b><span>${T("nudgeSub", backupAge())}</span></div></div>
     <div class="row"><button class="btn small" type="button" data-nudge="save">${T("downloadBackup")}</button><button class="btn ghost small" type="button" data-nudge="later">${T("nudgeLater")}</button></div>`;
   if (!html) { el.hidden = true; el.innerHTML = nudgeHTML = ""; return; }
   if (nudgeHTML !== html) el.innerHTML = nudgeHTML = html; // don't redraw (and lose focus) on the minute refresh
@@ -1499,6 +1519,7 @@ function renderSettings(keep) {
         <button class="btn ghost small danger-ghost" type="button" data-act="restore">${T("restoreBackup")}</button></div></div>` },
     share: { ico: "share", t: T("share"), html: () => `<div class="set-group"><p>${T("shareHelp")}</p><div class="row"><button class="btn small" type="button" data-act="share">${T("shareBtn")}</button></div></div>` },
     errlog: { ico: "warn", t: T("errLog"), html: () => `<div class="set-group"><p>${T("errLogHelp")}</p>${errLogHTML()}</div>` },
+    rain: { ico: "rain", t: T("wxTitle"), html: () => typeof wxSettingsHTML === "function" ? wxSettingsHTML() : "" },
     about: { ico: "info", t: T("about"), html: () => `<div class="set-group"><p>${T("aboutText")}</p><p class="ver">v${APP_VERSION}</p></div>` },
   };
   const sp = SUB[subPane];
@@ -1513,6 +1534,7 @@ function renderSettings(keep) {
     ${navList(T("setMore"), [
       navRow({ sub: "display", ico: "sun", t: T("display"), s: `${T("look_" + LOOK.style)} · ${T("look_" + LOOK.mode)} · ${T("look_" + LOOK.text)}`, c: "gold" }),
       navRow({ sub: "backup", ico: "down", t: T("backup"), s: T("lastBackup", bAge), c: "info", tag: due ? T("rowDue") : "" }),
+      navRow({ sub: "rain", ico: "rain", t: T("wxTitle"), s: store.wxOn ? T("wxRowOn") : T("wxRowOff"), c: "info" }),
       navRow({ sub: "share", ico: "share", t: T("share"), s: T("shareRow"), c: "pink" }),
       navRow({ sub: "errlog", ico: "warn", t: T("errLog"), s: errN ? T("errRow", errN) : T("errLogEmpty"), c: "warn" }),
       navRow({ sub: "about", ico: "info", t: T("about"), s: `v${APP_VERSION}`, c: "muted" })])}`;

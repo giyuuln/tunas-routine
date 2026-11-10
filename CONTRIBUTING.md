@@ -25,7 +25,7 @@ Then open `http://localhost:8000`. Use your browser's phone view (about 400px wi
 
 Tunas promises users that **their data never leaves their phone**. Pull requests that break this promise will not be merged.
 
-- **No network requests with user data.** No analytics, tracking, crash reporting, ads or `fetch()` calls to outside servers.
+- **No network requests with user data.** No analytics, tracking, crash reporting, ads or `fetch()` calls to outside servers. The one approved exception is the opt-in rain check in `checkin.js`: it only runs on the user's tap, sends a location rounded to about 10 km to `api.open-meteo.com`, and saves nothing but the yes/no answer. `connect-src` allows that one host and nothing else.
 - **No new third-party scripts or CDNs.** The app is plain HTML, CSS and JavaScript with no dependencies. The only outside resource is Google Fonts.
 - **Don't loosen the Content-Security-Policy** in `index.html`. It's there so the browser blocks data from being sent anywhere, even if bad code slips in.
 - **No accounts or sign-in** without a discussion in an issue first. Storing user data on a server brings legal duties under privacy laws such as Malaysia's PDPA.

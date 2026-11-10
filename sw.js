@@ -1,8 +1,8 @@
 /* Tunas Routine service worker: works offline after the first visit. Bump VERSION when you change app files. */
 // Bump VERSION on every release, and never reuse one: two releases with the same VERSION leave phones on mixed files.
-const VERSION = "tunas-v61";
+const VERSION = "tunas-v62";
 const SHELL = [
-  "./", "./index.html", "./styles.css", "./app.js", "./i18n.js", "./templates.js", "./packs.js", "./money.js", "./manifest.webmanifest",
+  "./", "./index.html", "./styles.css", "./app.js", "./i18n.js", "./templates.js", "./packs.js", "./money.js", "./checkin.js", "./manifest.webmanifest",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/maskable-512.png", "./icons/apple-touch-icon.png", "./icons/favicon.svg"
 ];
 self.addEventListener("install", e => {
@@ -15,6 +15,8 @@ self.addEventListener("activate", e => {
 self.addEventListener("fetch", e => {
   const req = e.request;
   if (req.method !== "GET") return;
+  // The optional rain check always asks the network and is never cached.
+  if (new URL(req.url).hostname === "api.open-meteo.com") return;
   if (req.mode === "navigate") {
     e.respondWith(fetch(req).then(res => { const copy = res.clone(); caches.open(VERSION).then(c => c.put("./index.html", copy)); return res; })
       .catch(() => caches.match("./index.html")));
