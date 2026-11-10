@@ -50,6 +50,7 @@ const MASCOT = `<svg viewBox="0 0 120 120">
     <ellipse class="arm r" cx="103" cy="72" rx="7.5" ry="12" fill="var(--m-limb)"/>
     <path d="M60 24c26 0 42 18 42 44 0 25-17 39-42 39S18 93 18 68c0-26 16-44 42-44z" fill="var(--m-body)"/>
     <ellipse cx="60" cy="82" rx="25" ry="19" fill="var(--m-belly)"/>
+    <g class="tbelly">${[[49, 79], [71, 79], [60, 91]].map(([x, y]) => `<g transform="translate(${x} ${y})"><circle cy="-3" r="2.8"/><circle cy="3" r="2.8"/><circle cx="-3" r="2.8"/><circle cx="3" r="2.8"/><circle class="tb-c" r="1.8"/></g>`).join("")}</g>
     <path d="M60 25V13" stroke="var(--m-leaf)" stroke-width="4" stroke-linecap="round"/>
     <path d="M60 15C51 3 39 6 41 15c8 3 14 3 19 0z" fill="var(--m-leaf)"/>
     <path d="M60 15c9-12 21-9 19 0-8 3-14 3-19 0z" fill="var(--m-leaf2)"/>
@@ -102,7 +103,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.11.10";
+const APP_VERSION = "2026.11.10b";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -169,19 +170,21 @@ function applyTheme(id, persist) {
 applyTheme(THEME, false);
 /* ================= Display comfort: light/dark and text size ================= */
 // Kept on this phone only (like the colour theme): appearance follows the phone unless picked here, and text can be made bigger.
-const LOOK_KEY = "tunas-look", MODES = ["system", "light", "dark"], TEXTS = ["normal", "large"];
-let LOOK = { mode: "system", text: "normal" };
-try { const v = JSON.parse(localStorage.getItem(LOOK_KEY) || "{}") || {}; if (MODES.includes(v.mode)) LOOK.mode = v.mode; if (TEXTS.includes(v.text)) LOOK.text = v.text; } catch (e) {}
+// Style: Classic is the original look; Calm (ink on paper) and Festive (Peranakan tiles) restyle every colour theme.
+const LOOK_KEY = "tunas-look", MODES = ["system", "light", "dark"], TEXTS = ["normal", "large"], STYLES = ["classic", "calm", "festive"];
+let LOOK = { mode: "system", text: "normal", style: "classic" };
+try { const v = JSON.parse(localStorage.getItem(LOOK_KEY) || "{}") || {}; if (MODES.includes(v.mode)) LOOK.mode = v.mode; if (TEXTS.includes(v.text)) LOOK.text = v.text; if (STYLES.includes(v.style)) LOOK.style = v.style; } catch (e) {}
 function applyLook(persist) {
   const r = document.documentElement;
   if (LOOK.mode === "system") delete r.dataset.theme; else r.dataset.theme = LOOK.mode;
   if (LOOK.text === "large") r.dataset.text = "large"; else delete r.dataset.text;
+  if (LOOK.style === "classic") delete r.dataset.style; else r.dataset.style = LOOK.style;
   if (persist) { try { localStorage.setItem(LOOK_KEY, JSON.stringify(LOOK)); } catch (e) {} }
 }
 applyLook(false);
 const segLook = (key, list, label) => `<div class="seg" role="group" aria-label="${label}">${list.map(v => `<button type="button" data-look="${key}:${v}" aria-pressed="${LOOK[key] === v}">${T("look_" + v)}</button>`).join("")}</div>`;
 function setLook(pair) {
-  const [k, v] = pair.split(":"); if (!((k === "mode" && MODES.includes(v)) || (k === "text" && TEXTS.includes(v))) || LOOK[k] === v) return;
+  const [k, v] = pair.split(":"); if (!((k === "mode" && MODES.includes(v)) || (k === "text" && TEXTS.includes(v)) || (k === "style" && STYLES.includes(v))) || LOOK[k] === v) return;
   LOOK[k] = v; applyLook(true); sfx("ding");
 }
 const themePicker = () => `<div class="swatches" role="group" aria-label="${T("theme")}">${THEMES.map(t => `<button type="button" class="swatch" data-theme-pick="${t.id}" aria-pressed="${THEME === t.id}" style="--sw:${t.c}"><i></i><span>${T("themeNames")[t.id]}</span><small>${T("themeTags")[t.id]}</small></button>`).join("")}</div>`;
@@ -1487,6 +1490,7 @@ function renderSettings(keep) {
   const bAge = backupAge(), due = needsBackup(), errN = errCount();
   const SUB = {
     display: { ico: "sun", t: T("display"), html: () => `<div class="set-group"><p>${T("displayHelp")}</p>
+      <b class="look-sub">${T("lookStyle")}</b>${segLook("style", STYLES, T("lookStyle"))}
       <b class="look-sub">${T("appearance")}</b>${segLook("mode", MODES, T("appearance"))}
       <b class="look-sub">${T("textSize")}</b>${segLook("text", TEXTS, T("textSize"))}</div>` },
     backup: { ico: "down", t: T("backup"), html: () => `<div class="set-group"><p class="bk-last${due ? " due" : ""}">${T("lastBackup", bAge)}</p><p>${T("backupHelp")}</p><p>${T("lockHelp")}</p>
@@ -1507,7 +1511,7 @@ function renderSettings(keep) {
     <div class="set-group"><div class="sw-row"><div><h3>${T("sound")}</h3><p>${T("soundHelp")}</p></div>
       <button class="toggle" type="button" role="switch" aria-checked="${soundOn}" data-act="sound" aria-label="${T("sound")}"><i></i></button></div></div>
     ${navList(T("setMore"), [
-      navRow({ sub: "display", ico: "sun", t: T("display"), s: `${T("look_" + LOOK.mode)} · ${T("look_" + LOOK.text)}`, c: "gold" }),
+      navRow({ sub: "display", ico: "sun", t: T("display"), s: `${T("look_" + LOOK.style)} · ${T("look_" + LOOK.mode)} · ${T("look_" + LOOK.text)}`, c: "gold" }),
       navRow({ sub: "backup", ico: "down", t: T("backup"), s: T("lastBackup", bAge), c: "info", tag: due ? T("rowDue") : "" }),
       navRow({ sub: "share", ico: "share", t: T("share"), s: T("shareRow"), c: "pink" }),
       navRow({ sub: "errlog", ico: "warn", t: T("errLog"), s: errN ? T("errRow", errN) : T("errLogEmpty"), c: "warn" }),
@@ -1624,7 +1628,7 @@ function renderMe(keep) {
       ${navTile({ sub: "wear", ico: "sprout", t: T("wearTitle"), n: `${wOpen} / ${WEAR.length}`, p: 100 * wOpen / WEAR.length, c: "green" })}
     </div></section>
     ${moneyCardHTML()}
-    <div class="set-group"><h3>${T("tunasColour")}</h3><p>${T("themeHelp")}</p>${themePicker()}</div>`;
+    <div class="set-group"><h3>${T("tunasColour")}</h3><p>${T("themeHelp")}</p>${themePicker()}<b class="look-sub">${T("lookStyle")}</b><p>${T("styleHelp")}</p>${segLook("style", STYLES, T("lookStyle"))}</div>`;
     $("setName").addEventListener("change", e => { const v = e.target.value.trim().slice(0, 30); const r = { ...RAW, name: v || (LANG === "ms" ? "Kawan" : "Friend") }; if (saveRoutine(r)) { toast(T("nameSaved"), "check"); contextSay(); } });
   }
   renderBadges(S);

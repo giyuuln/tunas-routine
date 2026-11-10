@@ -1128,3 +1128,120 @@ body.sheet-top .sheet.page{bottom:0}
 @media (prefers-reduced-motion: reduce){.mascot.worry .sweat{opacity:1}}
 .nl-confirm{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:8px;padding:12px 14px;background:var(--danger-soft)}
 .nl-confirm span{flex:1 1 100%;font-weight:800;color:var(--ink)}
+
+/* ===== Styles: Calm (ink on paper) and Festive (Peranakan tiles) =====
+   Picked in Display or Me. They restyle every colour theme (Pandan, Sakura, Langit, Taro); Classic is everything above.
+   Each theme gets one tile colour (buttons, current level, ticks, seals) and one petal colour (flowers, cheeks).
+   Dark mode for both styles is "Tile Lantern": ink night with lit tiles. State colours (danger, warning, info) are unchanged. */
+:root[data-style]{ --tile:#2E7A43; --tile-ink:#256638; --petal:#F4A6B8; --tbody:#5AA56A; --fbg:#F2F7EF; --lit:#6CC488; --on-lit:#0B2614; --ochre:#E3A72F }
+:root[data-style][data-accent="sakura"]{ --tile:#B83C68; --tile-ink:#A2305A; --petal:#FFD3E0; --tbody:#E07A9C; --fbg:#FBF2F5; --lit:#F08DB0; --on-lit:#3A0A1E }
+:root[data-style][data-accent="langit"]{ --tile:#1E6896; --tile-ink:#1E6896; --petal:#BFE3F7; --tbody:#4A9BCB; --fbg:#F1F6FA; --lit:#6CB8E8; --on-lit:#06243A }
+:root[data-style][data-accent="ungu"]{ --tile:#6A45A8; --tile-ink:#6A45A8; --petal:#E6D6FB; --tbody:#9877D0; --fbg:#F6F2FB; --lit:#B79CF0; --on-lit:#1E0C3E }
+/* light tokens */
+:root[data-style]{ --green:var(--tile); --green-d:color-mix(in srgb,var(--tile) 70%,#000); --green-ink:var(--tile-ink); --on-color:#fff; --sky-d:#1E6896;
+  --m-belly:#fff; --m-leaf:var(--tile); --m-leaf2:var(--petal); --m-ink:#1E1C1A; --m-line:#1E1C1A }
+:root[data-style="calm"]{ --bg:#F1ECE3; --card:#FAF7F1; --soft:#ECE6DA; --line:#DCD4C6; --ink:#1E1C1A; --muted:#5E5852; --control:#8C8478; --edge:#1E1C1A;
+  --green-soft:color-mix(in srgb,var(--tile) 9%,#FAF7F1); --m-body:#FAF7F1; --m-limb:#FAF7F1;
+  --display:"Shippori Mincho B1","Nunito",Georgia,serif; --body:"Zen Kaku Gothic New","Nunito",system-ui,sans-serif }
+:root[data-style="festive"]{ --bg:var(--fbg); --card:#fff; --soft:color-mix(in srgb,var(--tile) 6%,#fff); --line:color-mix(in srgb,var(--tile) 18%,#E4DCE0); --ink:#2B2440; --muted:#5F5775; --control:#8A809A; --edge:#2B2440;
+  --green-soft:color-mix(in srgb,var(--petal) 45%,#fff); --m-body:var(--tbody); --m-limb:var(--tbody); --m-leaf:var(--petal); --m-leaf2:var(--ochre); --m-ink:#2B2440; --m-line:#2B2440;
+  --display:"Shippori Mincho B1","Fredoka",Georgia,serif; --body:"Kumbh Sans","Nunito",system-ui,sans-serif }
+/* Tile Lantern: the dark mode of both styles */
+@media (prefers-color-scheme: dark){ :root[data-style]:not([data-theme="light"]){
+  --bg:#1C1A18; --card:#282522; --soft:#312D29; --line:#3A3631; --ink:#F3EEE4; --muted:#BDB4A6; --control:#7A7268; --edge:#5A534B;
+  --green:var(--lit); --green-d:color-mix(in srgb,var(--lit) 55%,#000); --green-ink:var(--lit); --on-color:var(--on-lit); --green-soft:color-mix(in srgb,var(--lit) 14%,#282522); --sky-d:#6CB8E8;
+  --m-body:#2A2C29; --m-limb:#2A2C29; --m-belly:var(--tile); --m-leaf:var(--lit); --m-leaf2:var(--petal); --m-ink:#F3EEE4; --m-line:var(--lit); color-scheme:dark } }
+:root[data-style][data-theme="dark"]{
+  --bg:#1C1A18; --card:#282522; --soft:#312D29; --line:#3A3631; --ink:#F3EEE4; --muted:#BDB4A6; --control:#7A7268; --edge:#5A534B;
+  --green:var(--lit); --green-d:color-mix(in srgb,var(--lit) 55%,#000); --green-ink:var(--lit); --on-color:var(--on-lit); --green-soft:color-mix(in srgb,var(--lit) 14%,#282522); --sky-d:#6CB8E8;
+  --m-body:#2A2C29; --m-limb:#2A2C29; --m-belly:var(--tile); --m-leaf:var(--lit); --m-leaf2:var(--petal); --m-ink:#F3EEE4; --m-line:var(--lit); color-scheme:dark }
+
+/* Tunas: ink outline, tiled belly, petal cheeks */
+.mascot .tbelly{display:none}
+:root[data-style] .mascot .tbelly{display:inline}
+:root[data-style] .mascot .tbelly circle{fill:var(--petal)}
+:root[data-style="festive"] .mascot .tbelly circle{fill:var(--tile)}
+:root[data-style] .mascot .tbelly .tb-c{fill:var(--ochre)}
+:root[data-style] .mascot path[fill="var(--m-body)"],:root[data-style] .mascot ellipse[fill="var(--m-limb)"]{stroke:var(--m-line);stroke-width:4;stroke-linejoin:round}
+:root[data-style] .mascot ellipse[fill="var(--m-belly)"]{stroke:var(--m-line);stroke-width:1.6}
+:root[data-style] .mascot path[fill="var(--m-leaf)"],:root[data-style] .mascot path[fill="var(--m-leaf2)"]{stroke:var(--m-line);stroke-width:2}
+:root[data-style] .mascot .cheeks ellipse{fill:var(--petal);opacity:1}
+:root[data-style][data-theme="dark"] .mascot path[fill="var(--m-body)"]{filter:drop-shadow(0 0 4px var(--lit))}
+@media (prefers-color-scheme: dark){ :root[data-style]:not([data-theme="light"]) .mascot path[fill="var(--m-body)"]{filter:drop-shadow(0 0 4px var(--lit))} }
+
+/* Calm: quiet ink on paper. Flat buttons, hairlines, square ticks, seal-stamp stars. */
+:root[data-style="calm"] .btn{border-radius:6px;box-shadow:none;letter-spacing:.02em}
+:root[data-style="calm"] .btn:active{transform:none;opacity:.85}
+:root[data-style="calm"] .btn.ghost{background:transparent;border:1.5px solid var(--control);box-shadow:none;color:var(--ink)}
+:root[data-style="calm"] .card{border:0;border-radius:6px;box-shadow:0 1px 0 var(--line)}
+:root[data-style="calm"] .top{border-bottom-width:1px}
+:root[data-style="calm"] .bubble{background:transparent;border:0;border-left:2px solid var(--ink);border-radius:0;padding:4px 0 4px 14px;font-family:var(--display);font-weight:700}
+:root[data-style="calm"] .bubble::before{display:none}
+:root[data-style="calm"] .lv-title{font-size:24px;font-weight:800}
+:root[data-style="calm"] .lv-detail{background:transparent;border-top:1px solid var(--line);border-radius:0;padding:12px 2px 2px}
+:root[data-style="calm"] .lvl:not(:last-child)::after{height:2px;top:25px}
+:root[data-style="calm"] .lvl-node{background:var(--card);border:0;box-shadow:inset 0 0 0 2px var(--control)}
+:root[data-style="calm"] .lvl-node.started{background:var(--card);color:var(--green-ink);box-shadow:inset 0 0 0 3px var(--tile)}
+:root[data-style="calm"] .lvl-node.go{background:var(--tile);color:var(--on-color);box-shadow:0 0 0 3px var(--bg),0 0 0 6px var(--ink)}
+:root[data-style="calm"] .lvl-node.done{background:var(--tile);color:var(--petal);box-shadow:none}
+:root[data-style="calm"] .lvl-node.go::before{border-radius:50%;border-width:2px;border-color:var(--ink)}
+:root[data-style="calm"] .task{border:0;border-bottom:1px solid var(--line);border-radius:0;box-shadow:none;background:transparent;padding:13px 4px}
+:root[data-style="calm"] .task:active{transform:none;background:var(--soft)}
+:root[data-style="calm"] .task[aria-checked="true"]{background:transparent;box-shadow:none}
+:root[data-style="calm"] .task[aria-checked="true"] .tt b{color:var(--muted);font-weight:700}
+:root[data-style="calm"] .task .ck{border-radius:4px;border-width:2px;border-color:var(--ink);width:26px;height:26px}
+:root[data-style="calm"] .task[aria-checked="true"] .ck{background:var(--tile);border-color:var(--tile)}
+:root[data-style="calm"] .sh-ico{border-radius:6px}
+:root[data-style="calm"] .nav-tile,:root[data-style="calm"] .me-stat{border:0;box-shadow:0 1px 0 var(--line);border-radius:6px}
+:root[data-style="calm"] .seg{border-width:1px;border-radius:6px}
+:root[data-style="calm"] .seg button{border-radius:4px}
+:root[data-style="calm"] .tabbar{border-top-width:1px}
+:root[data-style="calm"] .tabbar [aria-current="page"] .tb-ico{background:transparent;box-shadow:inset 0 -2px 0 var(--tile);border-radius:0}
+
+/* Festive: Peranakan tiles drawn with ink outlines. Tile band on top, tile levels, outlined cards. */
+:root[data-style="festive"] .top::before{content:"";position:absolute;left:0;right:0;top:0;height:9px;border-bottom:1.5px solid var(--edge);
+  background:radial-gradient(circle,var(--ochre) 0 1.6px,transparent 2px) 6px 0/16px 9px,radial-gradient(circle,var(--petal) 0 3.6px,transparent 4px) 6px 0/16px 9px,var(--tile)}
+:root[data-style="festive"] .btn{border:1.5px solid var(--edge);border-radius:16px;box-shadow:0 4px 0 var(--edge)}
+:root[data-style="festive"] .btn:active{box-shadow:0 0 0 var(--edge)}
+:root[data-style="festive"] .btn.ghost{background:var(--card);color:var(--ink);box-shadow:0 3px 0 var(--edge)}
+:root[data-style="festive"] .card{border:1.5px solid var(--edge);border-radius:22px}
+:root[data-style="festive"] .levels{box-shadow:0 0 0 5px var(--bg),0 0 0 7px var(--petal)}
+:root[data-style="festive"] .bubble{border:1.5px solid var(--edge);border-radius:22px 22px 22px 6px}
+:root[data-style="festive"] .bubble::before{display:none}
+:root[data-style="festive"] .lv-title{font-size:24px;font-weight:800}
+:root[data-style="festive"] .lv-detail{background:var(--soft);border-radius:18px}
+:root[data-style="festive"] .lvl:not(:last-child)::after{height:0;border-top:3px dotted var(--control);background:none;top:24px}
+:root[data-style="festive"] .lvl.cleared:not(:last-child)::after{border-top-color:var(--tile)}
+:root[data-style="festive"] .lvl-node{border-radius:14px;border:1.5px dashed var(--control);background:var(--card);box-shadow:none}
+:root[data-style="festive"] .lvl-node.started{border-style:solid;border-color:var(--tile);background:var(--green-soft);box-shadow:none}
+:root[data-style="festive"] .lvl-node.go{border:1.5px solid var(--edge);background:var(--tile);color:var(--on-color);box-shadow:0 4px 0 var(--edge)}
+:root[data-style="festive"] .lvl-node.done{border:1.5px solid var(--edge);color:var(--tile);box-shadow:none;
+  background:radial-gradient(circle at 50% 22%,var(--petal) 0 7px,transparent 7.5px),radial-gradient(circle at 50% 78%,var(--petal) 0 7px,transparent 7.5px),radial-gradient(circle at 22% 50%,var(--petal) 0 7px,transparent 7.5px),radial-gradient(circle at 78% 50%,var(--petal) 0 7px,transparent 7.5px),var(--tile)}
+:root[data-style="festive"] .lvl-node.done svg{fill:var(--on-color)}
+:root[data-style="festive"] .lvl-node.go::before{border-radius:18px;border-color:var(--tile)}
+:root[data-style="festive"] .task{border:1.5px solid var(--edge);border-radius:16px;box-shadow:0 3px 0 var(--edge)}
+:root[data-style="festive"] .task[aria-checked="true"]{background:var(--green-soft);border-color:var(--edge);box-shadow:none}
+:root[data-style="festive"] .task[aria-checked="true"] .tt b{color:var(--ink)}
+:root[data-style="festive"] .task .ck{border-radius:7px;border:2px dashed var(--tile)}
+:root[data-style="festive"] .task[aria-checked="true"] .ck{background:var(--tile);border:1.5px solid var(--edge)}
+:root[data-style="festive"] .sh-ico{border:1.5px solid var(--edge)}
+:root[data-style="festive"] .nav-tile,:root[data-style="festive"] .me-stat{border:1.5px solid var(--edge);box-shadow:0 3px 0 var(--edge)}
+:root[data-style="festive"] .nl-card{border:1.5px solid var(--edge)}
+:root[data-style="festive"] .tabbar{border-top:1.5px solid var(--edge)}
+
+/* Both styles: stars become seal stamps in the theme tile; display type for big numbers */
+:root[data-style] .stars{gap:3px}
+:root[data-style] .stars i{width:11px;height:11px;border-radius:2px;background:var(--line)}
+:root[data-style] .stars i:nth-child(1){transform:rotate(-8deg)} :root[data-style] .stars i:nth-child(3){transform:rotate(7deg)}
+:root[data-style] .stars i.on{background:var(--tile)}
+:root[data-style] .stars i svg{display:none}
+:root[data-style] .stars.big i{width:18px;height:18px}
+:root[data-style] .starbar .sm{border-radius:5px}
+:root[data-style] .starbar .sm.on{background:var(--tile);border-color:var(--edge)}
+:root[data-style] .starbar .sm.on svg{fill:var(--petal)}
+:root[data-style] .cele h2{font-weight:800}
+:root[data-style] .tile{border-radius:6px}
+:root[data-style="festive"] .tile{border-radius:14px;border-color:var(--edge)}
+@media (prefers-reduced-motion: reduce){:root[data-style] .stars i{transform:none}}
+:root[data-style] .stat.fire:not(.off){color:var(--orange-ink)}
+:root[data-style] .stat.fire.off{color:var(--muted)}
