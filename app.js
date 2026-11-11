@@ -914,7 +914,7 @@ function renderStreak(S) {
   for (let k = 6; k >= 0; k--) { const x = new Date(d); x.setDate(x.getDate() - k); const r = ratio(x), rst = isRest(x), shd = !rst && r < .8 && isShielded(x);
     days += `<div class="day${k === 0 ? " today" : ""}${rst ? " rest" : shd ? " shielded" : r >= .8 ? " full" : r > 0 ? " part" : ""}" title="${rst ? T("lgRest") : shd ? T("lgShield") : Math.round(r*100) + "%"}"><i>${rst ? I.moon : shd ? SHIELD_ICO : I.flame}</i><span>${x.toLocaleDateString(locale(), { weekday: "short" }).slice(0, 2)}</span></div>`; }
   const el = $("streakCard"); if (!el) return;
-  el.innerHTML = `<div class="streak-top"><svg class="big-flame${S.streak ? "" : " off"}" viewBox="0 0 24 24"><path d="${I.flame.match(/d="([^"]+)"/)[1]}"/></svg><div><b>${T("streakDays", S.streak)}</b><span>${S.streak ? T("streakKeep") : T("streakStart")} · ${T("best", S.bestStreak)}</span></div></div><div class="week">${days}</div>${shieldRow()}${wchestRow()}${restRow(d)}`;
+  el.innerHTML = `<div class="streak-top"><svg class="big-flame${S.streak ? "" : " off"}" viewBox="0 0 24 24"><path d="${I.flame.match(/d="([^"]+)"/)[1]}"/></svg><div><b>${T("streakDays", S.streak)}</b><span>${S.streak ? T("streakKeep") : T("streakStart")} · ${T("best", S.bestStreak)}</span></div></div><div class="week">${days}</div>${shieldRow()}${wchestRow()}${restRow(d)}${sinceHTML()}`;
 }
 $("shBody").addEventListener("click", e => { if (!e.target.closest("#streakCard")) return; const b = e.target.closest("[data-restday]"); if (b) setRest(b.dataset.restday, b.dataset.v === "1"); });
 
@@ -1184,12 +1184,30 @@ function tickAll() {
     const day = store.days[today]; if (!day) return; ticked.forEach(id => { delete day[id]; }); save(); sfx("undo"); lastS = null; prevCleared = null; refresh(true); });
 }
 
+/* ================= Start date ================= */
+// The day someone started with Tunas. Days before it were never theirs to miss, so week summaries, habit stats and
+// tips start counting from here. Saved as store.since ("YYYY-MM-DD") when the welcome finishes. Older data without it
+// (or a backup from before) uses the earliest day with a tick or a rest day, else today. A tick fixed on an earlier day
+// in History moves it back.
+const isDayKey = k => typeof k === "string" && /^\d{4}-\d\d-\d\d$/.test(k);
+function sinceDay() {
+  const today = dkey(routineDate()); let f = isDayKey(store.since) && store.since <= today ? store.since : today;
+  for (const k in store.days) if (k < f && isDayKey(k) && Object.values(store.days[k] || {}).some(Boolean)) f = k;
+  for (const k in store.rest) if (k < f && isDayKey(k) && store.rest[k]) f = k;
+  if (store.since !== f) { store.since = f; save(); }
+  return f;
+}
+const ticksSince = () => Object.values(store.days).reduce((n, dn) => n + Object.values(dn || {}).filter(v => v === true).length, 0);
+function sinceHTML() {
+  const k = sinceDay(), d = keyToDate(k), n = Math.max(1, dayNum(routineDate()) - dayNum(d) + 1);
+  return `<p class="since">${I.sprout || ""}<span>${T("sinceLine", d.toLocaleDateString(locale(), { day: "numeric", month: "short", year: "numeric" }), n, ticksSince())}</span></p>`;
+}
+
 /* ================= Per-habit stats ================= */
 // Press and hold a habit (or tap it in Progress) to see how that one habit is going: last 30 days and its own streak.
 const habitById = id => { for (const b of BLOCKS) { const i = b.items.find(x => x.id === id); if (i) return { i, b }; } return null; };
 function habitStats(it) {
-  const d0 = routineDate(), today = dkey(d0), keys = [...Object.keys(store.days), ...Object.keys(store.rest)].sort();
-  const start = keys[0] && keys[0] < today ? keys[0] : today; // days before you started using Tunas don't count as missed
+  const d0 = routineDate(), today = dkey(d0), start = sinceDay(); // days before you started using Tunas don't count as missed
   const stat = d => { const k = dkey(d); if (k < start || !shown(it, d)) return "off"; if ((store.days[k] || {})[it.id]) return "done";
     return k === today ? "today" : isRest(d) ? "rest" : "miss"; };
   const days = []; for (let n = 29; n >= 0; n--) { const d = new Date(d0); d.setDate(d.getDate() - n); days.push({ k: dkey(d), d, s: stat(d) }); }
@@ -1200,6 +1218,38 @@ function habitStats(it) {
   let best = 0, run = 0; const c = keyToDate(start);
   for (let g = 0; g < 3650 && dkey(c) <= today; g++) { const s = stat(c); if (s === "done") best = Math.max(best, ++run); else if (s === "miss") run = 0; c.setDate(c.getDate() + 1); }
   return { days, done, due, pct: due ? Math.round(100 * done / due) : null, streak, best };
+}
+/* ---- Habit mastery ----
+   Every day a habit is ticked counts toward its medal: Bronze at 7, Silver at 30, Gold at 100 (all time, not in a row,
+   so a missed day never takes one away). Medals show on the habit's row in Progress and on its page. They give no XP;
+   they're there to see how far a habit has come. Saved as store.mastery = { id: highest tier celebrated }, so each
+   medal celebrates once. The first time it runs (older data) it fills in quietly instead of celebrating a pile at once. */
+const MASTERY = [7, 30, 100];
+const habitTicks = id => Object.values(store.days).reduce((n, dn) => n + (dn && dn[id] === true ? 1 : 0), 0);
+const tierOf = n => MASTERY.filter(x => n >= x).length; // 0 = none yet, 1 bronze, 2 silver, 3 gold
+const MEDAL_C = ["", "#d08a4c", "#aab4c0", "#ffc21a"], MEDAL_D = ["", "#8a5326", "#6b7684", "#b98200"];
+const medalSVG = t => `<svg class="medal-ico t${t}" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h4l2 6H9zM13 2h4l-2 6h-4z" fill="${MEDAL_D[t]}"/><circle cx="12" cy="15" r="7" fill="${MEDAL_C[t]}" stroke="${MEDAL_D[t]}" stroke-width="2"/><path d="M12 11.3l1.2 2.4 2.6.4-1.9 1.8.5 2.6-2.4-1.3-2.4 1.3.5-2.6-1.9-1.8 2.6-.4z" fill="#fff" opacity=".9"/></svg>`;
+function masteryState() {
+  const m = store.mastery && typeof store.mastery === "object" && !Array.isArray(store.mastery) ? store.mastery : null;
+  if (!m) return null;
+  Object.keys(m).forEach(k => { const v = Math.round(+m[k]); if (!(v >= 1 && v <= 3)) delete m[k]; else m[k] = v; });
+  return m;
+}
+function checkMastery(live) {
+  const habits = BLOCKS.flatMap(b => b.items), m = masteryState(), up = [];
+  if (!m) { store.mastery = {}; habits.forEach(i => { const t = tierOf(habitTicks(i.id)); if (t) store.mastery[i.id] = t; }); save(); return; }
+  habits.forEach(i => { const t = tierOf(habitTicks(i.id)); if (t > (m[i.id] || 0)) { m[i.id] = t; up.push({ i, t }); } });
+  if (!up.length) return; save();
+  if (!live) return;
+  const d = routineDate(), top = up.sort((a, b) => b.t - a.t)[0];
+  queueCele({ title: T("mastTitle", T("mastTier")[top.t]), sub: up.map(u => T("mastSub", esc(itemTitle(u.i, d)), MASTERY[u.t - 1])).join("<br>"), color: "green", sound: "level",
+    art: `<div class="mast-art">${medalSVG(top.t)}</div>`, tiles: [] });
+}
+function masteryHTML(i) {
+  const n = habitTicks(i.id), t = tierOf(n), next = MASTERY[t];
+  const line = next ? T("mastNext", next - n, T("mastTier")[t + 1]) : T("mastMax");
+  return `<div class="mast${t ? "" : " none"}">${medalSVG(Math.max(1, t))}<div class="mast-t"><b>${t ? T("mastName", T("mastTier")[t]) : T("mastNone")} · ${T("mastTicks", n)}</b>
+    ${next ? `<span class="bar"><i style="${fillPct(100 * n / next)}"></i></span>` : ""}<span>${line}</span></div></div>`;
 }
 function renderHabitSheet(id, keep) {
   const h0 = habitById(id); if (!h0) { closeSheet(); return; }
@@ -1213,6 +1263,7 @@ function renderHabitSheet(id, keep) {
   body.innerHTML = `<div class="card hist hs">
       <div class="tiles">${tiles.map(t => `<div class="tile" style="--c:var(${t.c})"><small>${t.k}</small><b>${t.i ? I[t.i] : ""}${t.v}</b></div>`).join("")}</div>
       <p class="ws-line">${s.due ? T("hsLine", s.done, s.due) : T("hsNew")}</p>
+      ${masteryHTML(i)}
       <div class="hs-grid" role="img" aria-label="${esc(T("hsGridLabel", s.done, s.due))}">${cells}</div>
       <div class="h-foot"><span><i class="lg hs-done"></i>${T("hsState").done}</span><span><i class="lg hs-miss"></i>${T("hsState").miss}</span><span><i class="lg rest"></i>${T("lgRest")}</span><span><i class="lg hs-off"></i>${T("hsState").off}</span></div>
     </div>${shown(i, d) ? "" : `<div class="note">${T("hsNotToday")}</div>`}`;
@@ -1220,9 +1271,9 @@ function renderHabitSheet(id, keep) {
 }
 // "Habit by habit" list at the bottom of Progress: every button opens that habit's stats.
 function habitListHTML() {
-  const rows = BLOCKS.flatMap(b => b.items).map(i => { const s = habitStats(i), t = itemTitle(i, routineDate());
-    return `<button class="hs-row" type="button" data-habit="${esc(i.id)}" aria-label="${esc(t)}: ${s.pct == null ? T("hsNone") : s.pct + "%"}, ${T("streakDays", s.streak)}">
-      <span class="hs-t"><b>${esc(t)}</b><span class="bar green" aria-hidden="true"><i style="${fillPct(s.pct || 0)}"></i></span></span>
+  const rows = BLOCKS.flatMap(b => b.items).map(i => { const s = habitStats(i), t = itemTitle(i, routineDate()), mt = tierOf(habitTicks(i.id));
+    return `<button class="hs-row" type="button" data-habit="${esc(i.id)}" aria-label="${esc(t)}: ${s.pct == null ? T("hsNone") : s.pct + "%"}, ${T("streakDays", s.streak)}${mt ? ", " + T("mastName", T("mastTier")[mt]) : ""}">
+      <span class="hs-t"><b>${mt ? medalSVG(mt) : ""}${esc(t)}</b><span class="bar green" aria-hidden="true"><i style="${fillPct(s.pct || 0)}"></i></span></span>
       <span class="hs-n" aria-hidden="true">${s.pct == null ? "–" : s.pct + "%"}</span><span class="hs-fl${s.streak ? "" : " off"}" aria-hidden="true">${I.flame}${s.streak}</span></button>`; }).join("");
   return rows ? `<div class="card hist hs-list"><div class="ws-h"><b>${T("hsListTitle")}</b><span>${T("hsLast30")}</span></div>${rows}</div>` : "";
 }
@@ -2603,16 +2654,14 @@ function checkRecap() {
 
 /* ================= Weekly summary ================= */
 // How a week (Monday to Sunday) went: done %, best and most-missed habit, workouts and XP. Rest days don't count against you.
-// The first day with any tick. Days before someone started using Tunas were never theirs to miss.
-function firstDay() { let f = ""; for (const k in store.days) if ((!f || k < f) && Object.values(store.days[k] || {}).some(Boolean)) f = k; return f; }
 // pastOnly leaves today out, for tips while today is still going.
 function weekSummary(mon, pastOnly) {
-  const pr = computePRs(), today = dkey(routineDate()), start = firstDay(), seen = {}, got = {};
+  const pr = computePRs(), today = dkey(routineDate()), start = sinceDay(), seen = {}, got = {};
   let done = 0, total = 0, workouts = 0, xp = 0, active = 0;
   for (let i = 0; i < 7; i++) { const d = new Date(mon); d.setDate(d.getDate() + i); const k = dkey(d); if (k > today || (pastOnly && k === today)) break;
     const dn = store.days[k] || {}; xp += dayXP(k, pr.byDay);
     if (Object.values(dn).some(Boolean)) active++; if (dn["wo-done"]) workouts++;
-    if (isRest(d) || !start || k < start) continue;
+    if (isRest(d) || k < start) continue;
     itemsFor(d).forEach(id => { total++; if (dn[id]) done++; if (id === "wo-done") return; seen[id] = (seen[id] || 0) + 1; if (dn[id]) got[id] = (got[id] || 0) + 1; }); }
   const wk = store.weeks[dkey(mon)] || {}, wkN = Object.values(wk).filter(Boolean).length; xp += wkN * XP.weekly; if (wkN) active++;
   // The focus-hour habit has a different title each day, so the week calls it by its general name. Habits removed
@@ -2723,7 +2772,14 @@ const FINDS = [
   { id: "kelip", s: "glow", c: ["#e4f75f", "#8fa31c"], r: 1 }, { id: "pearl", s: "seed", c: ["#f6f2ff", "#a99fcf"], r: 1 },
   { id: "rafflesia", s: "rafflesia", c: ["#e0533a", "#8f2414"], r: 2 }, { id: "crystal", s: "gem", c: ["#8ee6ff", "#2a8fc0"], r: 2 },
   { id: "star", s: "star", c: ["#ffd23f", "#c48a00"], r: 2 }, { id: "goldsprout", s: "sprout", c: ["#ffcf3a", "#b98200"], r: 2 },
+  // Seasonal finds (Rare): each one only drops in its months (m, 0 = January) and comes back every year, so there's
+  // always one in season and nobody misses one for good. In season and not owned yet, it's the first pick for a Rare.
+  { id: "umbrella", s: "umbrella", c: ["#6fb8ff", "#2a6fb8"], r: 1, m: [10, 11, 0] }, { id: "wau", s: "wau", c: ["#ff8a5c", "#c2461d"], r: 1, m: [1, 2, 3, 4] },
+  { id: "durian", s: "durian", c: ["#a8c94a", "#5f7d1a"], r: 1, m: [5, 6, 7] }, { id: "lantern", s: "lantern", c: ["#ff5a5a", "#b3261e"], r: 1, m: [8, 9] },
 ];
+const inSeason = (x, d = routineDate()) => !x.m || x.m.includes(d.getMonth());
+// "Nov – Jan" for a seasonal find.
+const seasonName = x => { const f = { month: "short" }, mo = k => new Date(2024, k, 1).toLocaleDateString(locale(), f); return `${mo(x.m[0])} – ${mo(x.m[x.m.length - 1])}`; };
 const FIND_ODDS = [0.70, 0.25, 0.05], RARE_PITY = 5, EPIC_PITY = 15, FIRST_FIND = "pandan", SHINY_AT = 3;
 // Small chunky art in the app's style: a dark outline (c[1]), a fill (c[0]) and a white shine.
 const FIND_ART = {
@@ -2741,6 +2797,10 @@ const FIND_ART = {
   spiky: (f, d) => `${Array.from({ length: 12 }, (_, i) => `<path d="M24 12V7q0-2.5 3-3" stroke="#4aa85c" stroke-width="3" stroke-linecap="round" fill="none" transform="rotate(${i * 30} 24 25)"/>`).join("")}<circle cx="24" cy="25" r="13" fill="${f}" stroke="${d}" stroke-width="3"/>`,
   gem: (f, d) => `<path d="M14 8h20l8 11-18 23L6 19z" fill="${f}" stroke="${d}" stroke-width="3" stroke-linejoin="round"/><path d="M6 19h36M18 19l6 23 6-23M14 8l4 11 6-11 6 11 4-11" stroke="${d}" stroke-width="2" stroke-linejoin="round" fill="none"/>`,
   star: (f, d) => `<path d="M24 5l5.6 11.6 12.7 1.8-9.2 9 2.2 12.6L24 34l-11.3 6 2.2-12.6-9.2-9 12.7-1.8z" fill="${f}" stroke="${d}" stroke-width="3" stroke-linejoin="round"/>`,
+  umbrella: (f, d) => `<path d="M24 22v15a4 4 0 0 1-8 0" stroke="${d}" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M5 24a19 17 0 0 1 38 0q-4.7-3-9.5 0-4.7-3-9.5 0-4.7-3-9.5 0-4.7-3-9.5 0z" fill="${f}" stroke="${d}" stroke-width="3" stroke-linejoin="round"/><path d="M24 7q-6 7-4.7 17M24 7q6 7 4.7 17" stroke="${d}" stroke-width="2" fill="none"/><path d="M24 4v3" stroke="${d}" stroke-width="3" stroke-linecap="round"/><path d="M38 34q1 3 0 5M32 38q1 3 0 5" stroke="#6fb8ff" stroke-width="2.5" stroke-linecap="round"/>`,
+  wau: (f, d) => `<path d="M24 4l7 10-7 26-7-26z" fill="${f}" stroke="${d}" stroke-width="3" stroke-linejoin="round"/><path d="M6 15q9-4 18 1 9-5 18-1-3 7-11 6l-7-3-7 3c-8 1-11-6-11-6z" fill="${f}" stroke="${d}" stroke-width="3" stroke-linejoin="round"/><path d="M10 37q14-4 28 0-6 6-14 3-8 3-14-3z" fill="#ffd34d" stroke="${d}" stroke-width="2.5" stroke-linejoin="round"/><circle cx="24" cy="17" r="2.5" fill="#fff"/>`,
+  durian: (f, d) => `${Array.from({ length: 14 }, (_, i) => `<path d="M24 11l2.4-4.5h-4.8z" fill="${d}" transform="rotate(${i * 360 / 14} 24 26)"/>`).join("")}<ellipse cx="24" cy="26" rx="14" ry="15" fill="${f}" stroke="${d}" stroke-width="3"/><path d="M24 11V5q1-2 4-2" stroke="#8a5a2b" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M17 22l2 2M28 19l2 2M21 31l2 2M30 28l2 2" stroke="${d}" stroke-width="2.2" stroke-linecap="round"/>`,
+  lantern: (f, d) => `<path d="M24 3v5" stroke="${d}" stroke-width="3" stroke-linecap="round"/><rect x="17" y="7" width="14" height="5" rx="2" fill="#ffd34d" stroke="#c48a00" stroke-width="2.5"/><ellipse cx="24" cy="24" rx="15" ry="12.5" fill="${f}" stroke="${d}" stroke-width="3"/><path d="M24 11.5q-8 12.5 0 25M24 11.5q8 12.5 0 25" stroke="${d}" stroke-width="2" fill="none"/><rect x="17" y="35" width="14" height="5" rx="2" fill="#ffd34d" stroke="#c48a00" stroke-width="2.5"/><path d="M21 40v5M24 40v6M27 40v5" stroke="#ffd34d" stroke-width="2" stroke-linecap="round"/>`,
   rafflesia: (f, d) => `${[0, 72, 144, 216, 288].map(a => `<path d="M24 22c-9-2-12-10-8-16 5-3 12-3 16 0 4 6 1 14-8 16z" fill="${f}" stroke="${d}" stroke-width="2.5" stroke-linejoin="round" transform="rotate(${a} 24 25)"/>`).join("")}<circle cx="24" cy="25" r="8" fill="${d}"/><circle cx="24" cy="25" r="4.5" fill="#3a0c05"/><circle cx="18" cy="9" r="1.6" fill="#fff"/><circle cx="38" cy="18" r="1.6" fill="#fff"/><circle cx="34" cy="38" r="1.6" fill="#fff"/><circle cx="12" cy="36" r="1.6" fill="#fff"/><circle cx="9" cy="20" r="1.6" fill="#fff"/>`,
 };
 const SHINE = '<ellipse cx="18" cy="17" rx="4" ry="2.5" fill="#fff" opacity=".55" transform="rotate(-35 18 17)"/>';
@@ -2762,8 +2822,8 @@ function rollRarity(f, rand, minR = 0) {
 }
 function openFind(today, rand = Math.random, minR = 0) {
   const f = findsState(), first = !minR && !FINDS.some(x => findCount(f, x.id));
-  const r = first ? 0 : rollRarity(f, rand, minR), pool = FINDS.filter(x => x.r === r), fresh = pool.filter(x => !findCount(f, x.id));
-  const dull = pool.filter(x => !isShiny(f, x.id)), from = fresh.length ? fresh : dull.length ? dull : pool;
+  const r = first ? 0 : rollRarity(f, rand, minR), day = keyToDate(today), pool = FINDS.filter(x => x.r === r && inSeason(x, day)), fresh = pool.filter(x => !findCount(f, x.id));
+  const dull = pool.filter(x => !isShiny(f, x.id)), season = fresh.filter(x => x.m), from = season.length ? season : fresh.length ? fresh : dull.length ? dull : pool;
   const item = first ? FINDS.find(x => x.id === FIRST_FIND) : from[Math.floor(rand() * from.length)];
   const n = findCount(f, item.id) + 1;
   f.got[item.id] = { n, d: (f.got[item.id] || {}).d || today }; f.log[today] = item.id;
@@ -2783,7 +2843,8 @@ function findsHTML() {
   const f = findsState(), today = dkey(routineDate()), owned = FINDS.filter(x => findCount(f, x.id)), shinyN = FINDS.filter(x => isShiny(f, x.id)).length;
   const pity = Math.max(1, RARE_PITY - f.dry);
   const cell = x => { const n = findCount(f, x.id);
-    if (!n) return `<li class="fcell lock r${x.r}" aria-label="${T("findLocked")} · ${rarityName(x.r)}"><span class="find-art">${findArt(x)}</span><b aria-hidden="true">? ? ?</b><small aria-hidden="true">${rarityName(x.r)}</small></li>`;
+    const sz = x.m ? (inSeason(x) ? T("seasonNow") : seasonName(x)) : "";
+    if (!n) return `<li class="fcell lock r${x.r}${x.m && inSeason(x) ? " now" : ""}" aria-label="${T("findLocked")} · ${rarityName(x.r)}${sz ? " · " + sz : ""}"><span class="find-art">${findArt(x)}</span><b aria-hidden="true">? ? ?</b><small aria-hidden="true">${sz || rarityName(x.r)}</small></li>`;
     const sh = n >= SHINY_AT, label = `${findName(x.id)} · ${rarityName(x.r)}${sh ? " · " + T("shinyTag") : ""} · ×${n}`;
     return `<li class="fcell r${x.r}${sh ? " shiny" : ""}" aria-label="${esc(label)}"><span class="find-art">${findArt(x)}${sh ? SPARKS : ""}</span><b aria-hidden="true">${findName(x.id)}</b><small aria-hidden="true">${rarityName(x.r)}${n > 1 ? ` · ×${n}` : ""}</small>${f.log[today] === x.id ? `<i class="b-new" aria-hidden="true">${T("newBadge")}</i>` : ""}</li>`; };
   return `<section class="me-trophy me-finds" aria-labelledby="findsT"><div class="me-th"><h3 id="findsT">${T("findsTitle")}</h3><span>${owned.length} / ${FINDS.length}</span></div>
@@ -2791,6 +2852,7 @@ function findsHTML() {
     ${owned.length ? (owned.length < FINDS.length ? `<p class="f-pity">${I.chest}<span>${T("findsPity", pity)}</span></p>` : "")
       : `<p class="f-empty">${I.chest}<span>${T("findsEmpty")}</span></p>`}
     ${owned.length ? `<p class="f-shiny"><i aria-hidden="true">${I.spark}</i><span><b>${T("findsShiny", shinyN, FINDS.length)}</b> ${shinyN === FINDS.length ? T("findsShinyAll") : T("findsShinyHelp", SHINY_AT)}</span></p>` : ""}
+    ${FINDS.filter(x => x.m && inSeason(x)).map(x => `<p class="f-season">${I.spark}<span>${findCount(f, x.id) ? T("seasonGot", findName(x.id)) : T("seasonLine", seasonName(x))}</span></p>`).join("")}
     <ul class="fgrid">${FINDS.map(cell).join("")}</ul></section>`;
 }
 
@@ -2952,6 +3014,7 @@ const backNeed = d => Math.min(BACK_TICKS, itemsFor(d).length);
 let prevCleared = null;
 function refresh(keepSheet) {
   if (recordPlan()) save();
+  sinceDay(); // fixes the start date the first time (saved), so later counts don't move
   useShields();
   const d = routineDate(), S = computeAll();
   renderTop(S); renderQuests(S); renderPath(S); renderNudge(); if (typeof renderAssist === "function") renderAssist(S); renderStreak(S); renderHistory();
@@ -2961,6 +3024,7 @@ function refresh(keepSheet) {
     const node = nodesFor(d).find(n => n.id === sheetId); if (node) { const st = nodeState(node, d), bar = $("shHead").querySelector(".bar"); if (bar) { setFill(bar.querySelector("i"), 100*st.n/st.total); bar.querySelector("b").textContent = `${st.n} / ${st.total}`; } }
   }
   const states = {}; nodesFor(d).forEach(n => states[n.id] = nodeState(n, d));
+  checkMastery(!!lastS);
   const fresh = got.filter(b => !store.seen[b.id]);
   if (fresh.length) { fresh.forEach(b => store.seen[b.id] = dkey(d)); save();
     if (lastS) fresh.forEach(b => toast(T("badgeOne", badgeName(b.id)), "trophy"));
