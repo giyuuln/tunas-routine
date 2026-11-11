@@ -39,6 +39,8 @@ Open **https://tunas.amkaz.dev** on your phone, then:
 - **Android (Chrome):** tap the **⋮** menu → **Install app** (or **Add to Home screen**)
 - **iPhone (Safari):** tap **Share** → **Add to Home Screen**
 
+> **iPhone tip:** keep Tunas on the Home Screen. In a Safari tab (or inside Instagram, WhatsApp and other apps) iOS can clear a site's data after about a week without a visit, so the routine would be gone. Tunas shows a card on iPhone until it runs from the Home Screen. Safari and the Home Screen app keep separate data, so tap **Copy my data** in Safari, then **Paste my data** in the Home Screen app (on its first screen, or Settings → Backup) to bring everything across. Nothing leaves the phone.
+
 > **Moved from `giyuuln.github.io/tunas-routine`?** Each web address keeps its own storage, so your data doesn't follow by itself. Open the old address, tap **Download backup** on the banner, then open tunas.amkaz.dev, tap **I have a Tunas backup** and pick the file.
 
 ## Make it yours
