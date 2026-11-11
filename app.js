@@ -1393,11 +1393,43 @@ let nudgeHTML = "";
 function renderNudge() {
   const el = $("nudge");
   const wc = !OLD_HOME && typeof woNudgeHTML === "function" ? woNudgeHTML() : "";
-  const html = OLD_HOME ? moveHTML() : wc ? wc : !needsBackup() ? "" : `<div class="nd-top"><div class="nd-ico">${I.warn}</div><div><b id="nudgeT">${T("nudgeTitle")}</b><span>${T("nudgeSub", backupAge())}</span></div></div>
+  const ios = OLD_HOME || wc ? "" : iosHTML();
+  const html = OLD_HOME ? moveHTML() : wc ? wc : ios ? ios : !needsBackup() ? "" : `<div class="nd-top"><div class="nd-ico">${I.warn}</div><div><b id="nudgeT">${T("nudgeTitle")}</b><span>${T("nudgeSub", backupAge())}</span></div></div>
     <div class="row"><button class="btn small" type="button" data-nudge="save">${T("downloadBackup")}</button><button class="btn ghost small" type="button" data-nudge="later">${T("nudgeLater")}</button></div>`;
   if (!html) { el.hidden = true; el.innerHTML = nudgeHTML = ""; return; }
   if (nudgeHTML !== html) el.innerHTML = nudgeHTML = html; // don't redraw (and lose focus) on the minute refresh
   el.hidden = false;
+}
+/* iPhone: in a Safari tab (or an app's built-in browser) iOS can clear a site's saved data after about a week without
+   a visit, and in-app browsers may not keep it at all. Tunas on the Home Screen keeps its data. The Home Screen app has its
+   own storage, separate from Safari, so the card also carries the data across: Copy my data puts the backup on the
+   clipboard here, and Paste my data in the Home Screen app (welcome screen or Settings → Backup) restores it.
+   Nothing leaves the phone. store.iosSnooze holds "Not now" for 3 days. */
+const UA = navigator.userAgent || "";
+const IOS = /iP(hone|ad|od)/.test(UA) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const STANDALONE = navigator.standalone === true || (window.matchMedia && matchMedia("(display-mode: standalone)").matches);
+const IN_APP = IOS && !/Safari\//.test(UA); // Instagram, Facebook and similar built-in browsers leave "Safari/" out
+const IOS_SNOOZE = 3;
+function iosHTML() {
+  if (!IOS || STANDALONE || !store.welcomed || (store.iosSnooze && daysAgo(store.iosSnooze) < IOS_SNOOZE)) return "";
+  return `<div class="nd-top"><div class="nd-ico">${I.warn}</div><div><b id="nudgeT">${T("iosTitle")}</b><span>${T(IN_APP ? "iosSubApp" : "iosSub")}</span></div></div>
+    <ol class="nd-steps">${T(IN_APP ? "iosStepsApp" : "iosSteps").map(x => `<li>${x}</li>`).join("")}</ol>
+    <div class="row"><button class="btn small" type="button" data-nudge="copy">${T("copyData")}</button><button class="btn ghost small" type="button" data-nudge="iosLater">${T("nudgeLater")}</button></div>`;
+}
+// The whole backup as text on the clipboard. It stays on this phone, like a backup file.
+function copyData() {
+  const txt = JSON.stringify(backupData()), done = () => { sfx("ding"); toast(T(IOS && !STANDALONE ? "copiedDataIOS" : "copiedData"), "check", 6000); };
+  try { (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(done).catch(() => toast(T("copyDataFail"), "x", 5000)); }
+  catch (e) { toast(T("copyDataFail"), "x", 5000); }
+}
+function pasteData() {
+  try { (navigator.clipboard && navigator.clipboard.readText ? navigator.clipboard.readText() : Promise.reject())
+    .then(t => { t = String(t || "").trim(); if (!t) return toast(T("pasteEmpty"), "x", 5000);
+      let b = null; try { b = JSON.parse(t); } catch (e) {}
+      if (b && b.tunas === "enc-backup") return openLocked(b);
+      restoreBackupText(t); })
+    .catch(() => toast(T("pasteFail"), "x", 6000)); }
+  catch (e) { toast(T("pasteFail"), "x", 6000); }
 }
 function askPersist() { try { const s = navigator.storage; if (s && s.persist) s.persisted().then(p => p || s.persist()).catch(() => {}); } catch (e) {} }
 const backupData = () => ({ app: "tunas", type: "backup", savedAt: new Date().toISOString(), data: store, routine: RAW_IS_DEFAULT ? null : RAW });
@@ -1495,7 +1527,8 @@ async function unlockSubmit() {
 $("nudge").addEventListener("click", e => {
   const b = e.target.closest("[data-nudge]"); if (!b) return;
   if (b.dataset.nudge === "save") return void saveBackup();
-  if (b.dataset.nudge === "moveLater") store.moveSnooze = Date.now(); else store.backupSnooze = Date.now();
+  if (b.dataset.nudge === "copy") return void copyData();
+  if (b.dataset.nudge === "iosLater") store.iosSnooze = Date.now(); else if (b.dataset.nudge === "moveLater") store.moveSnooze = Date.now(); else store.backupSnooze = Date.now();
   save(); sfx("undo"); renderNudge();
 });
 
@@ -1517,7 +1550,9 @@ function renderSettings(keep) {
     backup: { ico: "down", t: T("backup"), html: () => `<div class="set-group"><p class="bk-last${due ? " due" : ""}">${T("lastBackup", bAge)}</p><p>${T("backupHelp")}</p><p>${T("lockHelp")}</p>
       <div class="row"><button class="btn small" type="button" data-act="backup">${T("downloadBackup")}</button>
         <button class="btn ghost small" type="button" data-act="lockBackup">${T("downloadLocked")}</button>
-        <button class="btn ghost small danger-ghost" type="button" data-act="restore">${T("restoreBackup")}</button></div></div>` },
+        <button class="btn ghost small danger-ghost" type="button" data-act="restore">${T("restoreBackup")}</button></div>
+      <p>${T(IOS ? "copyHelpIOS" : "copyHelp")}</p>
+      <div class="row"><button class="btn ghost small" type="button" data-act="copyData">${T("copyData")}</button><button class="btn ghost small" type="button" data-act="pasteData">${T("pasteData")}</button></div></div>` },
     share: { ico: "share", t: T("share"), html: () => `<div class="set-group"><p>${T("shareHelp")}</p><div class="row"><button class="btn small" type="button" data-act="share">${T("shareBtn")}</button></div></div>` },
     errlog: { ico: "warn", t: T("errLog"), html: () => `<div class="set-group"><p>${T("errLogHelp")}</p>${errLogHTML()}</div>` },
     assistant: { ico: "sprout", t: T("asName"), html: () => typeof asstSettingsHTML === "function" ? asstSettingsHTML() : "" },
@@ -1723,6 +1758,8 @@ function settingsAction(act, el) {
   if (act === "backup") { saveBackup(); return renderSheet(true); }
   if (act === "lockBackup") return hasCrypto() ? openSheet("lock:save") : void toast(T("lockNoCrypto"), "x");
   if (act === "restore") return $("fileBackup").click();
+  if (act === "copyData") return copyData();
+  if (act === "pasteData") return pasteData();
   if (act === "sound") { toggleSound(); return renderSheet(true); }
 }
 $("sheet").addEventListener("click", e => { if (sheetId === "packs" || sheetId === "wosetup" || sheetId === "skinsetup") { const wo = e.target.closest("[data-wo]"); if (wo) { woToggle(PK.fit, wo); return renderSheet(true); }
@@ -2073,12 +2110,15 @@ function renderWelcome() {
   const el = $("welcome");
   if (WEL.step === 1) {
     el.innerHTML = `<div class="w-in"><div class="mascot cheer" id="wMascot">${mascotSVG()}</div><h2 class="green">${T("wHi")}</h2><p>${T("wSub")}</p>
+      ${IOS && STANDALONE ? `<div class="w-ios"><span>${T("wPasteIOS")}</span><button class="btn small" type="button" data-wpaste>${T("pasteData")}</button></div>` : ""}
       ${segLang("wLang")}
       <div class="w-label">${T("wTheme")}</div>${themePicker()}
       <label class="w-label" for="wName">${T("wNameQ")}</label><input class="field w-name" id="wName" value="${esc(WEL.name)}" placeholder="${T("namePh")}" maxlength="30" autocomplete="given-name">
       <button class="btn" type="button" id="wNext">${T("next")}</button>
-      <div class="w-links one"><button class="linkish" type="button" id="wBackup">${T("wHaveBackup")}</button></div></div>`;
+      <div class="w-links"><button class="linkish" type="button" id="wBackup">${T("wHaveBackup")}</button><button class="linkish" type="button" id="wPaste">${T("pasteData")}</button></div>
+</div>`;
     $("wBackup").onclick = () => $("fileBackup").click();
+    el.querySelectorAll("#wPaste, [data-wpaste]").forEach(b => b.onclick = pasteData);
     $("wName").addEventListener("input", e => { WEL.name = e.target.value; });
     $("wName").addEventListener("keydown", e => { if (e.key === "Enter") $("wNext").click(); });
     $("wNext").onclick = () => { WEL.step = 2; renderWelcome(); };
