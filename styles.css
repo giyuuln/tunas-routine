@@ -1308,3 +1308,23 @@ p.wo-say{display:block}
 .assist .row{display:flex;flex-wrap:wrap;gap:8px}
 .as-rough{align-self:flex-start;padding:0;min-height:32px;font-size:13.5px}
 .as-more{margin:-4px 0 0;font-size:13px;font-weight:800;color:var(--muted)}
+
+/* Start date, habit medals, seasonal finds */
+.since{display:flex;align-items:center;gap:8px;margin:12px 0 0;padding-top:10px;border-top:2px dashed var(--line);font-size:13px;font-weight:800;color:var(--muted)}
+.since .ico{width:18px;height:18px;fill:var(--green);flex:none}
+.medal-ico{width:18px;height:18px;flex:none;vertical-align:-3px;margin-right:4px}
+.hs-t b .medal-ico{width:16px;height:16px}
+.mast{display:flex;align-items:center;gap:12px;margin-top:12px;padding:12px;border-radius:16px;border:2px solid var(--line);background:var(--soft)}
+.mast>.medal-ico{width:40px;height:40px;margin:0}
+.mast.none>.medal-ico{filter:grayscale(1);opacity:.45}
+.mast-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted)}
+.mast-t b{color:var(--ink);font-size:14.5px;font-weight:900}
+.mast-t .bar{height:8px} .mast-t .bar i::after{display:none}
+.mast-art{display:grid;place-items:center;margin:0 auto 6px}
+.mast-art .medal-ico{width:110px;height:110px;margin:0}
+@media (prefers-reduced-motion:no-preference){.mast-art .medal-ico{animation:mastPop .6s cubic-bezier(.3,1.6,.5,1) both}}
+@keyframes mastPop{from{transform:scale(.3) rotate(-20deg);opacity:0}to{transform:none;opacity:1}}
+.f-season{display:flex;gap:8px;align-items:flex-start;margin:8px 0;font-size:13px;font-weight:700;color:var(--sky-d)}
+.f-season svg{width:16px;height:16px;fill:currentColor;flex:none;margin-top:1px}
+.fcell.lock.now{border-style:dashed;border-color:var(--sky)}
+.fcell.lock.now small{color:var(--sky-d)}
