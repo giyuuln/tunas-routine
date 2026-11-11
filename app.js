@@ -2563,13 +2563,16 @@ function checkRecap() {
 
 /* ================= Weekly summary ================= */
 // How a week (Monday to Sunday) went: done %, best and most-missed habit, workouts and XP. Rest days don't count against you.
-function weekSummary(mon) {
-  const pr = computePRs(), today = dkey(routineDate()), seen = {}, got = {};
+// The first day with any tick. Days before someone started using Tunas were never theirs to miss.
+function firstDay() { let f = ""; for (const k in store.days) if ((!f || k < f) && Object.values(store.days[k] || {}).some(Boolean)) f = k; return f; }
+// pastOnly leaves today out, for tips while today is still going.
+function weekSummary(mon, pastOnly) {
+  const pr = computePRs(), today = dkey(routineDate()), start = firstDay(), seen = {}, got = {};
   let done = 0, total = 0, workouts = 0, xp = 0, active = 0;
-  for (let i = 0; i < 7; i++) { const d = new Date(mon); d.setDate(d.getDate() + i); const k = dkey(d); if (k > today) break;
+  for (let i = 0; i < 7; i++) { const d = new Date(mon); d.setDate(d.getDate() + i); const k = dkey(d); if (k > today || (pastOnly && k === today)) break;
     const dn = store.days[k] || {}; xp += dayXP(k, pr.byDay);
     if (Object.values(dn).some(Boolean)) active++; if (dn["wo-done"]) workouts++;
-    if (isRest(d)) continue;
+    if (isRest(d) || !start || k < start) continue;
     itemsFor(d).forEach(id => { total++; if (dn[id]) done++; if (id === "wo-done") return; seen[id] = (seen[id] || 0) + 1; if (dn[id]) got[id] = (got[id] || 0) + 1; }); }
   const wk = store.weeks[dkey(mon)] || {}, wkN = Object.values(wk).filter(Boolean).length; xp += wkN * XP.weekly; if (wkN) active++;
   // The focus-hour habit has a different title each day, so the week calls it by its general name. Habits removed

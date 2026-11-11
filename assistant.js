@@ -1,5 +1,5 @@
 /* Tunas Routine — Tunas the assistant: one card on Today that changes with your day. Rules only, all on the phone.
-   - Morning plan (until noon): how big today is, the ★ quests, today's workout, and what's first.
+   - Morning plan (until noon): how big today is, the ★ habits, today's workout, and what's first.
    - Plan for today (the rest of the day): Now / Next / Later, each with what's left and a button to start it.
    - Rough day? (after 2pm, when you're behind): say why (home late, tired, rain, busy) and Tunas shrinks today to the
      must-dos: the ★ habits left, then just enough to reach 80% and keep the streak. A workout reason also sets up its
@@ -54,11 +54,13 @@ const asGo = (node, label, cls) => `<button class="btn small${cls ? " " + cls : 
 
 function amCard(d, S) {
   const nodes = nodesFor(d), timed = nodes.filter(n => n.from != null && n.kind !== "weekly"), mins = nowMins();
-  const first = timed.find(n => !nodeState(n, d).cleared && n.to > mins) || timed.find(n => !nodeState(n, d).cleared);
+  // Same pick as the path below, so the card and the little Tunas on the path point at the same level.
+  const tg = pathTarget(d, mins, nodes), first = tg && tg.kind !== "weekly" ? tg : timed.find(n => !nodeState(n, d).cleared);
+  const late = first && first.to != null && mins >= first.to;
   const W = WORKOUTS[d.getDay()] && CFG.showWorkouts !== false ? WORKOUTS[d.getDay()] : null;
   const lines = [asLine("📋", T("asAmSize", S.totalToday, timed.length, S.questTotal)),
     asLine("💪", W ? T("asAmWo", esc(W.name), W.from != null ? fmtClock(W.from) : "") : T("asAmNoWo")),
-    first ? asLine("⏰", T("asAmFirst", esc(first.title), first.from != null ? fmtClock(first.from) : "")) : "",
+    first ? asLine("⏰", late ? T("asAmFirstLate", esc(first.title)) : T("asAmFirst", esc(first.title), first.from != null ? fmtClock(first.from) : "")) : "",
     S.streak ? asLine("🔥", T("asAmStreak", S.streak)) : ""].join("");
   return asHead("☀️", T("asAmT", firstName()), "", "am") + `<ul class="as-list">${lines}</ul>
     <div class="row">${first ? asGo(first.id, T("asStart", esc(first.title))) : ""}<button class="btn ghost small" type="button" data-as="away:am">${T("asGotIt")}</button></div>`
@@ -89,7 +91,7 @@ function pmCard(d, S) {
   const tonight = left.flatMap(n => n.b.items.filter(i => shown(i, d) && !(store.days[dkey(d)] || {})[i.id]).map(i => esc(itemTitle(i, d)))).slice(0, 3);
   const tm1 = new Date(d); tm1.setDate(tm1.getDate() + 1); const TW = WORKOUTS[tm1.getDay()] && CFG.showWorkouts !== false ? WORKOUTS[tm1.getDay()] : null;
   const firstT = nodesFor(tm1).find(n => n.from != null && n.kind === "block");
-  const ws = weekSummary(keyToDate(wkey(d))), pct = S.totalToday ? Math.round(100 * S.doneToday / S.totalToday) : 0;
+  const ws = weekSummary(keyToDate(wkey(d)), true), pct = S.totalToday ? Math.round(100 * S.doneToday / S.totalToday) : 0;
   const lines = [asLine(pct >= 80 ? "🌟" : "📋", T("asPmDone", S.doneToday, S.totalToday, S.todayXP, S.streak)),
     tonight.length ? asLine("🌙", T("asPmLeft", tonight.join(", "))) : asLine("✅", T("asPmNoLeft")),
     asLine("➡️", TW ? T("asPmWo", esc(TW.name), TW.from != null ? fmtClock(TW.from) : "") : firstT ? T("asPmFirst", esc(firstT.title), fmtClock(firstT.from)) : T("asPmRest")),
