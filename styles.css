@@ -905,6 +905,40 @@ a:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-vis
 .fcell .b-new{position:absolute;top:-8px;left:auto;right:-4px;font-style:normal}
 .f-empty{display:flex;align-items:center;gap:10px;margin:0;padding:12px;border:2px dashed var(--line);border-radius:16px;font-size:14px;color:var(--muted)}
 .f-empty svg{flex:none;width:28px;height:28px;fill:var(--gold)}
+/* Find upgrade: glow tiers +1 to +5 */
+.fcell.g1,.up-card.g1{--gl:3px}.fcell.g2,.up-card.g2{--gl:6px}.fcell.g3,.up-card.g3{--gl:9px}.fcell.g4,.up-card.g4{--gl:13px}.fcell.g5,.up-card.g5{--gl:18px}
+.fcell[class*=" g"],.up-card[class*=" g"]{border-color:var(--gold);box-shadow:0 3px 0 var(--gold-d),0 0 var(--gl) var(--gold)}
+.fcell.sel{outline:3px solid var(--green);outline-offset:2px}
+.f-lv{position:absolute;top:-9px;left:-5px;z-index:3;pointer-events:none;font-style:normal;font-size:11px;font-weight:900;padding:1px 6px;border-radius:99px;background:var(--gold);color:var(--on-gold);border:2px solid var(--gold-d)}
+.fc-hit{position:absolute;inset:0;z-index:2;width:100%;border:0;padding:0;background:transparent;border-radius:14px;cursor:pointer}
+.fc-hit:focus-visible{outline:3px solid var(--green-ink);outline-offset:2px}
+.f-up{display:flex;align-items:center;gap:8px;margin:8px 0 0;font-size:13.5px;font-weight:700;color:var(--muted)}
+.f-up svg{flex:none;width:20px;height:20px;fill:var(--gold)} .f-up b{color:var(--gold-ink);font-weight:900}
+.upbox{position:relative;margin:12px 0 0;padding:18px 14px 14px;border:2px solid var(--gold);border-radius:20px;background:var(--gold-soft);display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;scroll-margin:80px}
+.upbox h4{margin:0;font-size:17px;font-weight:900}
+.up-x{position:absolute;top:8px;right:8px;width:36px;height:36px;border:0;border-radius:50%;background:transparent;display:grid;place-items:center;cursor:pointer}
+.up-x svg{width:18px;height:18px;fill:var(--muted)}
+.up-card{position:relative;width:84px;height:84px;border-radius:22px;background:var(--card);border:3px solid var(--line);display:grid;place-items:center}
+.up-card .find-art{width:60px;height:60px;display:grid;place-items:center} .up-card .find-art svg{width:100%;height:100%}
+.up-card.big{width:120px;height:120px;margin:0 auto 10px} .up-card.big .find-art{width:88px;height:88px}
+.up-card .f-lv{font-size:13px;top:-10px;left:-8px}
+.up-odds{display:flex;align-items:baseline;justify-content:center;gap:4px 10px;flex-wrap:wrap}
+.up-odds b{font-weight:900} .up-pct{font-family:var(--display);font-size:30px;font-weight:700;color:var(--green-ink);line-height:1}
+.up-odds small{width:100%;font-size:12.5px;font-weight:800;color:var(--green-ink)}
+.up-cost{list-style:none;margin:0;padding:0;display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+.up-cost li{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:12px;background:var(--card);border:2px solid var(--line);font-size:12.5px;font-weight:800}
+.up-cost svg{flex:none;width:20px;height:20px;fill:var(--gold)} .up-cost li.no{color:var(--muted);border-style:dashed}
+.up-cost li.ok{border-color:var(--green)}
+.upbox .btn{width:100%}
+.up-why{margin:0;font-size:12.5px;font-weight:700;color:var(--muted)}
+.upbox.rolling .up-card{animation:upShake .45s ease-in-out infinite,upGlow 1.5s ease-in forwards}
+@keyframes upShake{0%,100%{transform:rotate(0)}25%{transform:rotate(-7deg) translateX(-2px)}75%{transform:rotate(7deg) translateX(2px)}}
+@keyframes upGlow{from{box-shadow:0 0 0 0 var(--gold)}to{box-shadow:0 0 34px 10px var(--gold)}}
+.upbox.miss .up-card{animation:upMiss .45s ease-out}
+@keyframes upMiss{50%{transform:scale(.9)}}
+.fcell.g5 .find-art,.up-card.g5 .find-art{animation:upPulse 2.4s ease-in-out infinite}
+@keyframes upPulse{50%{filter:drop-shadow(0 0 6px var(--gold))}}
+@media (prefers-reduced-motion: reduce){.upbox.rolling .up-card,.upbox.miss .up-card,.fcell.g5 .find-art,.up-card.g5 .find-art{animation:none}}
 .fsets{display:flex;flex-direction:column;gap:12px;margin-top:12px}
 .fset{border:2px solid var(--line);border-radius:18px;padding:10px 12px 8px;background:var(--soft)}
 .fset.done{border-color:var(--gold);background:var(--gold-soft)}

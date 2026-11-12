@@ -105,7 +105,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.11.12e";
+const APP_VERSION = "2026.11.12f";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -2929,12 +2929,13 @@ function findsHTML() {
   const cell = x => { const n = findCount(f, x.id);
     const sz = x.m ? (inSeason(x) ? T("seasonNow") : seasonName(x)) : "";
     if (!n) return `<li class="fcell lock r${x.r}${x.m && inSeason(x) ? " now" : ""}" aria-label="${T("findLocked")} · ${rarityName(x.r)}${sz ? " · " + sz : ""}"><span class="find-art">${findArt(x)}</span><b aria-hidden="true">? ? ?</b><small aria-hidden="true">${sz || rarityName(x.r)}</small></li>`;
-    const sh = n >= SHINY_AT, label = `${findName(x.id)} · ${rarityName(x.r)}${sh ? " · " + T("shinyTag") : ""} · ×${n}`;
-    return `<li class="fcell r${x.r}${sh ? " shiny" : ""}" aria-label="${esc(label)}"><span class="find-art">${findArt(x)}${sh ? SPARKS : ""}</span><b aria-hidden="true">${findName(x.id)}</b><small aria-hidden="true">${rarityName(x.r)}${n > 1 ? ` · ×${n}` : ""}</small>${f.log[today] === x.id ? `<i class="b-new" aria-hidden="true">${T("newBadge")}</i>` : ""}</li>`; };
+    const sh = n >= SHINY_AT, lv = upLv(x.id), label = `${findName(x.id)}${lv ? " +" + lv : ""} · ${rarityName(x.r)}${sh ? " · " + T("shinyTag") : ""} · ×${n}`;
+    return `<li class="fcell r${x.r}${sh ? " shiny" : ""}${lv ? " g" + lv : ""}${upSel === x.id ? " sel" : ""}">${lv ? `<i class="f-lv" aria-hidden="true">+${lv}</i>` : ""}<button class="fc-hit" type="button" data-up="${x.id}" aria-label="${esc(label)} · ${T("upOpenA")}"></button><span class="find-art">${findArt(x)}${sh ? SPARKS : ""}</span><b aria-hidden="true">${findName(x.id)}</b><small aria-hidden="true">${rarityName(x.r)}${n > 1 ? ` · ×${n}` : ""}</small>${f.log[today] === x.id ? `<i class="b-new" aria-hidden="true">${T("newBadge")}</i>` : ""}</li>`; };
   return `<section class="me-trophy me-finds" aria-labelledby="findsT"><div class="me-th"><h3 id="findsT">${T("findsTitle")}</h3><span>${owned.length} / ${FINDS.length}</span></div>
     <div class="bar"><i style="${fillPct(100 * owned.length / FINDS.length)}"></i></div>
     ${owned.length ? (owned.length < FINDS.length ? `<p class="f-pity">${I.chest}<span>${T("findsPity", pity)}</span></p>` : "")
       : `<p class="f-empty">${I.chest}<span>${T("findsEmpty")}</span></p>`}
+    ${owned.length ? `<p class="f-up">${I.star}<span>${T("upStars", starsLeft())}</span></p>${upPanelHTML()}` : ""}
     ${owned.length ? `<p class="f-shiny"><i aria-hidden="true">${I.spark}</i><span><b>${T("findsShiny", shinyN, FINDS.length)}</b> ${shinyN === FINDS.length ? T("findsShinyAll") : T("findsShinyHelp", SHINY_AT)}</span></p>` : ""}
     ${FINDS.filter(x => x.m && inSeason(x)).map(x => `<p class="f-season">${I.spark}<span>${findCount(f, x.id) ? T("seasonGot", findName(x.id)) : T("seasonLine", seasonName(x))}</span></p>`).join("")}
     <div class="fsets">${SETS.map(st => { const n = setHave(st, f), all = n === st.ids.length, w = WEAR.find(x => x.id === st.wear);
@@ -2942,6 +2943,64 @@ function findsHTML() {
         <ul class="fgrid">${st.ids.map(id => cell(FINDS.find(x => x.id === id))).join("")}</ul>
         <p class="fs-rew"><span class="find-art">${wearArt(w)}</span><span>${all ? T("setRewardGot", wearName(w.id)) : T("setReward", wearName(w.id))}</span></p></section>`; }).join("")}</div></section>`;
 }
+
+/* ================= Find upgrade ================= */
+// Spend a spare copy of a find plus Stars to try to raise it a glow tier (+1 to +5). The chance is shown before every
+// try. A failed try never lowers or removes anything: it uses the spare and the Stars, and adds +10% to that find's next
+// try, so success always comes within a few tries. Spares are copies beyond the first; spent ones are counted apart, so
+// a shiny find stays shiny. Stars to spend = Stars earned on every day so far (3 per finished section, as on the path)
+// minus Stars already spent, and never below 0. Saved as store.up = { lv: { id: tier }, used: { id: spares spent },
+// pity: { id: extra % }, spent: Stars spent }. Old data without it has nothing upgraded.
+const UP_MAX = 5, UP_ODDS = [90, 75, 60, 45, 35], UP_STARS = [10, 20, 30, 40, 50], UP_PITY = 10;
+function upState() {
+  const u = store.up && typeof store.up === "object" && !Array.isArray(store.up) ? store.up : (store.up = {});
+  ["lv", "used", "pity"].forEach(k => { if (!u[k] || typeof u[k] !== "object" || Array.isArray(u[k])) u[k] = {};
+    Object.keys(u[k]).forEach(id => { const v = Math.floor(+u[k][id]); if (!(v > 0) || !FINDS.some(x => x.id === id)) delete u[k][id]; else u[k][id] = Math.min(v, k === "lv" ? UP_MAX : k === "pity" ? 100 : 9999); }); });
+  u.spent = Math.max(0, Math.floor(+u.spent) || 0); return u;
+}
+const upLv = id => upState().lv[id] || 0;
+const upSpare = (id, f = findsState()) => Math.max(0, findCount(f, id) - 1 - (upState().used[id] || 0));
+function starsEarned() { let s = 0; Object.keys(store.days).forEach(k => { const d = keyToDate(k); nodesFor(d).forEach(n => { if (n.kind !== "weekly") s += starsFor(nodeState(n, d)); }); }); return s; }
+const starsLeft = () => Math.max(0, starsEarned() - upState().spent);
+const upChance = id => { const n = upLv(id); return n >= UP_MAX ? 0 : Math.min(100, UP_ODDS[n] + (upState().pity[id] || 0)); };
+let upSel = "", upBusy = false;
+const upCard = (x, n, big) => `<div class="up-card r${x.r}${n ? " g" + n : ""}${big ? " big" : ""}" aria-hidden="true"><span class="find-art">${findArt(x)}</span>${n ? `<i class="f-lv">+${n}</i>` : ""}</div>`;
+function upPanelHTML() {
+  const f = findsState(), x = FINDS.find(v => v.id === upSel); if (!x || !findCount(f, x.id)) return "";
+  const n = upLv(x.id), u = upState(), spare = upSpare(x.id, f), stars = starsLeft(), cost = UP_STARS[n] || 0, ch = upChance(x.id), pity = u.pity[x.id] || 0;
+  const okSpare = spare >= 1, okStars = stars >= cost;
+  return `<section class="upbox" id="upBox" aria-labelledby="upT"><button class="up-x" type="button" data-up-close aria-label="${T("close")}">${I.x}</button>
+    ${upCard(x, n)}<h4 id="upT">${findName(x.id)}${n ? ` +${n}` : ""}</h4>
+    ${n >= UP_MAX ? `<p class="up-why">${T("upMax")}</p>` : `<div class="up-odds"><b>${T("upTo", n + 1)}</b><span class="up-pct">${ch}%</span>${pity ? `<small>${T("upPity", pity)}</small>` : ""}</div>
+    <ul class="up-cost"><li class="${okSpare ? "ok" : "no"}">${findArt(x)}<span>${T("upCostDup", spare)}</span></li><li class="${okStars ? "ok" : "no"}">${I.star}<span>${T("upCostStars", cost, stars)}</span></li></ul>
+    <button class="btn" type="button" data-up-try ${okSpare && okStars ? "" : "disabled"}>${T("upTry", ch)}</button>
+    <p class="up-why">${!okSpare ? T("upNeedDup") : !okStars ? T("upNeedStars") : T("upSafe")}</p>`}</section>`;
+}
+function tryUpgrade() {
+  const id = upSel, u = upState(), f = findsState(), n = upLv(id), x = FINDS.find(v => v.id === id);
+  if (upBusy || !x || n >= UP_MAX || upSpare(id, f) < 1 || starsLeft() < UP_STARS[n]) return;
+  const ch = upChance(id), win = Math.random() * 100 < ch;
+  u.used[id] = (u.used[id] || 0) + 1; u.spent += UP_STARS[n];
+  if (win) { u.lv[id] = n + 1; delete u.pity[id]; } else u.pity[id] = Math.min(100, (u.pity[id] || 0) + UP_PITY);
+  save(); upBusy = true;
+  // Suspense: the card shakes while its glow builds, three rising ticks, then the reveal.
+  const box = $("upBox"), calm = reduced(); if (box) { box.classList.add("rolling"); const b = box.querySelector("[data-up-try]"); if (b) b.disabled = true; }
+  if (!calm) [0, 1, 2].forEach(i => setTimeout(() => sfx("star" + (i + 1)), 350 + i * 380));
+  buzz(10);
+  setTimeout(() => {
+    upBusy = false; if (sheetId === "me") renderSheet(true);
+    if (win) queueCele({ title: T("upWinT", n + 1), sub: T("upWinSub", findName(id), n + 1), color: "green", sound: "level", art: upCard(x, n + 1, true), tiles: [] });
+    else { sfx("undo"); buzz(20); toast(T("upFail", findName(id), upChance(id)), "heart", 3800); const b = $("upBox"); if (b && !calm) b.classList.add("miss"); }
+  }, calm ? 300 : 1500);
+}
+$("shBody").addEventListener("click", e => {
+  if (sheetId !== "me") return;
+  const o = e.target.closest("[data-up]");
+  if (o) { audio(); upSel = upSel === o.dataset.up ? "" : o.dataset.up; renderSheet(true); sfx("pop");
+    const b = $("upBox"); if (b) { b.scrollIntoView({ block: "nearest", behavior: reduced() ? "auto" : "smooth" }); (b.querySelector("[data-up-try]:not([disabled])") || b.querySelector("[data-up-close]")).focus({ preventScroll: true }); } return; }
+  if (e.target.closest("[data-up-close]")) { upSel = ""; renderSheet(true); return; }
+  if (e.target.closest("[data-up-try]")) { audio(); tryUpgrade(); }
+});
 
 /* ================= Dress up Tunas ================= */
 // Chest finds unlock small outfits Tunas can wear everywhere (home, path, celebrations, Me). One at a time, for fun only:
