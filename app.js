@@ -105,7 +105,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.11.12d";
+const APP_VERSION = "2026.11.12e";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -2852,6 +2852,19 @@ const inSeason = (x, d = routineDate()) => !x.m || x.m.includes(d.getMonth());
 // "Nov – Jan" for a seasonal find.
 const seasonName = x => { const f = { month: "short" }, mo = k => new Date(2024, k, 1).toLocaleDateString(locale(), f); return `${mo(x.m[0])} – ${mo(x.m[x.m.length - 1])}`; };
 const FIND_ODDS = [0.70, 0.25, 0.05], RARE_PITY = 5, EPIC_PITY = 15, FIRST_FIND = "pandan", SHINY_AT = 3;
+// Collection sets: every find belongs to exactly one themed set. Owning every find in a set unlocks that set's outfit
+// (see Dress up Tunas). Like the other outfits it comes from the collection, so nothing new is saved.
+const SETS = [
+  { id: "garden", ids: ["pandan", "clover", "pucuk", "melur", "kertas", "raya", "lucky"], wear: "flowercrown" },
+  { id: "forest", ids: ["rubber", "feather", "mushroom", "gugur", "enggang", "rafflesia"], wear: "mushcap" },
+  { id: "sea", ids: ["kerang", "pebble", "dew", "pearl", "moonshell"], wear: "shells" },
+  { id: "night", ids: ["kelip", "crystal", "star"], wear: "nightcap" },
+  { id: "treasure", ids: ["goldleaf", "rambutan", "goldsprout"], wear: "medal" },
+  { id: "seasons", ids: ["umbrella", "wau", "durian", "lantern"], wear: "wauclip" },
+];
+const setName = id => (T("sets") || {})[id] || id;
+const setHave = (st, f = findsState()) => st.ids.filter(id => findCount(f, id)).length;
+const setDone = (id, f = findsState()) => { const st = SETS.find(x => x.id === id); return !!st && setHave(st, f) === st.ids.length; };
 // Small chunky art in the app's style: a dark outline (c[1]), a fill (c[0]) and a white shine.
 const FIND_ART = {
   leaf: (f, d) => `<path d="M24 5c-11 8-15 20-12 31 1.5 5 6 7 12 7s10.5-2 12-7c3-11-1-23-12-31z" fill="${f}" stroke="${d}" stroke-width="3" stroke-linejoin="round"/><path d="M24 15v26M24 26l-6-5M24 33l6-5" stroke="${d}" stroke-width="2.5" stroke-linecap="round" fill="none"/>`,
@@ -2924,7 +2937,10 @@ function findsHTML() {
       : `<p class="f-empty">${I.chest}<span>${T("findsEmpty")}</span></p>`}
     ${owned.length ? `<p class="f-shiny"><i aria-hidden="true">${I.spark}</i><span><b>${T("findsShiny", shinyN, FINDS.length)}</b> ${shinyN === FINDS.length ? T("findsShinyAll") : T("findsShinyHelp", SHINY_AT)}</span></p>` : ""}
     ${FINDS.filter(x => x.m && inSeason(x)).map(x => `<p class="f-season">${I.spark}<span>${findCount(f, x.id) ? T("seasonGot", findName(x.id)) : T("seasonLine", seasonName(x))}</span></p>`).join("")}
-    <ul class="fgrid">${FINDS.map(cell).join("")}</ul></section>`;
+    <div class="fsets">${SETS.map(st => { const n = setHave(st, f), all = n === st.ids.length, w = WEAR.find(x => x.id === st.wear);
+      return `<section class="fset${all ? " done" : ""}" aria-labelledby="fs-${st.id}"><div class="fs-h"><h4 id="fs-${st.id}">${setName(st.id)}</h4><span>${all ? I.check : ""}${n} / ${st.ids.length}</span></div>
+        <ul class="fgrid">${st.ids.map(id => cell(FINDS.find(x => x.id === id))).join("")}</ul>
+        <p class="fs-rew"><span class="find-art">${wearArt(w)}</span><span>${all ? T("setRewardGot", wearName(w.id)) : T("setReward", wearName(w.id))}</span></p></section>`; }).join("")}</div></section>`;
 }
 
 /* ================= Dress up Tunas ================= */
@@ -2950,15 +2966,30 @@ const WEAR = [
   { id: "starcrown", r: 2, box: "20 4 46 40", hide: "flower shades",
     svg: `<g transform="rotate(-16 42 30)"><path d="M28 36l-3-20 9 7 8-12 8 12 9-7-3 20z" fill="#ffcc33" stroke="#c48a00" stroke-width="3" stroke-linejoin="round"/><rect x="27" y="32" width="30" height="7" rx="3" fill="#ffcc33" stroke="#c48a00" stroke-width="3"/><path d="M42 20.5l1.6 3.3 3.6.5-2.6 2.5.6 3.6-3.2-1.7-3.2 1.7.6-3.6-2.6-2.5 3.6-.5z" fill="#fff6d6" stroke="#c48a00" stroke-width="1.5" stroke-linejoin="round"/><circle cx="25" cy="15" r="2.5" fill="#8ee6ff" stroke="#2a8fc0" stroke-width="1.5"/><circle cx="42" cy="10" r="2.5" fill="#ee3b45" stroke="#a51d26" stroke-width="1.5"/><circle cx="59" cy="15" r="2.5" fill="#8ee6ff" stroke="#2a8fc0" stroke-width="1.5"/><ellipse cx="33" cy="24" rx="3" ry="1.6" fill="#fff" opacity=".6" transform="rotate(-35 33 24)"/></g>` },
 ];
+// Set outfits: one per collection set, unlocked when the set is complete.
+WEAR.push(
+  { id: "flowercrown", set: "garden", box: "16 16 88 46", hide: "flower",
+    svg: `<path d="M22 53A41 41 0 0 1 98 53" fill="none" stroke="#2f7d3d" stroke-width="4" stroke-linecap="round"/>${[[-158, "#ff8fbf", "#c9407c"], [-134, "#fff", "#a9b5a3"], [-112, "#ffcc33", "#c48a00"], [-68, "#ffcc33", "#c48a00"], [-46, "#fff", "#a9b5a3"], [-22, "#ff8fbf", "#c9407c"]].map(([a, c, d]) => { const r = a * Math.PI / 180, x = (60 + 41 * Math.cos(r)).toFixed(1), y = (66 + 41 * Math.sin(r)).toFixed(1);
+      return `<g transform="translate(${x} ${y})">${[0, 72, 144, 216, 288].map(t => `<ellipse cy="-4.2" rx="3.2" ry="4.4" fill="${c}" stroke="${d}" stroke-width="1.6" transform="rotate(${t})"/>`).join("")}<circle r="2.4" fill="#ffc21a" stroke="#c48a00" stroke-width="1.4"/></g>`; }).join("")}` },
+  { id: "mushcap", set: "forest", box: "48 12 54 34", hide: "flower shades",
+    svg: `<g transform="rotate(14 76 32)"><path d="M54 38a22 17 0 0 1 44 0q-22 6-44 0z" fill="#f0604f" stroke="#b0362a" stroke-width="3" stroke-linejoin="round"/><circle cx="66" cy="27" r="3.4" fill="#fff"/><circle cx="80" cy="24" r="2.8" fill="#fff"/><circle cx="88" cy="32" r="2.4" fill="#fff"/><circle cx="73" cy="34" r="2" fill="#fff"/><ellipse cx="62" cy="25" rx="3.5" ry="2" fill="#fff" opacity=".5" transform="rotate(-30 62 25)"/></g>` },
+  { id: "shells", set: "sea", box: "20 78 80 30",
+    svg: `<path d="M26 85q34 16 68 0" fill="none" stroke="#b07444" stroke-width="2.5" stroke-linecap="round"/>${[[36, 92, "#ffb592", "#d0704a"], [48, 96.5, "#c3cdfd", "#6d7fd8"], [60, 98, "#fff4e0", "#c9a77a"], [72, 96.5, "#c3cdfd", "#6d7fd8"], [84, 92, "#ffb592", "#d0704a"]].map(([x, y, c, d]) => `<g transform="translate(${x} ${y})"><path d="M0 7-6.5-.5a6.5 5.5 0 0 1 13 0z" fill="${c}" stroke="${d}" stroke-width="2" stroke-linejoin="round"/><path d="M0 7-2.5-4M0 7V-5M0 7l2.5-11" stroke="${d}" stroke-width="1.4" fill="none"/></g>`).join("")}` },
+  { id: "nightcap", set: "night", box: "26 4 82 42", hide: "flower shades",
+    svg: `<path d="M30 40q2-20 26-25 26-5 42 3l-6 6q-16-4-30 4-14 9-18 18z" fill="#5a6fd6" stroke="#2f3d8f" stroke-width="3" stroke-linejoin="round"/><path d="M28 39q30-12 60-4l-1 7q-30-7-59 4z" fill="#fff" stroke="#b7c0e8" stroke-width="2.5" stroke-linejoin="round"/><circle cx="48" cy="26" r="1.8" fill="#ffd23f"/><circle cx="70" cy="18" r="1.5" fill="#ffd23f"/><path d="M98 10l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4-3.9-3.8 5.4-.8z" fill="#ffd23f" stroke="#c48a00" stroke-width="2" stroke-linejoin="round"/>` },
+  { id: "medal", set: "treasure", box: "40 78 40 36",
+    svg: `<path d="M47 82l9 15h8l-6-15zM73 82l-9 15h-8l6-15z" fill="#25aaf0" stroke="#13709f" stroke-width="2.5" stroke-linejoin="round"/><circle cx="60" cy="102" r="9" fill="#ffcc33" stroke="#c48a00" stroke-width="3"/><path d="M60 96.5l1.7 3.4 3.8.6-2.7 2.6.6 3.7-3.4-1.8-3.4 1.8.6-3.7-2.7-2.6 3.8-.6z" fill="#fff6d6"/>` },
+  { id: "wauclip", set: "seasons", box: "16 18 36 40", hide: "flower",
+    svg: `<g transform="rotate(-20 32 36)"><path d="M32 20l5 7-5 18-5-18z" fill="#ff8a5c" stroke="#c2461d" stroke-width="2.2" stroke-linejoin="round"/><path d="M20 28q6-3 12 1 6-4 12-1-2 5-8 4l-4-2-4 2c-6 1-8-4-8-4z" fill="#ff8a5c" stroke="#c2461d" stroke-width="2.2" stroke-linejoin="round"/><path d="M24 43q8-3 16 0-4 4-8 2-4 2-8-2z" fill="#ffd34d" stroke="#c2461d" stroke-width="2" stroke-linejoin="round"/><circle cx="32" cy="29" r="1.8" fill="#fff"/></g>` });
 function wearState() {
   const w = store.wear && typeof store.wear === "object" && !Array.isArray(store.wear) ? store.wear : (store.wear = {});
   if (typeof w.on !== "string" || !WEAR.some(x => x.id === w.on)) w.on = "";
   w.told = (Array.isArray(w.told) ? w.told : []).filter(id => WEAR.some(x => x.id === id)); return w;
 }
 const wearOwned = () => { const f = findsState(); return FINDS.filter(x => findCount(f, x.id)); };
-const wearOpen = (x, owned = wearOwned()) => x.r ? owned.some(f => f.r >= x.r) : owned.length >= x.n;
+const wearOpen = (x, owned = wearOwned()) => x.set ? SETS.find(st => st.id === x.set).ids.every(id => owned.some(f => f.id === id)) : x.r ? owned.some(f => f.r >= x.r) : owned.length >= x.n;
 const wearName = id => (T("wear") || {})[id] || id;
-const wearNeed = x => x.r ? T("wearNeedR")[x.r] : T("wearNeed", x.n);
+const wearNeed = x => x.set ? T("wearNeedSet", setName(x.set)) : x.r ? T("wearNeedR")[x.r] : T("wearNeed", x.n);
 // Tunas with today's outfit on. Falls back to plain Tunas if the outfit isn't unlocked (e.g. after restoring an older backup).
 function mascotSVG() {
   const on = WEAR.find(x => x.id === wearState().on); if (!on || !wearOpen(on)) return MASCOT;
@@ -2971,7 +3002,7 @@ const wearArt = x => `<svg viewBox="${x.box}" aria-hidden="true">${x.svg}</svg>`
 function wearNewCards() {
   const w = wearState(), owned = wearOwned(), fresh = WEAR.filter(x => wearOpen(x, owned) && !w.told.includes(x.id));
   fresh.forEach(x => w.told.push(x.id));
-  return fresh.map(x => `<div class="find wear-find"><span class="find-art">${wearArt(x)}</span><span class="find-txt"><small>${T("wearNewTag")}</small><b>${wearName(x.id)}</b><span>${T("wearNewSub")}</span></span></div>`).join("");
+  return fresh.map(x => `<div class="find wear-find"><span class="find-art">${wearArt(x)}</span><span class="find-txt"><small>${x.set ? T("setDoneTag", setName(x.set)) : T("wearNewTag")}</small><b>${wearName(x.id)}</b><span>${T("wearNewSub")}</span></span></div>`).join("");
 }
 function wearHTML() {
   const w = wearState(), owned = wearOwned(), open = WEAR.filter(x => wearOpen(x, owned)).length;
