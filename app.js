@@ -105,7 +105,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.11.10d";
+const APP_VERSION = "2026.11.12a";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -348,7 +348,15 @@ const WO_WHY = ["rain", "late", "tired"];
 // Comeback bonus rules (see Comeback bonus): 2+ quiet days in a row, then tick 3 habits on the first day back.
 const BACK_GAP = 2, BACK_TICKS = 3;
 let store = loadJSON(DATA_KEY, v => v && typeof v === "object" && v.days && typeof v.days === "object").value || { days:{}, weeks:{}, logs:{}, seen:{}, rest:{} };
-function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); backState(); planState(); woState(); if (typeof asstState === "function") asstState(); }
+/* ================= First day ================= */
+// store.join = { day: "YYYY-MM-DD", at: minutes since midnight (past 24:00 before 4am) } is saved once, when a new player
+// finishes the welcome. Only that day uses it: sections whose time ended before then don't count as missed.
+function joinState() { const j = store.join; if (j == null) return;
+  if (!j || typeof j !== "object" || !/^\d{4}-\d\d-\d\d$/.test(j.day) || !(+j.at >= 0 && +j.at < 2880)) { delete store.join; return; }
+  store.join = { day: j.day, at: Math.round(+j.at) }; }
+const beforeJoinDay = d => !!store.join && store.join.day === dkey(d);
+const beforeJoin = (n, d) => beforeJoinDay(d) && n.to != null && n.to <= store.join.at;
+function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); backState(); planState(); woState(); joinState(); if (typeof asstState === "function") asstState(); }
 normStore();
 function save() { return storeSet(DATA_KEY, JSON.stringify(store)); }
 let soundOn = true; try { soundOn = localStorage.getItem(SND_KEY) !== "off"; } catch (e) {}
@@ -371,8 +379,13 @@ const shown = (i, d) => !(i.alt && !isAltDay(d)) && !(i.hide && i.hide.includes(
 const firstName = () => esc(CFG.name || (LANG === "ms" ? "Kawan" : "Friend"));
 
 // The habits a day has under the current routine.
-function liveItems(d) { const out = []; BLOCKS.forEach(b => b.items.forEach(i => { if (shown(i,d)) out.push(i.id); })); if (WORKOUTS[d.getDay()]) out.push("wo-done"); return out; }
-function liveKeys(d) { const out = []; BLOCKS.forEach(b => b.items.forEach(i => { if (i.key && shown(i,d)) out.push(i.id); })); if (WORKOUTS[d.getDay()]) out.push("wo-done"); return out; }
+// On the day someone starts, sections (and a workout) that ended before they finished setting up are left out of the
+// day's count, so a first day that starts in the evening can still be a good day. Ticking one anyway still counts.
+const joinDone = d => (beforeJoinDay(d) ? store.days[dkey(d)] || {} : null);
+function liveItems(d) { const out = [], jd = joinDone(d); BLOCKS.forEach(b => { const skip = jd && beforeJoin(b, d); b.items.forEach(i => { if (shown(i,d) && (!skip || jd[i.id])) out.push(i.id); }); });
+  const W = WORKOUTS[d.getDay()]; if (W && !(jd && beforeJoin(W, d) && !jd["wo-done"])) out.push("wo-done"); return out; }
+function liveKeys(d) { const out = [], jd = joinDone(d); BLOCKS.forEach(b => { const skip = jd && beforeJoin(b, d); b.items.forEach(i => { if (i.key && shown(i,d) && (!skip || jd[i.id])) out.push(i.id); }); });
+  const W = WORKOUTS[d.getDay()]; if (W && !(jd && beforeJoin(W, d) && !jd["wo-done"])) out.push("wo-done"); return out; }
 // Past days keep the habits they had (see Day plans), plus any habit of today's routine that was ticked on that day later.
 function itemsFor(d) { const p = planOf(d), live = liveItems(d); if (!p) return live; const done = store.days[dkey(d)] || {}; return [...p.ids, ...live.filter(id => done[id] && !p.ids.includes(id))]; }
 function keyIds(d) { const p = planOf(d), live = liveKeys(d); if (!p) return live; const done = store.days[dkey(d)] || {}; return [...p.keys, ...live.filter(id => done[id] && !p.ids.includes(id))]; }
@@ -655,7 +668,7 @@ function contextSay() {
     return say(intro, nx ? `${T("sayStartWith", esc(itemTitle(nx, d)))}${nx.time ? " · " + esc(nx.time) : ""}` : "", "idle");
   }
   // 5. A section that already ended but still has unticked habits
-  const missed = timed.filter(n => n.kind !== "weekly" && n.to <= mins && !nodeState(n, d).cleared).slice(-1)[0];
+  const missed = timed.filter(n => n.kind !== "weekly" && n.to <= mins && !beforeJoin(n, d) && !nodeState(n, d).cleared).slice(-1)[0];
   if (missed) { const st = nodeState(missed, d); return say2(T("sayMissed", esc(missed.title), st.total - st.n), "think"); }
   // 6. Away (work / class), from the user's routine
   const away = CFG.away;
@@ -2227,6 +2240,7 @@ function welcomeDone(r) {
   r.name = String(WEL.name || "").trim().slice(0, 30) || (LANG === "ms" ? "Kawan" : "Friend");
   const err = validateRoutine(r); if (err) { toast(esc(err), "x"); return; }
   if (!saveRoutine(clampText(r))) return;
+  if (!store.join && !Object.keys(store.days).length) store.join = { day: dkey(routineDate()), at: nowMins() };
   store.welcomed = true; save(); lastS = null; prevCleared = null;
   closeWelcome(); renderGuide(); refresh(); confetti(); sfx("clear"); askPersist();
   say(T("wWelcome", firstName()), "", "cheer", 5000); jump($("mascot"));
