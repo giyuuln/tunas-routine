@@ -43,9 +43,11 @@ function mustDos(d) {
 }
 function behind(d, S) {
   const mins = nowMins(); if (mins < 14 * 60 || !S.totalToday || S.doneToday / S.totalToday >= 0.8 || isRest(d)) return false;
-  return nodesFor(d).some(n => n.kind !== "weekly" && n.to != null && n.to <= mins && !nodeState(n, d).cleared);
+  return nodesFor(d).some(n => n.kind !== "weekly" && n.to != null && n.to <= mins && !beforeJoin(n, d) && !nodeState(n, d).cleared);
 }
 
+// On the first day, a short line saying the parts of today that ended before setup don't count.
+const asJoin = d => (nodesFor(d).some(n => n.kind !== "weekly" && beforeJoin(n, d)) ? asLine("🌱", T("asJoin")) : "");
 /* ---- The four cards ---- */
 const asHead = (emo, title, sub, away) => `<div class="as-h"><span class="as-emo" aria-hidden="true">${emo}</span><div><small>${T("asName")}</small><b id="assistT">${title}</b>${sub ? `<span>${sub}</span>` : ""}</div>
   ${away ? `<button class="as-x" type="button" data-as="away:${away}" aria-label="${T("asHide")}">${I.x}</button>` : ""}</div>`;
@@ -61,20 +63,21 @@ function amCard(d, S) {
   const lines = [asLine("📋", T("asAmSize", S.totalToday, timed.length, S.questTotal)),
     asLine("💪", W ? T("asAmWo", esc(W.name), W.from != null ? fmtClock(W.from) : "") : T("asAmNoWo")),
     first ? asLine("⏰", late ? T("asAmFirstLate", esc(first.title)) : T("asAmFirst", esc(first.title), first.from != null ? fmtClock(first.from) : "")) : "",
-    S.streak ? asLine("🔥", T("asAmStreak", S.streak)) : ""].join("");
+    S.streak ? asLine("🔥", T("asAmStreak", S.streak)) : "", asJoin(d)].join("");
   return asHead("☀️", T("asAmT", firstName()), "", "am") + `<ul class="as-list">${lines}</ul>
     <div class="row">${first ? asGo(first.id, T("asStart", esc(first.title))) : ""}<button class="btn ghost small" type="button" data-as="away:am">${T("asGotIt")}</button></div>`
 }
 function planCard(d, S) {
   const mins = nowMins(), open = nodesFor(d).filter(n => n.kind !== "weekly" && n.from != null && !nodeState(n, d).cleared);
   const now = open.filter(n => n.from <= mins && mins < n.to), later = open.filter(n => n.from > mins);
-  const missed = open.filter(n => n.to <= mins);
+  const missed = open.filter(n => n.to <= mins && !beforeJoin(n, d));
   const row = (n, tag, cls) => { const st = nodeState(n, d), nx = nextOpen(n, d);
     return `<li class="as-row ${cls}"><span class="as-tag">${tag}</span><span class="as-t"><b>${esc(n.title)}</b><span>${cls === "later" ? fmtClock(n.from) : cls === "now" ? T("asUntil", fmtClock(n.to)) : T("asLate")} · ${T("asLeft", st.total - st.n)}${nx ? ` · ${esc(nx.name || itemTitle(nx, d))}` : ""}</span></span>
       <button class="as-open" type="button" data-as="go:${esc(n.id)}" aria-label="${T("asOpen", esc(n.title))}"><span class="chev" aria-hidden="true"></span></button></li>`; };
   const rows = [...now.map(n => row(n, T("asNow"), "now")), ...later.slice(0, now.length ? 1 : 2).map((n, i) => row(n, i ? T("asLater") : T("asNext"), "later")), ...missed.slice(-1).map(n => row(n, T("asMissed"), "missed"))];
   if (!rows.length) return "";
-  return asHead("🧭", T("asPlanT"), T("doneToday", S.doneToday, S.totalToday), "plan") + `<ul class="as-plan">${rows.join("")}</ul>
+  const join = asJoin(d);
+  return asHead("🧭", T("asPlanT"), T("doneToday", S.doneToday, S.totalToday), "plan") + `<ul class="as-plan">${rows.join("")}</ul>${join ? `<ul class="as-list">${join}</ul>` : ""}
     <button class="linkish as-rough" type="button" data-as="ask">${T("asRoughLink")}</button>`;
 }
 function badCard(d, S) {
@@ -95,7 +98,7 @@ function pmCard(d, S) {
   const lines = [asLine(pct >= 80 ? "🌟" : "📋", T("asPmDone", S.doneToday, S.totalToday, S.todayXP, S.streak)),
     tonight.length ? asLine("🌙", T("asPmLeft", tonight.join(", "))) : asLine("✅", T("asPmNoLeft")),
     asLine("➡️", TW ? T("asPmWo", esc(TW.name), TW.from != null ? fmtClock(TW.from) : "") : firstT ? T("asPmFirst", esc(firstT.title), fmtClock(firstT.from)) : T("asPmRest")),
-    ws.miss ? asLine("💡", T("asPmTip", esc(ws.miss.t), ws.miss.n)) : ""].join("");
+    ws.miss ? asLine("💡", T("asPmTip", esc(ws.miss.t), ws.miss.n)) : "", asJoin(d)].join("");
   const sec = left[0];
   return asHead(pct >= 80 ? "🌙" : "🫶", T(pct >= 80 ? "asPmGood" : "asPmOk", firstName()), "", "pm") + `<ul class="as-list">${lines}</ul>
     <div class="row">${sec ? asGo(sec.id, T("asFinish", esc(sec.title)), "ghost") : ""}<button class="btn ghost small" type="button" data-as="away:pm">${T("asNight")}</button></div>`;
