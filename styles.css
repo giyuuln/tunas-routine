@@ -624,6 +624,31 @@ body.sheet-top .scrim{z-index:74} body.sheet-top .sheet{z-index:75}
 #openBadges .ri{background:var(--gold-soft)} #openBadges .ri svg{fill:var(--gold-ink)}
 .prog:focus-visible,.row-link:focus-visible,.qfold summary:focus-visible{outline:3px solid var(--green-ink);outline-offset:2px}
 
+/* Starter trail: a new player's first 7 stops */
+.trail{padding:14px 16px 12px}
+.tr-h{display:flex;align-items:center;gap:12px}
+.tr-h .ri{background:var(--green-soft)} .tr-h .ri svg{fill:var(--green-ink)}
+.tr-h b{display:block;font-weight:900;font-size:15px}
+.tr-h small{font-size:13px;color:var(--muted);font-weight:800;font-variant-numeric:tabular-nums}
+.tr-stops{list-style:none;margin:14px 0 12px;padding:0;display:flex;justify-content:space-between;position:relative}
+.tr-stops::before{content:"";position:absolute;left:14px;right:14px;top:50%;height:4px;margin-top:-2px;border-radius:99px;background:var(--line)}
+.tr-stops li{position:relative}
+.tr-stops span{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:var(--card);border:3px solid var(--line);color:var(--muted);font-weight:900;font-size:13px}
+.tr-stops svg{width:16px;height:16px;fill:currentColor}
+.tr-stops .gift span{background:var(--gold-soft);border-color:var(--gold);color:var(--gold-ink)}
+.tr-stops .now span{border-color:var(--green);color:var(--green-ink);box-shadow:0 0 0 4px var(--green-soft)}
+.tr-stops .on span{background:var(--gold);border-color:var(--gold-d);color:var(--on-gold)}
+.tr-stops .pop span{animation:trPop .6s cubic-bezier(.3,1.6,.5,1) .2s backwards}
+@keyframes trPop{0%{transform:scale(.4)}100%{transform:scale(1)}}
+.tr-goal{display:flex;flex-direction:column;gap:7px}
+.tr-t{font-weight:900;font-size:14px}
+.tr-msg{margin:0;font-weight:900;font-size:14px;color:var(--green-ink)}
+.tr-gift,.tr-pause{margin:10px 0 0;font-size:13px;font-weight:800;color:var(--muted)}
+.tr-gift{display:flex;align-items:center;gap:8px}
+.tr-gift svg{flex:none;width:18px;height:18px;fill:var(--gold-ink)}
+.tr-pause{margin-top:4px;font-weight:700}
+@media (prefers-reduced-motion: reduce){.tr-stops .pop span{animation:none}}
+
 /* History and Badges sheets */
 .sh-body > .bgrid{padding:6px 0 10px}
 .set-group .tip{border:0;border-radius:14px}

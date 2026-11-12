@@ -105,7 +105,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.11.12b";
+const APP_VERSION = "2026.11.12c";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -356,7 +356,7 @@ function joinState() { const j = store.join; if (j == null) return;
   store.join = { day: j.day, at: Math.round(+j.at) }; }
 const beforeJoinDay = d => !!store.join && store.join.day === dkey(d);
 const beforeJoin = (n, d) => beforeJoinDay(d) && n.to != null && n.to <= store.join.at;
-function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); backState(); planState(); woState(); joinState(); if (typeof asstState === "function") asstState(); }
+function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); backState(); planState(); woState(); joinState(); trailState(); if (typeof asstState === "function") asstState(); }
 normStore();
 function save() { return storeSet(DATA_KEY, JSON.stringify(store)); }
 let soundOn = true; try { soundOn = localStorage.getItem(SND_KEY) !== "off"; } catch (e) {}
@@ -2240,7 +2240,7 @@ function welcomeDone(r) {
   r.name = String(WEL.name || "").trim().slice(0, 30) || (LANG === "ms" ? "Kawan" : "Friend");
   const err = validateRoutine(r); if (err) { toast(esc(err), "x"); return; }
   if (!saveRoutine(clampText(r))) return;
-  if (!store.join && !Object.keys(store.days).length) store.join = { day: dkey(routineDate()), at: nowMins() };
+  if (!store.join && !Object.keys(store.days).length) { store.join = { day: dkey(routineDate()), at: nowMins() }; store.trail = { from: store.join.day, won: [] }; }
   store.welcomed = true; save(); lastS = null; prevCleared = null;
   closeWelcome(); renderGuide(); refresh(); confetti(); sfx("clear"); askPersist();
   say(T("wWelcome", firstName()), "", "cheer", 5000); jump($("mascot"));
@@ -3024,6 +3024,64 @@ function quietBefore(k) {
 const backOn = k => !!(store.back && store.back.days && store.back.days[k]) && quietBefore(k) >= BACK_GAP;
 const backNeed = d => Math.min(BACK_TICKS, itemsFor(d).length);
 
+/* ================= Starter trail ================= */
+// A new player's first week: 7 stops with one small goal each. Only one stop can be cleared per day, so it takes 7 days
+// or more. Missing a day just pauses the trail: nothing resets and nothing is lost. Stop 4 gives a streak shield (or a
+// find when 2 shields are held), stop 7 a find that is Rare or better. A cleared stop stays cleared, like the chest.
+// Saved as store.trail = { from: day it started, won: [day each stop was cleared] }. It starts when a brand-new player
+// finishes the welcome, so old saves have no trail and nothing changes for them.
+const TRAIL_LEN = 7, TRAIL_GIFT = { 4: "shield", 7: "rare" };
+function trailState() {
+  const t = store.trail; if (t == null) return null;
+  if (!t || typeof t !== "object" || Array.isArray(t) || !/^\d{4}-\d\d-\d\d$/.test(t.from)) { delete store.trail; return null; }
+  t.won = (Array.isArray(t.won) ? t.won : []).filter(k => typeof k === "string" && /^\d{4}-\d\d-\d\d$/.test(k)).slice(0, 7);
+  return t;
+}
+// Stop goals for day d as [have, need]. Small routines get smaller goals, so every stop can be won on a normal day.
+function trailGoal(stop, d, S) {
+  const secs = nodesFor(d).filter(n => n.kind !== "weekly"), cleared = secs.filter(n => nodeState(n, d).cleared).length, t = S.totalToday, n = S.doneToday;
+  const ticks = k => { const need = Math.max(1, Math.min(k, t)); return [Math.min(n, need), need]; };
+  const secsGoal = k => { const need = Math.max(1, Math.min(k, secs.length)); return [Math.min(cleared, need), need]; };
+  if (stop === 1) return ticks(3);
+  if (stop === 2) return secsGoal(1);
+  if (stop === 3) return [store.chest && store.chest[dkey(d)] ? 1 : 0, 1];
+  if (stop === 4) return ticks(5);
+  if (stop === 5) return secsGoal(2);
+  return ticks(Math.ceil(4 * t / 5)); // 6 and 7: a good day (80%), the same rule the streak uses
+}
+function checkTrail(S) {
+  const t = trailState(); if (!t || t.won.length >= TRAIL_LEN) return;
+  const d = routineDate(), today = dkey(d); if (today < t.from || t.won.includes(today)) return;
+  const stop = t.won.length + 1, [have, need] = trailGoal(stop, d, S); if (have < need) return;
+  t.won.push(today); renderTrail.pop = stop;
+  const gift = TRAIL_GIFT[stop];
+  if (!gift) { save(); toast(T("trailToast", stop, TRAIL_LEN), "star"); sfx("pr"); buzz([20, 40, 20]); say(T("trailSay"), T("trailSaySub"), "cheer", 3200); return; }
+  const card = gift === "rare" ? findCard(openFind(today, Math.random, 1)) : rollShield(today, () => 0) ? shieldCard() : findCard(openFind(today)), wc = wearNewCards(); save();
+  queueCele(gift === "rare"
+    ? { title: T("trailEndT"), sub: T("trailEndSub"), color: "green", sound: "level", art: CHEST, extra: `<div class="find-list">${card}${wc}</div>`, btn: T("chestBtn"), tiles: [] }
+    : { title: T("trailHalfT"), sub: T("trailHalfSub"), color: "green", sound: "level", extra: `<div class="find-list">${card}${wc}</div>`, tiles: [] });
+}
+// The card on Today: 7 stops, today's goal with a bar, and the next gift. After the last stop it shows for the rest of
+// that day, then goes away.
+function renderTrail(S) {
+  const el = $("trail"), t = trailState(), today = dkey(routineDate()), done = t ? t.won.length : 0;
+  if (!t || (done >= TRAIL_LEN && t.won[TRAIL_LEN - 1] !== today)) { el.hidden = true; el.innerHTML = ""; return; }
+  const d = routineDate(), wonToday = t.won.includes(today), pop = renderTrail.pop && homeVisible() && !reduced() ? renderTrail.pop : 0;
+  if (homeVisible()) renderTrail.pop = 0;
+  const stops = Array.from({ length: TRAIL_LEN }, (_, i) => { const n = i + 1, on = n <= done, now = !on && n === done + 1 && !wonToday, g = TRAIL_GIFT[n];
+    return `<li class="${on ? "on" : ""}${now ? " now" : ""}${g ? " gift" : ""}${n === pop ? " pop" : ""}"><span>${on ? I.check : g === "rare" ? I.chest : g ? I.shield : n}</span></li>`; }).join("");
+  let body = "";
+  if (done >= TRAIL_LEN) body = `<p class="tr-msg">${T("trailAllDone")}</p>`;
+  else if (wonToday) body = `<p class="tr-msg">${T("trailDoneToday", done)}</p>`;
+  else { const [have, need] = trailGoal(done + 1, d, S);
+    body = `<div class="tr-goal"><b class="tr-t">${T("trailG")[done](need)}</b><div class="bar green"><i style="${fillPct(100 * have / need)}"></i><b>${have} / ${need}</b></div></div>`; }
+  const ng = done < TRAIL_LEN ? +Object.keys(TRAIL_GIFT).find(n => +n > done) : 0;
+  const giftLine = ng ? `<p class="tr-gift">${TRAIL_GIFT[ng] === "rare" ? I.chest : I.shield}<span>${T(TRAIL_GIFT[ng] === "rare" ? "trailGiftRare" : "trailGiftShield", ng)}</span></p>` : "";
+  el.innerHTML = `<div class="tr-h"><span class="ri" aria-hidden="true">${I.sprout}</span><div><b id="trailT">${T("trailName")}</b><small>${T("trailOf", done, TRAIL_LEN)}</small></div></div>
+    <ol class="tr-stops" aria-hidden="true">${stops}</ol>${body}${giftLine}${done < TRAIL_LEN ? `<p class="tr-pause">${T("trailPause")}</p>` : ""}`;
+  el.hidden = false;
+}
+
 /* ================= Refresh + comparisons ================= */
 let prevCleared = null;
 function refresh(keepSheet) {
@@ -3065,7 +3123,7 @@ function refresh(keepSheet) {
     extra: gifts ? `<div class="find-list">${gifts.join("")}</div><p class="lv-next-c">${esc(lvNextText(S.level))}</p>` : "",
     tiles: gifts ? [] : [{ k:T("tTotal"), v:S.xp, i:"bolt", c:"--gold" }, { k:T("tNext"), v:`${S.L.span - S.L.cur}`, i:"", c:"--sky" }] });
   prevCleared = states; lastS = S;
-  checkChest(); checkRecap(); checkWeekRecap(); coach();
+  checkChest(); checkTrail(S); renderTrail(S); checkRecap(); checkWeekRecap(); coach();
   if (!mascotTimer) contextSay();
 }
 
