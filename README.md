@@ -22,6 +22,7 @@ A cute, gamified daily routine tracker that you can install on your phone. Tunas
 - **Starter trail:** new players get a 7-stop trail for their first week, one small goal a day (tick 3 habits, finish a section, open the chest...). Stop 4 gives a streak shield and stop 7 a Rare or better find. Missing a day just pauses it
 - **Evening check-in (optional, off by default):** turn it on in Routine > Reminders. From 4pm, Today offers one tap to add a reminder to your calendar for the habits still open tonight. It's a calendar link like the other reminders, so nothing is sent anywhere
 - **Collection sets:** the collection book groups every find into 6 themed sets (Garden, Forest, Seaside, Night sky, Treasure, Seasons). Completing a set unlocks a Tunas outfit
+- **Find upgrade:** tap a find in the collection book to spend a spare copy plus Stars on a glow upgrade (+1 to +5). The chance is shown first (90% / 75% / 60% / 45% / 35%), a failed try never loses the find, and each fail adds +10% to the next try
 - **Comeback bonus:** back after 2+ quiet days? Tunas says welcome back instead of showing a zero, and ticking 3 habits that first day gives +60 XP
 - **Continue button and home-screen shortcuts:** long-press the app icon for Today, Workout, Night or History
 - **A page for every tab:** Routine, Progress, Me and Settings are full pages. Each one shows its main controls up front and opens bigger groups (your week, packs, reminders, backup, badges, chest finds...) as their own pages with a back arrow, so nothing hides in a dropdown
