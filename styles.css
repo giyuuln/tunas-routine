@@ -905,6 +905,18 @@ a:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-vis
 .fcell .b-new{position:absolute;top:-8px;left:auto;right:-4px;font-style:normal}
 .f-empty{display:flex;align-items:center;gap:10px;margin:0;padding:12px;border:2px dashed var(--line);border-radius:16px;font-size:14px;color:var(--muted)}
 .f-empty svg{flex:none;width:28px;height:28px;fill:var(--gold)}
+.fsets{display:flex;flex-direction:column;gap:12px;margin-top:12px}
+.fset{border:2px solid var(--line);border-radius:18px;padding:10px 12px 8px;background:var(--soft)}
+.fset.done{border-color:var(--gold);background:var(--gold-soft)}
+.fs-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.fs-h h4{margin:0;font-size:15px;font-weight:900}
+.fs-h span{display:flex;align-items:center;gap:4px;font-size:13px;font-weight:900;color:var(--muted);font-variant-numeric:tabular-nums}
+.fset.done .fs-h span{color:var(--gold-ink)} .fs-h svg{width:14px;height:14px;fill:currentColor}
+.fs-rew{display:flex;align-items:center;gap:8px;margin:2px 0 0;font-size:13px;font-weight:800;color:var(--muted)}
+.fset.done .fs-rew{color:var(--gold-ink)}
+.fs-rew .find-art{flex:none;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--card);border:2px solid var(--line)}
+.fs-rew .find-art svg{width:84%;height:84%}
+.fset:not(.done) .fs-rew .find-art svg{filter:grayscale(1);opacity:.55}
 .f-pity{display:flex;align-items:center;gap:8px;margin:8px 0 0;font-size:13.5px;font-weight:700;color:var(--muted)}
 .f-pity svg{flex:none;width:22px;height:22px;fill:var(--gold)}
 .fcell.lock{border-style:dashed;border-color:var(--line);box-shadow:none;background:var(--soft)}
