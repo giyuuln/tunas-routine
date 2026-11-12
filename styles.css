@@ -649,6 +649,16 @@ body.sheet-top .scrim{z-index:74} body.sheet-top .sheet{z-index:75}
 .tr-pause{margin-top:4px;font-weight:700}
 @media (prefers-reduced-motion: reduce){.tr-stops .pop span{animation:none}}
 
+/* Evening check-in */
+.eve{padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.eve-in{display:flex;align-items:center;gap:12px}
+.eve-in > div{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.eve-in b{font-weight:900;font-size:14.5px}
+.eve-in span{font-size:13px;color:var(--muted);font-weight:700}
+.eve-ico{flex:none;width:36px;height:36px;border-radius:11px;display:grid;place-items:center;background:var(--sky-soft);font-size:19px}
+.eve .row{display:flex;gap:8px;flex-wrap:wrap}
+.eve .btn svg{width:16px;height:16px;fill:currentColor;margin-right:6px;vertical-align:-3px}
+
 /* History and Badges sheets */
 .sh-body > .bgrid{padding:6px 0 10px}
 .set-group .tip{border:0;border-radius:14px}

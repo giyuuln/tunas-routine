@@ -105,7 +105,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.11.12c";
+const APP_VERSION = "2026.11.12d";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -356,7 +356,7 @@ function joinState() { const j = store.join; if (j == null) return;
   store.join = { day: j.day, at: Math.round(+j.at) }; }
 const beforeJoinDay = d => !!store.join && store.join.day === dkey(d);
 const beforeJoin = (n, d) => beforeJoinDay(d) && n.to != null && n.to <= store.join.at;
-function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); backState(); planState(); woState(); joinState(); trailState(); if (typeof asstState === "function") asstState(); }
+function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); backState(); planState(); woState(); joinState(); trailState(); eveState(); if (typeof asstState === "function") asstState(); }
 normStore();
 function save() { return storeSet(DATA_KEY, JSON.stringify(store)); }
 let soundOn = true; try { soundOn = localStorage.getItem(SND_KEY) !== "off"; } catch (e) {}
@@ -1420,6 +1420,60 @@ function buildICS() {
   return lines.join("\r\n");
 }
 
+/* ================= Evening check-in ================= */
+// Optional and off by default (Routine > Reminders). When on, Today shows a small card from 4pm until the chosen time
+// while habits are still open: one tap adds a one-off event to the calendar app at that time, listing those habits.
+// Like the other reminders it's only a calendar link the person taps: Tunas sends nothing and needs no push server.
+// It gives no XP. Saved as store.eve = { on, at: minutes (18:00 to 23:30), set: day it was added, skip: day hidden }.
+const EVE_MIN = 18 * 60, EVE_MAX = 23 * 60 + 30, EVE_FROM = 16 * 60, EVE_AT = 21 * 60;
+function eveState() {
+  const v = store.eve && typeof store.eve === "object" && !Array.isArray(store.eve) ? store.eve : (store.eve = {});
+  v.on = v.on === true; const a = Math.round(+v.at); v.at = a >= 1080 && a <= 1410 ? a : 1260; // literals: runs while loading, before EVE_* exist
+  ["set", "skip"].forEach(k => { if (typeof v[k] !== "string" || !/^\d{4}-\d\d-\d\d$/.test(v[k])) delete v[k]; });
+  return v;
+}
+// Today's habits that are still open, by name (habits from an older routine that no longer exist are skipped).
+function eveOpen(d) {
+  const done = store.days[dkey(d)] || {}, all = new Map(BLOCKS.flatMap(b => b.items).map(i => [i.id, i])), W = WORKOUTS[d.getDay()];
+  return itemsFor(d).filter(id => !done[id]).map(id => id === "wo-done" ? (W && W.name) : all.has(id) ? itemTitle(all.get(id), d) : "").filter(Boolean);
+}
+function eveLink(names, at) {
+  const now = new Date(), s = new Date(now.getFullYear(), now.getMonth(), now.getDate(), Math.floor(at / 60), at % 60), e = new Date(s.getTime() + 15 * 60000);
+  const title = T("eveEvTitle"), more = names.length > 6 ? ` ${T("eveMore", names.length - 6)}` : "", details = T("eveEvDetails", names.slice(0, 6).join(", ") + more, appURL());
+  if (IS_ANDROID) { const enc = encodeURIComponent, q = new URLSearchParams({ action: "TEMPLATE", text: title, details, dates: `${stamp(s)}/${stamp(e)}`, ctz: TZ });
+    return "intent:#Intent;action=android.intent.action.INSERT;type=vnd.android.cursor.item/event;" +
+      `S.title=${enc(title)};S.description=${enc(details)};l.beginTime=${s.getTime()};l.endTime=${e.getTime()};B.allDay=false;` +
+      `S.browser_fallback_url=${enc("https://calendar.google.com/calendar/render?" + q.toString())};end`; }
+  return "https://calendar.google.com/calendar/render?" + new URLSearchParams({ action: "TEMPLATE", text: title, details, dates: `${stamp(s)}/${stamp(e)}`, ctz: TZ }).toString();
+}
+let eveHTML = "";
+function renderEve(S) {
+  const el = $("eve"), v = eveState(), d = routineDate(), today = dkey(d), mins = nowMins();
+  let html = "";
+  if (v.on && $("welcome").hidden && v.skip !== today && !isRest(d)) {
+    const names = eveOpen(d), set = v.set === today, when = fmtClock(v.at);
+    if (set && mins < v.at + 60) html = `<div class="eve-in"><span class="eve-ico" aria-hidden="true">🌙</span><div><b id="eveT">${T("eveSet", when)}</b><span>${T("eveSetSub")}</span></div>
+      <button class="linkish" type="button" data-eve-undo>${T("undo")}</button></div>`;
+    else if (!set && names.length && mins >= EVE_FROM && mins < v.at) html = `<div class="eve-in"><span class="eve-ico" aria-hidden="true">🌙</span><div><b id="eveT">${T("eveOpen", names.length)}</b><span>${esc(names.slice(0, 3).join(", "))}${names.length > 3 ? " " + T("eveMore", names.length - 3) : ""}</span></div></div>
+      <div class="row"><a class="btn small" href="${esc(eveLink(names, v.at))}" ${IS_ANDROID ? "" : 'target="_blank" rel="noopener"'} data-eve-add>${I.bell}${T("eveBtn", when)}</a><button class="btn ghost small" type="button" data-eve-skip>${T("eveSkip")}</button></div>`;
+  }
+  if (!html) { el.hidden = true; el.innerHTML = eveHTML = ""; return; }
+  if (eveHTML !== html) el.innerHTML = eveHTML = html; // don't redraw (and lose focus) on the minute refresh
+  el.hidden = false;
+}
+$("eve").addEventListener("click", e => {
+  const v = eveState(), today = dkey(routineDate());
+  if (e.target.closest("[data-eve-add]")) { v.set = today; save(); sfx("ding"); setTimeout(renderEve, 400); return; } // the link opens the calendar
+  if (e.target.closest("[data-eve-undo]")) { delete v.set; save(); renderEve(); return; }
+  if (e.target.closest("[data-eve-skip]")) { v.skip = today; save(); sfx("pop"); renderEve(); toast(T("eveSkipped"), "check"); }
+});
+function eveSettingsHTML() {
+  const v = eveState(), [h, m] = [Math.floor(v.at / 60), v.at % 60];
+  return `<div class="set-group">
+    <div class="sw-row inline"><div><b>${T("eveName")}</b><span>${T("eveHelp")}</span></div><button class="toggle" type="button" role="switch" aria-checked="${v.on}" data-act="eveOn" aria-label="${T("eveName")}"><i></i></button></div>
+    ${v.on ? `<label class="w-time">${T("eveTime")}<input class="field" type="time" data-eve min="18:00" max="23:30" step="900" value="${pad(h)}:${pad(m)}"></label>` : ""}</div>`;
+}
+
 /* ================= Share ================= */
 async function shareApp() {
   const url = OLD_HOME ? NEW_HOME : appURL(); // friends start on the new address; reminders keep this one until people move
@@ -1672,7 +1726,7 @@ function renderRoutinePage(keep) {
   const SUB = {
     week: { ico: "cal", t: T("yourWeek"), html: weekHTML },
     packs: { ico: "sprout", t: T("packsTitle"), html: packsSettingsHTML },
-    reminders: { ico: "bell", t: T("reminders"), html: () => `<div class="set-group"><p class="rt-meta">${T("remCount", added, L.length)}</p><p>${T("remShort")}</p><details class="more-help"><summary>${T("remHow")}</summary><p>${T("remHelp")}</p></details>
+    reminders: { ico: "bell", t: T("reminders"), html: () => eveSettingsHTML() + `<div class="set-group"><p class="rt-meta">${T("remCount", added, L.length)}</p><p>${T("remShort")}</p><details class="more-help"><summary>${T("remHow")}</summary><p>${T("remHelp")}</p></details>
       ${L.map(remRow).join("")}
       <p class="rem-note">${T("remNote")}</p>
       <div class="row"><button class="btn ghost small" type="button" data-act="ics">${T("icsAll")}</button></div>
@@ -1706,6 +1760,8 @@ function renderRoutinePage(keep) {
       navRow({ sub: "file", ico: "file", t: T("fileTitle"), s: T("fileRow"), c: "muted" })])}
     ${navList(T("rtStartOver"), [navRow({ attr: 'data-act="clearDay"', ico: "x", t: T("clearToday"), s: T("clearTodayHelp"), c: "danger", cls: "danger" }), navRow({ attr: 'data-act="template"', ico: "plus", t: T("newTemplate"), s: T("rtStartOverHelp"), c: "danger", cls: "danger" })])}`;
   }
+  body.querySelectorAll("[data-eve]").forEach(f => f.addEventListener("change", () => { const m = tm(f.value, null); if (m == null) return;
+    eveState().at = Math.min(EVE_MAX, Math.max(EVE_MIN, m)); save(); renderEve(); renderSheet(true); }));
   body.querySelectorAll("[data-week]").forEach(f => f.addEventListener("change", () => { if (!/^\d{2}:\d{2}$/.test(f.value)) return;
     saveWeek(A => ({ ...A, [f.dataset.week]: f.value })); }));
   $("shClose").onclick = closeSheet;
@@ -1817,6 +1873,7 @@ function settingsAction(act, el) {
   if (act === "copyLog") { const txt = storeGet(ERR_KEY) || "[]"; (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => toast(T("copiedLog"), "check")).catch(() => toast(esc(txt).slice(0, 400), "x", 8000)); return; }
   if (act === "clearLog") { storeDel(ERR_KEY); return renderSheet(true); }
   if (act === "exportRoutine") return download(`${slug(CFG.label || "routine")}.json`, RAW);
+  if (act === "eveOn") { const v = eveState(); v.on = !v.on; save(); renderEve(); toast(T(v.on ? "eveOnToast" : "eveOffToast", fmtClock(v.at)), "bell"); return renderSheet(true); }
   if (act === "ics") return downloadText("tunas-reminders.ics", buildICS(), "text/calendar");
   if (act === "share") return shareApp();
   if (act === "backup") { saveBackup(); return renderSheet(true); }
@@ -3123,7 +3180,7 @@ function refresh(keepSheet) {
     extra: gifts ? `<div class="find-list">${gifts.join("")}</div><p class="lv-next-c">${esc(lvNextText(S.level))}</p>` : "",
     tiles: gifts ? [] : [{ k:T("tTotal"), v:S.xp, i:"bolt", c:"--gold" }, { k:T("tNext"), v:`${S.L.span - S.L.cur}`, i:"", c:"--sky" }] });
   prevCleared = states; lastS = S;
-  checkChest(); checkTrail(S); renderTrail(S); checkRecap(); checkWeekRecap(); coach();
+  checkChest(); checkTrail(S); renderTrail(S); renderEve(S); checkRecap(); checkWeekRecap(); coach();
   if (!mascotTimer) contextSay();
 }
 
