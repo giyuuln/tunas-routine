@@ -105,7 +105,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.11.12a";
+const APP_VERSION = "2026.11.12b";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -894,14 +894,14 @@ const TIPS_ORDER = [
   { id: "sheet", where: () => sheetId && nodesFor(routineDate()).some(n => n.id === sheetId) && $("shHead").querySelector(".starbar"), place: el => el, after: true },
   { id: "quests", where: () => !sheetId && $("questFold"), place: el => el, after: true }];
 function coach() {
-  document.querySelectorAll(".coach").forEach(c => { if (!c.isConnected || c.dataset.stale) c.remove(); });
+  document.querySelectorAll(".coach").forEach(c => { if (!c.isConnected || c.dataset.stale || c.dataset.lang !== LANG) c.remove(); }); // a tip shown before a language switch is redrawn
   if (!$("welcome").hidden || !$("cele").hidden) return;
   store.tips ||= {};
   const tip = TIPS_ORDER.find(t => !store.tips[t.id]); if (!tip) return;
   const anchor = tip.where(); if (!anchor) return;
   if (document.querySelector(`.coach[data-tip="${tip.id}"]`)) return;
   document.querySelectorAll(".coach").forEach(c => c.remove());
-  const box = document.createElement("div"); box.className = "coach"; box.dataset.tip = tip.id; box.setAttribute("role", "note");
+  const box = document.createElement("div"); box.className = "coach"; box.dataset.tip = tip.id; box.dataset.lang = LANG; box.setAttribute("role", "note");
   box.innerHTML = `<i aria-hidden="true">${I.star}</i><p>${T("tip_" + tip.id)}</p><button class="btn small" type="button">${T("gotIt")}</button>`;
   box.querySelector("button").onclick = () => { store.tips[tip.id] = 1; save(); box.remove(); coach(); };
   const at = tip.place(anchor); if (tip.before) at.before(box); else at.after(box);
