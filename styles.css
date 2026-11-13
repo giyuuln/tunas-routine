@@ -852,6 +852,9 @@ body{padding-bottom:calc(var(--tab-h) + 40px)}
 .me-name{font-family:var(--display);font-weight:700;font-size:20px;padding:8px 12px}
 .me-lv{margin:0;font-size:15px}
 .me-lv b{font-weight:900} .me-lv span{color:var(--green-ink);font-weight:900}
+.me-grow{display:flex;align-items:flex-start;gap:6px;margin:0;font-size:13px;font-weight:800;color:var(--muted);line-height:1.35}
+.me-grow .ico{width:16px;height:16px;fill:var(--green);flex:none;margin-top:1px}
+.me-grow b{color:var(--ink);font-weight:900}
 .me-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .me-stat{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 4px;border:2px solid var(--line);border-radius:16px;background:var(--card);text-align:center;font-size:12px;font-weight:800;color:var(--muted);line-height:1.2}
 .me-n{display:flex;align-items:center;gap:4px;color:var(--ink);font-family:var(--display);font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
@@ -1017,6 +1020,8 @@ a:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-vis
 /* Dress up Tunas: outfits from chest finds. Worn on every Tunas; the theme's own flower or shades step aside when they'd clash. */
 .mascot .acc{pointer-events:none}
 .mascot svg.no-flower .flower,.mascot svg.no-shades .shades{display:none!important}
+/* Tunas grows: the bud and the bloom sit where the Sakura flower does, so they take its place. Hats that cover the top hide growth. */
+.mascot svg.gr2 .flower,.mascot svg.gr3 .flower,.mascot svg.no-grow .grow{display:none!important}
 .w-help{margin:4px 0 0;font-size:13.5px;color:var(--muted)}
 .wgrid{list-style:none;margin:0;padding:10px 0 4px;display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:10px 8px}
 .wcell{position:relative;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 6px 8px;border-radius:16px;border:2px solid var(--line);box-shadow:0 3px 0 var(--line);background:var(--card);color:var(--ink);font:inherit;text-align:center;cursor:pointer}

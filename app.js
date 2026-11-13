@@ -56,6 +56,7 @@ const MASCOT = `<svg viewBox="0 0 120 120">
     <path d="M60 25V13" stroke="var(--m-leaf)" stroke-width="4" stroke-linecap="round"/>
     <path d="M60 15C51 3 39 6 41 15c8 3 14 3 19 0z" fill="var(--m-leaf)"/>
     <path d="M60 15c9-12 21-9 19 0-8 3-14 3-19 0z" fill="var(--m-leaf2)"/>
+    <g class="grow"></g>
     <g class="cloud"><ellipse cx="97" cy="22" rx="10" ry="6.5" fill="#fff" stroke="#b9e3f7" stroke-width="1.5"/><ellipse cx="89" cy="25" rx="7" ry="5" fill="#fff" stroke="#b9e3f7" stroke-width="1.5"/><ellipse cx="104" cy="25.5" rx="6" ry="4.5" fill="#fff" stroke="#b9e3f7" stroke-width="1.5"/><rect x="86" y="23" width="22" height="6" fill="#fff"/></g>
     <g class="shades"><path d="M38 37h18a2 2 0 0 1 2 2v2a6 6 0 0 1-6 6h-6a8 8 0 0 1-8-8 2 2 0 0 1 2-2zM64 37h18a2 2 0 0 1 2 2 8 8 0 0 1-8 8h-6a6 6 0 0 1-6-6v-2a2 2 0 0 1 2-2z" fill="#2a2440"/><path d="M58 40h4" stroke="#2a2440" stroke-width="3"/><path d="M42 39l4 0" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".7"/><path d="M68 39l4 0" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".7"/></g>
     <g class="flower"><circle cx="60" cy="4" r="4.2" fill="#ff8fbf"/><circle cx="65.5" cy="8" r="4.2" fill="#ff8fbf"/><circle cx="63.4" cy="14.2" r="4.2" fill="#ff8fbf"/><circle cx="56.6" cy="14.2" r="4.2" fill="#ff8fbf"/><circle cx="54.5" cy="8" r="4.2" fill="#ff8fbf"/><circle cx="60" cy="9.6" r="3" fill="#ffd34d"/></g>
@@ -696,6 +697,7 @@ function tunasFacts() {
   }
   const tw = WORKOUTS[(d.getDay() + 1) % 7]; out.push(tw ? T("factTomorrowWo", esc(tw.name)) : (Object.keys(WORKOUTS).length ? T("factTomorrowRest") : T("factTomorrow", esc((BLOCKS[0] || {}).title || ""))));
   out.push(T("factLevel", S.L.span - S.L.cur, S.level + 1));
+  { const g = growStage(), nx = GROW[g + 1]; out.push(nx ? T("factGrow", Math.max(1, nx - S.ticks), T("growName")[g + 1]) : T("factGrowMax")); }
   if (BLOCKS.some(b => b.items.some(i => i.dyn))) out.push(T("factFocus", esc(FOCUS[d.getDay()].t)));
   const r = routineDate(); const left = REST_PER_MONTH - restsInMonth(r); out.push(T("factRest", left));
   return out;
@@ -1795,6 +1797,7 @@ function renderMe(keep) {
         <input class="field me-name" id="setName" value="${esc(CFG.name || "")}" placeholder="${T("namePh")}" autocomplete="given-name" maxlength="30">
         <p class="me-lv"><b>${T("level", S.L.n)}</b> <span>${esc(titleOf(S.L.n))}</span></p>
         <div class="bar"><i style="${fillPct(100 * S.L.cur / S.L.span)}"></i><b>${T("xpOf", S.L.cur, S.L.span)}</b></div>
+        ${growLine(S)}
       </div>
     </div>
     <div class="me-stats">
@@ -3002,6 +3005,36 @@ $("shBody").addEventListener("click", e => {
   if (e.target.closest("[data-up-try]")) { audio(); tryUpgrade(); }
 });
 
+/* ================= Tunas grows ================= */
+// Tunas grows as habits are ticked over time (the same total as "Habits ticked" in Me): Sprout → Leafy at 50 ticks,
+// Budding at 200, Blooming at 500. The stage only ever goes up: unticking, removing a pack or restoring an older backup
+// never shrinks Tunas. Saved as store.grow = highest stage reached (0–3). Older data without it fills in quietly with a
+// short toast; after that each new stage gets one celebration. Growth gives no XP: it's there to see how far you've come.
+const GROW = [0, 50, 200, 500];
+const growOf = n => Math.max(0, GROW.filter(x => n >= x).length - 1);
+const growStage = () => { const g = Math.round(+store.grow); return g >= 1 && g <= 3 ? g : 0; };
+const LEAVES2 = `<path d="M60 23c-4-9-15-11-21-4 5 6 14 8 21 4z" fill="var(--m-leaf)"/><path d="M60 23c4-9 15-11 21-4-5 6-14 8-21 4z" fill="var(--m-leaf)"/>`;
+const BUD_STEM = `<path d="M60 14V7" stroke="var(--m-leaf)" stroke-width="3.5" stroke-linecap="round"/>`;
+const GROW_ART = ["", LEAVES2,
+  `${LEAVES2}${BUD_STEM}<path d="M60-1c5 3 6 8 0 11-6-3-5-8 0-11z" fill="#ee3b45" stroke="#a51d26" stroke-width="2" stroke-linejoin="round"/><path d="M54 8q3 4 6 2 3 2 6-2" fill="var(--m-leaf2)" stroke="var(--m-leaf)" stroke-width="2" stroke-linejoin="round"/>`,
+  `${LEAVES2}${BUD_STEM}${[0, 72, 144, 216, 288].map(a => `<ellipse cx="60" cy="1.5" rx="4.6" ry="6" fill="#ee3b45" stroke="#a51d26" stroke-width="2" transform="rotate(${a} 60 7)"/>`).join("")}<circle cx="60" cy="7" r="2.6" fill="#ffd34d" stroke="#c48a00" stroke-width="1.4"/><path d="M60 7l4.5-5" stroke="#ffd34d" stroke-width="1.8" stroke-linecap="round"/><circle cx="64.8" cy="1.6" r="1.4" fill="#ffd34d"/>`];
+function checkGrow(S, live) {
+  const t = growOf(S.ticks), had = store.grow;
+  if (typeof had !== "number" || !(had >= 0 && had <= 3)) { // first run on older data: no pile of celebrations
+    store.grow = Math.max(t, growStage()); save(); paintMascot();
+    if (store.grow) toast(T("growToast", T("growName")[store.grow]), "check", 4500);
+    return;
+  }
+  if (t <= growStage()) return;
+  store.grow = t; save(); paintMascot();
+  if (live) queueCele({ title: T("growTitle")[t], sub: T("growSub", GROW[t]), color: "green", sound: "level", tiles: [],
+    extra: GROW[t + 1] ? `<p class="lv-next-c">${T("growNextAt", T("growName")[t + 1], GROW[t + 1])}</p>` : "" });
+}
+function growLine(S) {
+  const g = growStage(), next = GROW[g + 1];
+  return `<p class="me-grow">${I.sprout}<span><b>${T("growStageName", T("growName")[g])}</b> · ${next ? T("growNext", Math.max(1, next - S.ticks), T("growName")[g + 1]) : T("growMax")}</span></p>`;
+}
+
 /* ================= Dress up Tunas ================= */
 // Chest finds unlock small outfits Tunas can wear everywhere (home, path, celebrations, Me). One at a time, for fun only:
 // they never change XP or rewards. Unlocks come from the collection, so nothing extra is saved for them: n = different
@@ -3020,7 +3053,7 @@ const WEAR = [
     svg: `<path d="M78 42q-6 4-10 2 2-6 9-6zM92 42q6 4 10 2-2-6-9-6z" fill="#4aa85c" stroke="#2f7d3d" stroke-width="2" stroke-linejoin="round"/>${[0, 72, 144, 216, 288].map(a => `<ellipse cx="85" cy="29.5" rx="5" ry="6.5" fill="#ee3b45" stroke="#a51d26" stroke-width="2" transform="rotate(${a} 85 36)"/>`).join("")}<circle cx="85" cy="36" r="3.2" fill="#ffd34d" stroke="#c48a00" stroke-width="1.5"/><path d="M85 36l5-6" stroke="#ffd34d" stroke-width="2" stroke-linecap="round"/>` },
   { id: "specs", n: 8, box: "22 44 76 30", hide: "shades",
     svg: `<g fill="rgba(255,255,255,.22)" stroke="#2a2440" stroke-width="3.5"><circle cx="46" cy="59" r="11"/><circle cx="74" cy="59" r="11"/></g><path d="M57 58q3-3.5 6 0M35 57l-9-3M85 57l9-3" fill="none" stroke="#2a2440" stroke-width="3.5" stroke-linecap="round"/><path d="M40 53.5q3-3 7-3M68 53.5q3-3 7-3" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".8"/>` },
-  { id: "sunhat", n: 12, box: "18 2 84 40", hide: "flower shades",
+  { id: "sunhat", n: 12, box: "18 2 84 40", hide: "flower shades grow",
     svg: `<ellipse cx="60" cy="31" rx="40" ry="9" fill="#f3cf7a" stroke="#b98a2e" stroke-width="3"/><path d="M40 31c0-23 40-23 40 0z" fill="#f3cf7a" stroke="#b98a2e" stroke-width="3" stroke-linejoin="round"/><path d="M40.6 26.5q19.4 4 38.8 0l.3 4q-19.7 4.5-39.4 0z" fill="#ee3b45" stroke="#a51d26" stroke-width="2" stroke-linejoin="round"/><path d="M28 33q32 8 64 0" fill="none" stroke="#b98a2e" stroke-width="2" stroke-linecap="round" opacity=".6"/>${SPROUT_TOP}` },
   { id: "starcrown", r: 2, box: "20 4 46 40", hide: "flower shades",
     svg: `<g transform="rotate(-16 42 30)"><path d="M28 36l-3-20 9 7 8-12 8 12 9-7-3 20z" fill="#ffcc33" stroke="#c48a00" stroke-width="3" stroke-linejoin="round"/><rect x="27" y="32" width="30" height="7" rx="3" fill="#ffcc33" stroke="#c48a00" stroke-width="3"/><path d="M42 20.5l1.6 3.3 3.6.5-2.6 2.5.6 3.6-3.2-1.7-3.2 1.7.6-3.6-2.6-2.5 3.6-.5z" fill="#fff6d6" stroke="#c48a00" stroke-width="1.5" stroke-linejoin="round"/><circle cx="25" cy="15" r="2.5" fill="#8ee6ff" stroke="#2a8fc0" stroke-width="1.5"/><circle cx="42" cy="10" r="2.5" fill="#ee3b45" stroke="#a51d26" stroke-width="1.5"/><circle cx="59" cy="15" r="2.5" fill="#8ee6ff" stroke="#2a8fc0" stroke-width="1.5"/><ellipse cx="33" cy="24" rx="3" ry="1.6" fill="#fff" opacity=".6" transform="rotate(-35 33 24)"/></g>` },
@@ -3034,7 +3067,7 @@ WEAR.push(
     svg: `<g transform="rotate(14 76 32)"><path d="M54 38a22 17 0 0 1 44 0q-22 6-44 0z" fill="#f0604f" stroke="#b0362a" stroke-width="3" stroke-linejoin="round"/><circle cx="66" cy="27" r="3.4" fill="#fff"/><circle cx="80" cy="24" r="2.8" fill="#fff"/><circle cx="88" cy="32" r="2.4" fill="#fff"/><circle cx="73" cy="34" r="2" fill="#fff"/><ellipse cx="62" cy="25" rx="3.5" ry="2" fill="#fff" opacity=".5" transform="rotate(-30 62 25)"/></g>` },
   { id: "shells", set: "sea", box: "20 78 80 30",
     svg: `<path d="M26 85q34 16 68 0" fill="none" stroke="#b07444" stroke-width="2.5" stroke-linecap="round"/>${[[36, 92, "#ffb592", "#d0704a"], [48, 96.5, "#c3cdfd", "#6d7fd8"], [60, 98, "#fff4e0", "#c9a77a"], [72, 96.5, "#c3cdfd", "#6d7fd8"], [84, 92, "#ffb592", "#d0704a"]].map(([x, y, c, d]) => `<g transform="translate(${x} ${y})"><path d="M0 7-6.5-.5a6.5 5.5 0 0 1 13 0z" fill="${c}" stroke="${d}" stroke-width="2" stroke-linejoin="round"/><path d="M0 7-2.5-4M0 7V-5M0 7l2.5-11" stroke="${d}" stroke-width="1.4" fill="none"/></g>`).join("")}` },
-  { id: "nightcap", set: "night", box: "26 4 82 42", hide: "flower shades",
+  { id: "nightcap", set: "night", box: "26 4 82 42", hide: "flower shades grow",
     svg: `<path d="M30 40q2-20 26-25 26-5 42 3l-6 6q-16-4-30 4-14 9-18 18z" fill="#5a6fd6" stroke="#2f3d8f" stroke-width="3" stroke-linejoin="round"/><path d="M28 39q30-12 60-4l-1 7q-30-7-59 4z" fill="#fff" stroke="#b7c0e8" stroke-width="2.5" stroke-linejoin="round"/><circle cx="48" cy="26" r="1.8" fill="#ffd23f"/><circle cx="70" cy="18" r="1.5" fill="#ffd23f"/><path d="M98 10l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4-3.9-3.8 5.4-.8z" fill="#ffd23f" stroke="#c48a00" stroke-width="2" stroke-linejoin="round"/>` },
   { id: "medal", set: "treasure", box: "40 78 40 36",
     svg: `<path d="M47 82l9 15h8l-6-15zM73 82l-9 15h-8l6-15z" fill="#25aaf0" stroke="#13709f" stroke-width="2.5" stroke-linejoin="round"/><circle cx="60" cy="102" r="9" fill="#ffcc33" stroke="#c48a00" stroke-width="3"/><path d="M60 96.5l1.7 3.4 3.8.6-2.7 2.6.6 3.7-3.4-1.8-3.4 1.8.6-3.7-2.7-2.6 3.8-.6z" fill="#fff6d6"/>` },
@@ -3051,9 +3084,11 @@ const wearName = id => (T("wear") || {})[id] || id;
 const wearNeed = x => x.set ? T("wearNeedSet", setName(x.set)) : x.r ? T("wearNeedR")[x.r] : T("wearNeed", x.n);
 // Tunas with today's outfit on. Falls back to plain Tunas if the outfit isn't unlocked (e.g. after restoring an older backup).
 function mascotSVG() {
-  const on = WEAR.find(x => x.id === wearState().on); if (!on || !wearOpen(on)) return MASCOT;
-  return MASCOT.replace("<svg ", `<svg class="${(on.hide || "").split(" ").filter(Boolean).map(h => "no-" + h).join(" ")}" `)
-    .replace(/<\/g>\s*<\/svg>\s*$/, `<g class="acc">${on.svg}</g></g></svg>`);
+  const g = growStage(), base = g ? MASCOT.replace('<g class="grow"></g>', `<g class="grow">${GROW_ART[g]}</g>`) : MASCOT;
+  const on = WEAR.find(x => x.id === wearState().on), worn = on && wearOpen(on);
+  const cls = [g ? "gr" + g : "", ...(worn ? (on.hide || "").split(" ").filter(Boolean).map(h => "no-" + h) : [])].filter(Boolean).join(" ");
+  const svg = cls ? base.replace("<svg ", `<svg class="${cls}" `) : base;
+  return worn ? svg.replace(/<\/g>\s*<\/svg>\s*$/, `<g class="acc">${on.svg}</g></g></svg>`) : svg;
 }
 function paintMascot() { const m = $("mascot"); if (m) m.innerHTML = mascotSVG(); }
 const wearArt = x => `<svg viewBox="${x.box}" aria-hidden="true">${x.svg}</svg>`;
@@ -3269,6 +3304,7 @@ function refresh(keepSheet) {
   if (gifts || (lastS && S.level > lastS.level)) queueCele({ title: T("levelTitle", S.level), color: "sky", sub: T("levelSub", titleOf(S.level)), sound: "level",
     extra: gifts ? `<div class="find-list">${gifts.join("")}</div><p class="lv-next-c">${esc(lvNextText(S.level))}</p>` : "",
     tiles: gifts ? [] : [{ k:T("tTotal"), v:S.xp, i:"bolt", c:"--gold" }, { k:T("tNext"), v:`${S.L.span - S.L.cur}`, i:"", c:"--sky" }] });
+  checkGrow(S, !!lastS);
   prevCleared = states; lastS = S;
   checkChest(); checkTrail(S); renderTrail(S); renderEve(S); checkRecap(); checkWeekRecap(); coach();
   if (!mascotTimer) contextSay();
