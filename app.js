@@ -106,7 +106,7 @@ const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m /
 const fmtRange = (a, b) => { const x = fmtClock(a), y = fmtClock(b); return x.slice(-2) === y.slice(-2) ? `${x.slice(0, -3)} – ${y}` : `${x} – ${y}`; };
 
 /* ================= Error handling ================= */
-const APP_VERSION = "2026.11.12f";
+const APP_VERSION = "2026.11.14";
 const ERR_KEY = "tunas-errors";
 let errShownAt = 0; const notices = [];
 function logError(where, err) {
@@ -357,7 +357,7 @@ function joinState() { const j = store.join; if (j == null) return;
   store.join = { day: j.day, at: Math.round(+j.at) }; }
 const beforeJoinDay = d => !!store.join && store.join.day === dkey(d);
 const beforeJoin = (n, d) => beforeJoinDay(d) && n.to != null && n.to <= store.join.at;
-function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); backState(); planState(); woState(); joinState(); trailState(); eveState(); if (typeof asstState === "function") asstState(); }
+function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); backState(); planState(); woState(); joinState(); trailState(); eveState(); monthState(); if (typeof asstState === "function") asstState(); }
 normStore();
 function save() { return storeSet(DATA_KEY, JSON.stringify(store)); }
 let soundOn = true; try { soundOn = localStorage.getItem(SND_KEY) !== "off"; } catch (e) {}
@@ -984,8 +984,8 @@ function renderProgressSheet(kind, keep) {
   const body = $("shBody"), top = keep ? body.scrollTop : 0, S = lastS || computeAll();
   if (kind === "history") {
     $("shHead").innerHTML = sheetHead("cal", T("tabProgress"), T("histSub"), null, "--green"); $("shHead").querySelector(".sh-ico").innerHTML = I.chart;
-    body.innerHTML = `<div class="card streak-card" id="streakCard"></div><div class="card hist wsum" id="wsum"></div><div class="card hist" id="hist"></div>${habitListHTML()}`;
-    renderStreak(S); renderWeekSum(); renderHistory();
+    body.innerHTML = `<div class="card streak-card" id="streakCard"></div><div class="card trail month" id="monthCard"></div><div class="card hist wsum" id="wsum"></div><div class="card hist" id="hist"></div>${habitListHTML()}`;
+    renderStreak(S); renderMonth(); renderWeekSum(); renderHistory();
   } else {
     const n = BADGES.filter(b => b.test(S)).length, total = badgesFor(S).length;
     $("shHead").innerHTML = sheetHead("trophy", T("badges"), T("badgesSub", n, total), { n, total }, "--gold");
@@ -1777,7 +1777,7 @@ function renderMe(keep) {
   const got = BADGES.filter(b => b.test(S)), bTotal = badgesFor(S).length, today = dkey(routineDate());
   const SUB = {
     badges: { ico: "trophy", t: T("badges"), html: () => `<section class="me-trophy" aria-labelledby="trophyT"><div class="me-th"><h3 id="trophyT">${T("badges")}</h3><span>${got.length} / ${bTotal}</span></div>
-      <div class="bar"><i style="${fillPct(100 * got.length / bTotal)}"></i></div><div class="bgrid" id="bgrid"></div></section>` },
+      <div class="bar"><i style="${fillPct(100 * got.length / bTotal)}"></i></div><div class="bgrid" id="bgrid"></div>${monthShelf()}</section>` },
     finds: { ico: "chest", t: T("findsTitle"), html: findsHTML },
     wear: { ico: "sprout", t: T("wearTitle"), html: wearHTML },
   };
@@ -3264,6 +3264,78 @@ function renderTrail(S) {
   el.hidden = false;
 }
 
+/* ================= Monthly challenge ================= */
+// One optional goal a month: have enough good days (80%+ ticked, a rest day or a shielded day: the same days that keep
+// the streak). The goal is 2 of every 3 days, so about 10 days can be missed and it can still be won (30-day month: 20,
+// 31: 21, 28: 19). A new player who starts mid-month gets a goal sized to the days left; with fewer than 10 days left the
+// first challenge starts next month. Winning gives that month's badge (kept for good) and a find that is Rare or better.
+// Saved as store.month = { "YYYY-MM": { goal, from: first day that counts, won?: day it was won } }. The goal is fixed
+// the first time the month is seen, so editing the routine never moves it. Old saves just have no months yet.
+const MONTH_SHARE = 2 / 3, MONTH_MIN = 10;
+const monthKey = d => dkey(d).slice(0, 7);
+const monthName = k => keyToDate(k + "-01").toLocaleDateString(locale(), { month: "long" });
+function monthState() {
+  let m = store.month;
+  if (!m || typeof m !== "object" || Array.isArray(m)) m = store.month = {};
+  for (const k of Object.keys(m)) { const v = m[k], g = Math.floor(+(v && v.goal));
+    if (!/^\d{4}-\d\d$/.test(k) || !v || typeof v !== "object" || !(g >= 1 && g <= 31) || typeof v.from !== "string" || !/^\d{4}-\d\d-\d\d$/.test(v.from) || v.from.slice(0, 7) !== k) { delete m[k]; continue; }
+    m[k] = { goal: g, from: v.from };
+    if (typeof v.won === "string" && /^\d{4}-\d\d-\d\d$/.test(v.won) && v.won.slice(0, 7) === k) m[k].won = v.won; }
+  return m;
+}
+// This month's challenge, set up the first time it is looked at. null = too few days left for a fair goal.
+function monthNow() {
+  const m = monthState(), d = routineDate(), k = monthKey(d); if (m[k]) return m[k];
+  const first = k + "-01", since = sinceDay(), from = since > first ? since : first;
+  const left = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate() - keyToDate(from).getDate() + 1;
+  if (left < MONTH_MIN) return null;
+  m[k] = { goal: Math.ceil(left * MONTH_SHARE), from }; save(); return m[k];
+}
+// Good days so far in month k (days after today don't count yet).
+function monthGood(k, from) {
+  const today = dkey(routineDate()), x = keyToDate(from); let n = 0;
+  for (let g = 0; g < 31 && monthKey(x) === k && dkey(x) <= today; g++) { if (dayOK(x)) n++; x.setDate(x.getDate() + 1); }
+  return n;
+}
+const ROSETTE = Array.from({ length: 24 }, (_, i) => { const a = i * Math.PI / 12 - Math.PI / 2, r = i % 2 ? 19 : 22.5;
+  return (i ? "L" : "M") + (24 + r * Math.cos(a)).toFixed(1) + " " + (24 + r * Math.sin(a)).toFixed(1); }).join("") + "Z";
+function monthArt(k) {
+  const c = COLORS[(+k.slice(5) - 1) % COLORS.length], lab = keyToDate(k + "-01").toLocaleDateString(locale(), { month: "short" }).replace(".", "").slice(0, 4).toUpperCase();
+  return `<svg class="mbadge" viewBox="0 0 48 48" aria-hidden="true"><path d="${ROSETTE}" fill="var(${c[0]})" stroke="var(${c[1]})" stroke-width="2.5" stroke-linejoin="round"/>
+    <circle cx="24" cy="24" r="14" fill="#fff" stroke="var(${c[1]})" stroke-width="2"/><text x="24" y="23" text-anchor="middle" font-size="9" font-weight="900" fill="var(${c[1]})">${esc(lab)}</text>
+    <text x="24" y="32" text-anchor="middle" font-size="7" font-weight="800" fill="#6b7684">${k.slice(0, 4)}</text></svg>`;
+}
+const monthWinCard = k => `<div class="find month-find"><span class="find-art">${monthArt(k)}</span><span class="find-txt"><small>${T("monthBadgeTag")}</small><b>${esc(T("monthBadgeName", monthName(k)))}</b><span>${T("monthBadgeSub")}</span></span></div>`;
+// Checks this month and last month (a tick fixed on the 1st for the 31st still counts). Each month is won once.
+function checkMonth() {
+  if (!$("welcome").hidden) return;
+  const m = monthState(), d = routineDate(), today = dkey(d), p = new Date(d.getFullYear(), d.getMonth() - 1, 1); monthNow();
+  [monthKey(p), monthKey(d)].forEach(k => { const e = m[k]; if (!e || e.won || monthGood(k, e.from) < e.goal) return;
+    e.won = k === monthKey(d) ? today : dkey(new Date(+k.slice(0, 4), +k.slice(5), 0));
+    const cards = [monthWinCard(k), findCard(openFind(today, Math.random, 1))].join("") + wearNewCards(); save();
+    queueCele({ title: T("monthWonT", esc(monthName(k))), sub: T("monthWonSub", e.goal), color: "green", sound: "level", btn: T("chestBtn"), tiles: [],
+      extra: `<div class="find-list">${cards}</div>` }); });
+}
+// Shelf of every monthly badge won so far ("" when none).
+function monthShelf() {
+  const won = Object.keys(monthState()).filter(k => store.month[k].won).sort();
+  return won.length ? `<div class="mshelf"><b>${T("monthShelf")}</b><div class="mshelf-row">${won.map(k => `<span class="mb" role="img" aria-label="${esc(T("monthBadgeName", monthName(k)))} ${k.slice(0, 4)}">${monthArt(k)}</span>`).join("")}</div></div>` : "";
+}
+// The card in Progress: goal, bar, how many days can still be missed, the prize, and the badges won so far.
+function renderMonth() {
+  const el = $("monthCard"); if (!el) return;
+  const d = routineDate(), k = monthKey(d), e = monthNow(), shelf = monthShelf();
+  const nextM = new Date(d.getFullYear(), d.getMonth() + 1, 1), nextName = nextM.toLocaleDateString(locale(), { month: "long" });
+  const head = (sub, title) => `<div class="tr-h"><span class="ri" aria-hidden="true">${e && e.won ? monthArt(k) : I.cal}</span><div><b>${title || esc(T("monthName", monthName(k)))}</b><small>${sub}</small></div></div>`;
+  if (!e) { el.innerHTML = `${head(esc(nextName), T("monthSoonSub"))}<p class="tr-pause">${T("monthSoon", nextM.toLocaleDateString(locale(), { day: "numeric", month: "long" }))}</p>${shelf}`; return; }
+  const have = monthGood(k, e.from);
+  if (e.won) { el.innerHTML = `${head(T("monthGoal", e.goal))}<p class="tr-msg">${T("monthWon", keyToDate(e.won).toLocaleDateString(locale(), { day: "numeric", month: "short" }), esc(monthName(k)))}</p>${shelf}`; return; }
+  const daysIn = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(), spare = have + (daysIn - d.getDate()) + (dayOK(d) ? 0 : 1) - e.goal;
+  const note = spare > 0 ? T("monthSpare", spare) : spare === 0 ? T("monthTight") : T("monthGone", esc(nextName));
+  el.innerHTML = `${head(T("monthGoal", e.goal))}<div class="tr-goal m-goal"><div class="bar green" role="img" aria-label="${have} / ${e.goal}"><i style="${fillPct(100 * have / e.goal)}"></i><b aria-hidden="true">${have} / ${e.goal}</b></div></div>
+    <p class="m-note">${note}</p>${spare >= 0 ? `<p class="tr-gift">${I.chest}<span>${esc(T("monthPrize", monthName(k)))}</span></p>` : ""}<p class="tr-pause">${T("monthHow")}</p>${shelf}`;
+}
+
 /* ================= Refresh + comparisons ================= */
 let prevCleared = null;
 function refresh(keepSheet) {
@@ -3306,7 +3378,7 @@ function refresh(keepSheet) {
     tiles: gifts ? [] : [{ k:T("tTotal"), v:S.xp, i:"bolt", c:"--gold" }, { k:T("tNext"), v:`${S.L.span - S.L.cur}`, i:"", c:"--sky" }] });
   checkGrow(S, !!lastS);
   prevCleared = states; lastS = S;
-  checkChest(); checkTrail(S); renderTrail(S); renderEve(S); checkRecap(); checkWeekRecap(); coach();
+  checkChest(); checkTrail(S); checkMonth(); renderMonth(); renderTrail(S); renderEve(S); checkRecap(); checkWeekRecap(); coach();
   if (!mascotTimer) contextSay();
 }
 

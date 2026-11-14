@@ -1415,3 +1415,16 @@ p.wo-say{display:block}
 .f-season svg{width:16px;height:16px;fill:currentColor;flex:none;margin-top:1px}
 .fcell.lock.now{border-style:dashed;border-color:var(--sky)}
 .fcell.lock.now small{color:var(--sky-d)}
+
+/* Monthly challenge (Progress) */
+.month .tr-h .ri{background:var(--gold-soft)} .month .tr-h .ri svg.ico{fill:var(--gold-ink)} .month .tr-h .ri .mbadge{width:100%;height:100%}
+.m-goal{margin-top:12px}
+.m-note{margin:8px 0 0;font-size:14px;font-weight:900;color:var(--green-ink)}
+.month .tr-msg{margin-top:10px}
+.mshelf{margin-top:12px;padding-top:10px;border-top:2px solid var(--line)}
+.mshelf b{display:block;font-size:13px;font-weight:900;color:var(--muted);margin-bottom:6px}
+.mshelf-row{display:flex;flex-wrap:wrap;gap:6px}
+.mshelf .mb{width:44px;height:44px} .mshelf .mb svg{width:100%;height:100%}
+.bgrid + .mshelf{margin:14px 4px 0}
+.month-find{border-color:var(--gold);box-shadow:0 4px 0 var(--gold-ink)} .month-find small{color:var(--gold-ink)}
+.month-find .find-art{background:var(--gold-soft)} .month-find .find-art svg{width:84%;height:84%}
