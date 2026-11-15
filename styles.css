@@ -213,6 +213,15 @@ button:focus-visible,summary:focus-visible,input:focus-visible{outline:3px solid
 @keyframes ckpop{0%{transform:scale(.6)}100%{transform:scale(1)}}
 .qtag{display:inline-block;font-size:12px;font-weight:900;padding:2px 8px;border-radius:99px;background:var(--gold);color:#4a3600;margin-left:6px;vertical-align:2px;letter-spacing:.02em}
 .qtag.alt{background:var(--green-soft);color:var(--green-ink)}
+/* Golden habit: a gold tag on the habit's row, and a gold row above the quests on Today. */
+.qtag.gold{display:inline-flex;align-items:center;gap:3px;background:linear-gradient(135deg,var(--gold),#ffe27a 55%,var(--gold));box-shadow:0 2px 0 var(--gold-d)}
+.qtag.gold svg{width:11px;height:11px;fill:#4a3600}
+.quest.gold .q-ico{background:linear-gradient(135deg,var(--gold),#ffe27a);color:#4a3600;box-shadow:0 3px 0 var(--gold-d);animation:goldglow 2.4s ease-in-out infinite}
+.quest.gold.won .q-ico{animation:none}
+.lvl-gold{position:absolute;z-index:3;top:-6px;left:calc(50% + 14px);width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--gold);border:2px solid var(--card);box-shadow:0 2px 0 var(--gold-d);animation:goldglow 2.4s ease-in-out infinite;pointer-events:none}
+.lvl-gold svg{width:13px;height:13px;fill:#4a3600}
+.q-sub{font-size:12.5px;font-weight:700;color:var(--muted)}
+@keyframes goldglow{0%,100%{transform:rotate(0) scale(1)}50%{transform:rotate(-8deg) scale(1.06)}}
 .note{padding:12px 14px;border-radius:14px;background:var(--soft);font-size:13.5px;color:var(--muted);font-weight:700}
 .rules{padding:12px 14px;border-radius:14px;background:var(--green-soft);font-size:13.5px;font-weight:700}
 .rules b{font-weight:900;color:var(--green-ink)}

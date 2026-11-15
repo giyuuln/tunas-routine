@@ -357,7 +357,7 @@ function joinState() { const j = store.join; if (j == null) return;
   store.join = { day: j.day, at: Math.round(+j.at) }; }
 const beforeJoinDay = d => !!store.join && store.join.day === dkey(d);
 const beforeJoin = (n, d) => beforeJoinDay(d) && n.to != null && n.to <= store.join.at;
-function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); backState(); planState(); woState(); joinState(); trailState(); eveState(); monthState(); if (typeof asstState === "function") asstState(); }
+function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); backState(); planState(); woState(); joinState(); trailState(); goldState(); eveState(); monthState(); if (typeof asstState === "function") asstState(); }
 normStore();
 function save() { return storeSet(DATA_KEY, JSON.stringify(store)); }
 let soundOn = true; try { soundOn = localStorage.getItem(SND_KEY) !== "off"; } catch (e) {}
@@ -390,7 +390,9 @@ function liveKeys(d) { const out = [], jd = joinDone(d); BLOCKS.forEach(b => { c
 // Past days keep the habits they had (see Day plans), plus any habit of today's routine that was ticked on that day later.
 function itemsFor(d) { const p = planOf(d), live = liveItems(d); if (!p) return live; const done = store.days[dkey(d)] || {}; return [...p.ids, ...live.filter(id => done[id] && !p.ids.includes(id))]; }
 function keyIds(d) { const p = planOf(d), live = liveKeys(d); if (!p) return live; const done = store.days[dkey(d)] || {}; return [...p.keys, ...live.filter(id => done[id] && !p.ids.includes(id))]; }
-function xpFor(id, d) { return id === "wo-done" ? (woPlanB(d) ? XP.planB : XP.workout) : keyIds(d).includes(id) ? XP.key : XP.item; }
+function baseXP(id, d) { return id === "wo-done" ? (woPlanB(d) ? XP.planB : XP.workout) : keyIds(d).includes(id) ? XP.key : XP.item; }
+// The golden habit of the day (see Golden habit) gives double. Everything else uses the base XP.
+function xpFor(id, d) { const x = baseXP(id, d); return id !== "wo-done" && goldId(d) === id ? x * GOLD_X : x; }
 // Workout check-in (see checkin.js). Saved as store.wo = { day: { why: "rain" | "late" | "tired", rain: true/false once the
 // weather was checked, b: 1 when plan B was done } }. A workout skipped on a day the rain check confirmed rain doesn't count
 // against the day's 80% (like a rest day, but only for the workout, and with no XP). Plan B ticks the workout for XP.planB.
@@ -799,7 +801,8 @@ function dailyQuests(d, S) {
   const k = dkey(d), W = WORKOUTS[d.getDay()], done = store.days[k] || {}, ids = itemsFor(d), total = S.totalToday;
   const secs = nodesFor(d).filter(n => n.kind !== "weekly"), cleared = secs.filter(n => nodeState(n, d).cleared).length;
   // XP goal: half of what a full day can give, rounded to 10, between 30 and 150, so small routines can still win it.
-  const maxXP = ids.reduce((s, id) => s + xpFor(id, d), 0) + (ids.length ? XP.perfect : 0) + (keyIds(d).length ? XP.quest : 0);
+  // It uses base XP, so a golden habit only makes the goal easier, never bigger.
+  const maxXP = ids.reduce((s, id) => s + baseXP(id, d), 0) + (ids.length ? XP.perfect : 0) + (keyIds(d).length ? XP.quest : 0);
   const xpGoal = Math.max(30, Math.min(150, Math.round(maxXP / 20) * 10));
   const half = Math.ceil(total / 2), most = Math.ceil(total * 0.8);
   const POOL = {
@@ -827,7 +830,10 @@ function renderQuests(S) {
   $("questCount").textContent = T("of", wonN, QS.length);
   // Comeback bonus row: shown on top, apart from the 3 quests, so it never makes the chest harder to win.
   const bk = S.back ? `<div class="quest back${S.backWon ? " won" : ""}"><div class="q-ico">${I.heart}</div><div class="q-main"><div class="q-t">${T("qBack", S.backNeed)}</div><div class="bar${S.backWon ? " green" : ""}"><i style="${fillPct(100 * Math.min(S.doneToday, S.backNeed) / S.backNeed)}"></i><b>${Math.min(S.doneToday, S.backNeed)} / ${S.backNeed}</b></div></div><span class="q-rew">${S.backWon ? T("done") : "+" + XP.back}</span></div>` : "";
-  $("quests").innerHTML = bk + QS.map(q => { const won = q.n >= q.of;
+  // Golden habit row: like the comeback row, shown apart from the 3 quests, so it never makes the chest harder.
+  const gId = goldId(routineDate()), gIt = gId && BLOCKS.flatMap(b => b.items).find(i => i.id === gId), gOn = !!(gId && (store.days[dkey(routineDate())] || {})[gId]);
+  const gd = gIt ? `<div class="quest gold${gOn ? " won" : ""}"><div class="q-ico">${I.spark}</div><div class="q-main"><div class="q-t">${T("qGold", esc(itemTitle(gIt, routineDate())))}</div><div class="q-sub">${T(gOn ? "goldGot" : "goldHow")}</div></div><span class="q-rew">${gOn ? T("done") : "x" + GOLD_X}</span></div>` : "";
+  $("quests").innerHTML = bk + gd + QS.map(q => { const won = q.n >= q.of;
     return `<div class="quest${won ? " won" : ""}"><div class="q-ico">${I[q.ico]}</div><div class="q-main"><div class="q-t">${q.t}</div><div class="bar${won ? " green" : ""}"><i style="${fillPct(100*q.n/q.of)}"></i><b>${q.n} / ${q.of}</b></div></div><span class="q-rew${!won && !q.rew ? " chest" : ""}">${won ? T("done") : q.rew ? "+" + q.rew : I.chest + T("chestTag")}</span></div>`; }).join("") + `<p class="q-fresh">${T("qFresh")}</p>`;
 }
 /* ================= Today: game-level strip ================= */
@@ -845,13 +851,15 @@ function renderPath(S) {
   nodes.forEach(n => { const st = nodeState(n, d); cur.k[n.id] = starsFor(st); cur.cleared[n.id] = st.cleared; });
   const live = homeVisible() && shownPath && shownPath.day === cur.day && !reduced();
   const was = live ? shownPath : null;
+  // The section holding today's golden habit (see Golden habit) wears a small gold spark until it's ticked.
+  const gId = goldId(d), gNode = gId && !(store.days[dkey(d)] || {})[gId] ? (nodes.find(n => n.kind === "block" && n.b.items.some(i => i.id === gId)) || {}).id : null;
   strip.innerHTML = nodes.map(n => {
-    const st = nodeState(n, d), isT = n === target, k = starsFor(st);
+    const st = nodeState(n, d), isT = n === target, k = starsFor(st), gold = n.id === gNode;
     const cls = st.cleared ? "done" : isT ? "go" : st.n > 0 ? "started" : "";
     const fresh = was && st.cleared && !was.cleared[n.id], from = was ? Math.min(was.k[n.id] || 0, k) : k;
     return `<div class="lvl${st.cleared ? " cleared" : ""}${isT ? " is-target" : ""}${fresh ? " just-cleared" : ""}" style="--from:${from}">
       ${isT ? `<span class="lvl-me mascot happy" aria-hidden="true">${mascotSVG()}</span>` : ""}
-      <button class="lvl-node ${cls}" type="button" data-node="${n.id}" aria-label="${esc(n.title)}, ${T("of", st.n, st.total)}${isT ? ", " + T("upNext") : ""}">${st.cleared ? I.check : I[n.icon] || I.star}</button>
+      <button class="lvl-node ${cls}" type="button" data-node="${n.id}" aria-label="${esc(n.title)}, ${T("of", st.n, st.total)}${isT ? ", " + T("upNext") : ""}${gold ? ", " + T("goldNode") : ""}">${st.cleared ? I.check : I[n.icon] || I.star}</button>${gold ? `<span class="lvl-gold" aria-hidden="true">${I.spark}</span>` : ""}
       ${starRow(k, "", from)}<span class="lvl-name">${esc(n.title)}</span></div>`;
   }).join("");
   $("pathTitle").textContent = T("todayIs", d.toLocaleDateString(locale(), { weekday: "long" }));
@@ -1043,6 +1051,7 @@ document.addEventListener("click", e => { const row = e.target.closest(".sw-row"
 window.addEventListener("beforeunload", e => { if (ED && ED.dirty) { e.preventDefault(); e.returnValue = ""; } });
 
 function taskHTML(i, checked, tag, dayKey) {
+  if (dayKey && i.id !== "wo-done" && goldId(keyToDate(dayKey)) === i.id) tag += `<span class="qtag gold">${I.spark}${T("goldTag")}</span>`;
   if (i.goal && dayKey) return countHTML(i, checked, tag, dayKey);
   return `<button class="task" type="button" role="checkbox" aria-checked="${checked}" data-task="${i.id}">
     <span class="ck">${I.check}</span><span class="tt"><b>${esc(i.t)}${tag}</b>${i.n ? `<span>${esc(i.n)}</span>` : ""}</span>${i.time ? `<span class="tm">${esc(i.time)}</span>` : ""}</button>`;
@@ -1192,6 +1201,7 @@ function tickAll() {
   const ticked = [];
   node.b.items.forEach(i => { if (shown(i, d) && !done[i.id]) { done[i.id] = true; ticked.push(i.id); xp += xpFor(i.id, d); } });
   comboReset(); save(); sfx("ding"); buzz([15, 40, 15]); floatXP(innerWidth / 2 - 40, innerHeight / 2, `+${xp} XP`); jump($("mascot"));
+  const gId = goldId(d); if (gId && ticked.includes(gId)) goldHit(xpFor(gId, d));
   const tb = document.querySelector("#shBody .tickall"); if (tb) flyXP(tb.getBoundingClientRect());
   refresh(true);
   // One mis-tap shouldn't tick a whole section for good: offer Undo for a few seconds.
@@ -1348,6 +1358,7 @@ $("shBody").addEventListener("click", e => {
   const rect = t.getBoundingClientRect();
   if (v) { const xp = sheetId === "weekly" ? XP.weekly : xpFor(id, d); sfx("ding"); buzz(); floatXP(rect.right - 90, rect.top + rect.height/2, `+${xp} XP`); if (!sheetId.startsWith("day:")) flyXP(rect);
     if (!sheetId.startsWith("day:")) comboHit(rect); else comboReset();
+    if (sheetId !== "weekly" && !sheetId.startsWith("day:") && id !== "wo-done" && goldId(d) === id) goldHit(xp);
     const it = id === "wo-done" ? { t: T("woDone") } : sheetId === "weekly" ? WEEKLY.find(w => w.id === id) : BLOCKS.flatMap(b => b.items).find(i => i.id === id);
     const node = nodesFor(d).find(n => n.id === sheetId), nx = node && !sheetId.startsWith("day:") ? nextOpen(node, d) : null;
     say(`${pick(T("cheers"))} ${esc(it ? itemTitle(it, d) : "")} ✓`, nx ? T("sayThen", esc(nx.name || itemTitle(nx, d))) + ` · +${xp} XP` : `+${xp} XP`, "happy", 3200); jump($("mascot"));
@@ -3206,6 +3217,28 @@ function quietBefore(k) {
 const backOn = k => !!(store.back && store.back.days && store.back.days[k]) && quietBefore(k) >= BACK_GAP;
 const backNeed = d => Math.min(BACK_TICKS, itemsFor(d).length);
 
+/* ================= Golden habit ================= */
+// One day each week (Monday to Sunday), one of that day's habits is golden and gives double XP when ticked. It only adds:
+// missing it costs nothing, and unticking takes back just its own bonus. The day and the habit come from the date and the
+// day's habit list (see Day plans), so nothing is saved for them and they are the same after a restore. The habit is the
+// one whose own hash is lowest, so adding or removing other habits during the day doesn't move it. The workout is never
+// golden (it already gives 50). Saved as store.gold = { from: first day it counts }, set the first time this runs, so old
+// history never earns bonus XP after an update.
+const GOLD_X = 2;
+function goldState() { const g = store.gold; if (g == null) return;
+  if (!g || typeof g !== "object" || Array.isArray(g) || !/^\d{4}-\d\d-\d\d$/.test(g.from)) { delete store.gold; return; }
+  store.gold = { from: g.from }; }
+function goldStart() { if (store.gold) return false; store.gold = { from: dkey(routineDate()) }; return true; }
+const goldWeek = new Map();
+function goldDay(d) { const k = dkey(d); if (!store.gold || k < store.gold.from) return false;
+  const w = wkey(d); if (!goldWeek.has(w)) goldWeek.set(w, dayHash(w, "gold") % 7);
+  return goldWeek.get(w) === (d.getDay() + 6) % 7; }
+function goldId(d) { if (!goldDay(d)) return null; const k = dkey(d); let best = null, bh = 0;
+  itemsFor(d).forEach(id => { if (id === "wo-done") return; const h = dayHash(k, "gold:" + id); if (best === null || h < bh) { best = id; bh = h; } });
+  return best; }
+// Ticking the golden habit: a short shimmer, a chime and a toast on top of the usual tick.
+function goldHit(xp) { setTimeout(() => { sfx("star3"); buzz([12, 40, 12, 40, 20]); toast(T("goldToast", xp), "spark", 3200); }, 260); }
+
 /* ================= Starter trail ================= */
 // A new player's first week: 7 stops with one small goal each. Only one stop can be cleared per day, so it takes 7 days
 // or more. Missing a day just pauses the trail: nothing resets and nothing is lost. Stop 4 gives a streak shield (or a
@@ -3340,6 +3373,7 @@ function renderMonth() {
 let prevCleared = null;
 function refresh(keepSheet) {
   if (recordPlan()) save();
+  if (goldStart()) save();
   sinceDay(); // fixes the start date the first time (saved), so later counts don't move
   useShields();
   const d = routineDate(), S = computeAll();
