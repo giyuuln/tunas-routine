@@ -347,6 +347,11 @@ textarea.field{min-height:140px;font-family:ui-monospace,monospace;font-size:12.
 .hs-c.rest{background:var(--sky-soft);border-color:var(--sky)}
 .hs-c.off,.lg.hs-off{background:none;border-style:dashed}
 .hs-c.today{box-shadow:0 0 0 3px var(--green);border-color:var(--card)}
+/* Resting the workout */
+.lvl-node.rested{background:var(--sky-soft);color:var(--sky-d);box-shadow:0 4px 0 color-mix(in srgb,var(--sky) 45%,var(--line))}
+.wo-rest{margin-top:8px;align-self:flex-start}
+.wo-rest svg{width:16px;height:16px;fill:currentColor}
+.wo-rest-none{margin:8px 0 0;font-size:13px;font-weight:700;color:var(--muted)}
 /* Habit notes */
 .hs-c.nt,.lg.nt{position:relative}
 .hs-c.nt::after,.lg.nt::after{content:"";position:absolute;right:-3px;top:-3px;width:9px;height:9px;border-radius:50%;background:var(--gold);border:2px solid var(--card)}
