@@ -345,7 +345,9 @@ const titleCard = n => `<div class="find title-find"><span class="find-art">${TI
 // Streak shield rules (see Streak shields). Set here because loading saved data already checks them.
 const SHIELD_MAX = 2, SHIELD_ODDS = 0.25, SHIELD_PITY = 5, SHIELD_MIN_STREAK = 2;
 // Workout check-in reasons (see woState). Set here because loading saved data already checks them.
-const WO_WHY = ["rain", "late", "tired"];
+const WO_WHY = ["rain", "late", "tired", "sick"];
+// Resting the workout (see checkin.js): sick can always rest it; tired can rest it up to TIRED_RESTS times a week.
+const TIRED_RESTS = 2;
 // Comeback bonus rules (see Comeback bonus): 2+ quiet days in a row, then tick 3 habits on the first day back.
 const BACK_GAP = 2, BACK_TICKS = 3;
 let store = loadJSON(DATA_KEY, v => v && typeof v === "object" && v.days && typeof v.days === "object").value || { days:{}, weeks:{}, logs:{}, seen:{}, rest:{} };
@@ -407,8 +409,12 @@ function liveItems(d) { const out = [], jd = joinDone(d); BLOCKS.forEach(b => { 
 function liveKeys(d) { const out = [], jd = joinDone(d); BLOCKS.forEach(b => { const skip = jd && beforeJoin(b, d); b.items.forEach(i => { if (i.key && shown(i,d) && (!skip || jd[i.id])) out.push(i.id); }); });
   const W = WORKOUTS[d.getDay()]; if (W && !(jd && beforeJoin(W, d) && !jd["wo-done"])) out.push("wo-done"); return out; }
 // Past days keep the habits they had (see Day plans), plus any habit of today's routine that was ticked on that day later.
-function itemsFor(d) { const p = planOf(d), live = liveItems(d); if (!p) return live; const done = store.days[dkey(d)] || {}; return [...p.ids, ...live.filter(id => done[id] && !p.ids.includes(id))]; }
-function keyIds(d) { const p = planOf(d), live = liveKeys(d); if (!p) return live; const done = store.days[dkey(d)] || {}; return [...p.keys, ...live.filter(id => done[id] && !p.ids.includes(id))]; }
+// A workout rested for being tired or sick (see checkin.js) leaves that day's list, unless it was ticked anyway.
+// So it never counts against the day, the ★ habits, the quests or the chest, and it gives no XP.
+function woOff(d) { const k = dkey(d), w = (store.wo || {})[k]; return !!(w && w.rest === 1 && !(store.days[k] || {})["wo-done"]); }
+const dropWo = (ids, d) => (woOff(d) ? ids.filter(id => id !== "wo-done") : ids);
+function itemsFor(d) { const p = planOf(d), live = liveItems(d); if (!p) return dropWo(live, d); const done = store.days[dkey(d)] || {}; return dropWo([...p.ids, ...live.filter(id => done[id] && !p.ids.includes(id))], d); }
+function keyIds(d) { const p = planOf(d), live = liveKeys(d); if (!p) return dropWo(live, d); const done = store.days[dkey(d)] || {}; return dropWo([...p.keys, ...live.filter(id => done[id] && !p.ids.includes(id))], d); }
 function baseXP(id, d) { return id === "wo-done" ? (woPlanB(d) ? XP.planB : XP.workout) : keyIds(d).includes(id) ? XP.key : XP.item; }
 // The golden habit of the day (see Golden habit) gives double. Everything else uses the base XP.
 function xpFor(id, d) { const x = baseXP(id, d); return id !== "wo-done" && goldId(d) === id ? x * GOLD_X : x; }
@@ -420,12 +426,17 @@ function woState() {
   const old = new Date(Date.now() - 400 * 864e5).toISOString().slice(0, 10); // runs while loading, before dkey exists
   Object.keys(store.wo).forEach(k => { const w = store.wo[k];
     if (!/^\d{4}-\d\d-\d\d$/.test(k) || k < old || !w || typeof w !== "object" || !WO_WHY.includes(w.why)) return void delete store.wo[k];
-    store.wo[k] = { why: w.why, ...(typeof w.rain === "boolean" && w.why === "rain" ? { rain: w.rain } : {}), ...(w.b === 1 ? { b: 1 } : {}) }; });
+    const rest = w.why === "sick" || (w.why === "tired" && w.rest === 1 && w.b !== 1);
+    store.wo[k] = { why: w.why, ...(typeof w.rain === "boolean" && w.why === "rain" ? { rain: w.rain } : {}), ...(w.b === 1 && !rest ? { b: 1 } : {}), ...(rest ? { rest: 1 } : {}) }; });
   if (typeof store.wxOn !== "boolean") delete store.wxOn;
   return store.wo;
 }
 const woOf = d => (store.wo && store.wo[dkey(d)]) || null;
-const woExcused = d => { const w = woOf(d); return !!(w && w.why === "rain" && w.rain === true); };
+// A rested workout (tired or sick) is excused like confirmed rain: it doesn't count against the day, and gives no XP.
+const woRested = d => { const w = woOf(d); return !!(w && w.rest === 1); };
+const woExcused = d => { const w = woOf(d); return !!(w && ((w.why === "rain" && w.rain === true) || w.rest === 1)); };
+// Tired rests already used in d's week (Monday to Sunday), not counting d itself.
+const tiredRestsUsed = d => { const wk = wkey(d), k = dkey(d); return Object.keys(store.wo || {}).filter(x => x !== k && store.wo[x].why === "tired" && store.wo[x].rest === 1 && wkey(keyToDate(x)) === wk).length; };
 const woPlanB = d => { const w = woOf(d); return !!(w && w.b === 1); };
 function ratio(d) { const done = store.days[dkey(d)] || {}, ids = woExcused(d) && !done["wo-done"] ? itemsFor(d).filter(id => id !== "wo-done") : itemsFor(d); return ids.length ? ids.filter(id => done[id]).length / ids.length : 0; }
 const REST_PER_MONTH = 2;
@@ -538,8 +549,10 @@ function nodeState(node, d) {
   const wd = store.weeks[wkey(d)] || {}; const n = WEEKLY.filter(i => wd[i.id]).length;
   return { n, total: WEEKLY.length, cleared: n === WEEKLY.length, xp: n * XP.weekly };
 }
+const restedNode = (n, d) => n.kind === "workout" && woExcused(d) && !(store.days[dkey(d)] || {})["wo-done"];
 function pathTarget(d, mins, nodes) {
-  return nodes.find(n => inWindow(n, mins) && !nodeState(n, d).cleared) || nodes.find(n => !nodeState(n, d).cleared && n.kind !== "weekly") || null;
+  const open = n => !nodeState(n, d).cleared && !restedNode(n, d);
+  return nodes.find(n => inWindow(n, mins) && open(n)) || nodes.find(n => open(n) && n.kind !== "weekly") || null;
 }
 
 /* ================= Sound, haptics, floats, toasts, confetti ================= */
@@ -832,9 +845,10 @@ function dailyQuests(d, S) {
     sec2: { ok: secs.length >= 3, q: () => ({ ico:"trophy", t:T("qSec2"), n: Math.min(cleared, 2), of: 2, rew: 0 }) },
     most: { ok: total >= 5, q: () => ({ ico:"flame", t:T("qMost"), n: Math.min(S.doneToday, most), of: most, rew: 0 }) } };
   const pickFrom = (ids, salt) => { const ok = ids.filter(id => POOL[id].ok); return ok.length ? ok[dayHash(k, salt) % ok.length] : null; };
-  const light = W ? null : pickFrom(["xp", "sec", "half"], "light"), big = pickFrom(["day", "day", "sec2", "most"], "big") || "day";
+  const Wq = W && !woOff(d) ? W : null; // a rested workout swaps its quest for a light one
+  const light = Wq ? null : pickFrom(["xp", "sec", "half"], "light"), big = pickFrom(["day", "day", "sec2", "most"], "big") || "day";
   const Q = [{ ico:"star", t:T("qStar"), n:S.questDone, of:S.questTotal, rew:XP.quest }];
-  if (W) Q.push({ ico:"bolt", t:T("qWorkout", esc(W.name)), n: done["wo-done"] ? 1 : 0, of: 1, rew: XP.workout });
+  if (Wq) Q.push({ ico:"bolt", t:T("qWorkout", esc(W.name)), n: done["wo-done"] ? 1 : 0, of: 1, rew: XP.workout });
   else if (light) Q.push(POOL[light].q());
   Q.push(POOL[big].q());
   return Q;
@@ -874,11 +888,11 @@ function renderPath(S) {
   const gId = goldId(d), gNode = gId && !(store.days[dkey(d)] || {})[gId] ? (nodes.find(n => n.kind === "block" && n.b.items.some(i => i.id === gId)) || {}).id : null;
   strip.innerHTML = nodes.map(n => {
     const st = nodeState(n, d), isT = n === target, k = starsFor(st), gold = n.id === gNode;
-    const cls = st.cleared ? "done" : isT ? "go" : st.n > 0 ? "started" : "";
+    const rested = restedNode(n, d), cls = st.cleared ? "done" : rested ? "rested" : isT ? "go" : st.n > 0 ? "started" : "";
     const fresh = was && st.cleared && !was.cleared[n.id], from = was ? Math.min(was.k[n.id] || 0, k) : k;
     return `<div class="lvl${st.cleared ? " cleared" : ""}${isT ? " is-target" : ""}${fresh ? " just-cleared" : ""}" style="--from:${from}">
       ${isT ? `<span class="lvl-me mascot happy" aria-hidden="true">${mascotSVG()}</span>` : ""}
-      <button class="lvl-node ${cls}" type="button" data-node="${n.id}" aria-label="${esc(n.title)}, ${T("of", st.n, st.total)}${isT ? ", " + T("upNext") : ""}${gold ? ", " + T("goldNode") : ""}">${st.cleared ? I.check : I[n.icon] || I.star}</button>${gold ? `<span class="lvl-gold" aria-hidden="true">${I.spark}</span>` : ""}
+      <button class="lvl-node ${cls}" type="button" data-node="${n.id}" aria-label="${esc(n.title)}, ${rested ? T("woRestAria") : T("of", st.n, st.total)}${isT ? ", " + T("upNext") : ""}${gold ? ", " + T("goldNode") : ""}">${st.cleared ? I.check : rested ? I.moon : I[n.icon] || I.star}</button>${gold ? `<span class="lvl-gold" aria-hidden="true">${I.spark}</span>` : ""}
       ${starRow(k, "", from)}<span class="lvl-name">${esc(n.title)}</span></div>`;
   }).join("");
   $("pathTitle").textContent = T("todayIs", d.toLocaleDateString(locale(), { weekday: "long" }));

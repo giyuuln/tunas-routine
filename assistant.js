@@ -61,7 +61,7 @@ function amCard(d, S) {
   const late = first && first.to != null && mins >= first.to;
   const W = WORKOUTS[d.getDay()] && CFG.showWorkouts !== false ? WORKOUTS[d.getDay()] : null;
   const lines = [asLine("📋", T("asAmSize", S.totalToday, timed.length, S.questTotal)),
-    asLine("💪", W ? T("asAmWo", esc(W.name), W.from != null ? fmtClock(W.from) : "") : T("asAmNoWo")),
+    asLine("💪", W && woOff(d) ? T("asAmWoRest", esc(W.name)) : W ? T("asAmWo", esc(W.name), W.from != null ? fmtClock(W.from) : "") : T("asAmNoWo")),
     first ? asLine("⏰", late ? T("asAmFirstLate", esc(first.title)) : T("asAmFirst", esc(first.title), first.from != null ? fmtClock(first.from) : "")) : "",
     S.streak ? asLine("🔥", T("asAmStreak", S.streak)) : "", asJoin(d)].join("");
   return asHead("☀️", T("asAmT", firstName()), "", "am") + `<ul class="as-list">${lines}</ul>

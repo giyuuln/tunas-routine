@@ -4,6 +4,8 @@
      workout time keeps the skipped workout from counting against your streak (see woExcused in app.js). No rain? Tunas
      says so kindly and offers the indoor plan instead. Nothing is taken away either way.
    - Doing a plan B ticks the workout (XP.planB instead of XP.workout, since it's shorter).
+   - Sick: the workout rests in one tap. Tired: the stretch plan B, or rest instead up to TIRED_RESTS times a week.
+     A rested workout gives no XP and doesn't count against the day's 80% or the streak (see woExcused in app.js).
    Rain check (opt-in, off by default): the only time Tunas talks to a server. On your tap, the phone's location is
    rounded to about 10 km and sent to Open-Meteo (free, no account, no key) to read today's rain. The location is never
    saved; only the answer (rain yes/no) is kept with that day. Allowed by connect-src in index.html.
@@ -25,9 +27,10 @@ function woPlan(why, W) {
     return [T("pbLateT"), 10, [T("pbWarm"), ...(ex.length ? ex : T("pbLateMoves")), T("pbCool")]];
   }
   if (why === "tired") return [T("pbTiredT"), 10, T("pbTiredMoves")];
+  if (why === "sick") return [T("pbSickT"), 0, []];
   return [T("pbRainT"), 15, T("pbRainMoves")];
 }
-const WHY_EMO = { rain: "🌧️", late: "🌙", tired: "🥱" };
+const WHY_EMO = { rain: "🌧️", late: "🌙", tired: "🥱", sick: "🤒" };
 const whyChips = () => `<div class="wo-why" role="group" aria-label="${T("woWhyQ")}">${WO_WHY.map(k =>
   `<button type="button" class="wo-chip" data-wowhy="${k}"><span aria-hidden="true">${WHY_EMO[k]}</span>${T("why_" + k)}</button>`).join("")}</div>`;
 
@@ -38,8 +41,10 @@ function woCheckHTML(d) {
   const w = t.w;
   if (!w) return WO_UI.open
     ? `<div class="wo-ci"><b>${T("woWhyQ")}</b>${whyChips()}<button class="linkish" type="button" data-wo="close">${T("woNever")}</button></div>`
-    : `<button class="wo-ci-open" type="button" data-wo="open"><span aria-hidden="true">🌧️🌙🥱</span><span><b>${T("woCant")}</b><small>${T("woCantSub")}</small></span><span class="chev" aria-hidden="true"></span></button>`;
-  return `<div class="wo-ci">${woStatusHTML(t)}${woPlanHTML(t)}</div>`;
+    : `<button class="wo-ci-open" type="button" data-wo="open"><span aria-hidden="true">🌧️🌙🥱🤒</span><span><b>${T("woCant")}</b><small>${T("woCantSub")}</small></span><span class="chev" aria-hidden="true"></span></button>`;
+  if (w.rest) return `<div class="wo-ci wo-rested"><p class="wo-say ok" role="status"><b>${T("woRestedT_" + w.why)}</b> ${T("woRestedSub")}
+    <button class="linkish" type="button" data-wo="reset">${T("woWhyChange")}</button></p></div>`;
+  return `<div class="wo-ci">${woStatusHTML(t)}${woPlanHTML(t)}${woRestHTML(t)}</div>`;
 }
 // What Tunas says about the reason, including the rain check.
 function woStatusHTML(t) {
@@ -52,6 +57,13 @@ function woStatusHTML(t) {
   if (!store.wxOn) return `<div class="wo-say"><b>${T("wxAsk")}</b><p>${T("wxAskSub")}</p>${err}
     <div class="row"><button class="btn small" type="button" data-wo="wxon">${I.rain}${T("wxOnCheck")}</button><button class="btn ghost small" type="button" data-wo="reset">${T("woWhyChange")}</button></div></div>`;
   return `<div class="wo-say">${err}<div class="row"><button class="btn small" type="button" data-wo="check">${I.rain}${T("wxCheck")}</button>${change}</div></div>`;
+}
+// Tired: rest instead of the stretch, while this week still has a tired rest left.
+function woRestHTML(t) {
+  if (WO_UI.busy || t.w.why !== "tired") return "";
+  const left = Math.max(0, TIRED_RESTS - tiredRestsUsed(t.d));
+  return left ? `<button class="btn ghost small wo-rest" type="button" data-wo="rest">${I.moon}${T("woRestBtn", left)}</button>`
+    : `<p class="wo-rest-none">${T("woRestNone", TIRED_RESTS)}</p>`;
 }
 function woPlanHTML(t) {
   if (WO_UI.busy) return "";
@@ -66,7 +78,7 @@ function woNudgeHTML() {
   const t = woToday(); if (!t || t.done || WO_UI.hideNudge === t.k) return "";
   const mins = nowMins(), late = t.W.to != null ? mins >= t.W.to : mins >= 20 * 60; if (!late) return "";
   const w = t.w;
-  if (w && w.why === "rain" && w.rain === true) return ""; // rain confirmed: nothing more to ask today
+  if (w && ((w.why === "rain" && w.rain === true) || w.rest)) return ""; // rain confirmed or resting: nothing more to ask today
   const top = `<div class="nd-top"><div class="nd-ico wo">${I.dumb}</div><div><b id="nudgeT">${w ? T("pbReady", woPlan(w.why, t.W)[0]) : T("woNudgeT", esc(t.W.name))}</b><span>${w ? T("pbReadySub", T("pbMin", woPlan(w.why, t.W)[1])) : T("woNudgeSub")}</span></div></div>`;
   return top + (w ? `<div class="row"><button class="btn small" type="button" data-wo="go">${T("pbOpen")}</button><button class="btn ghost small" type="button" data-wo="later">${T("nudgeLater")}</button></div>`
     : `${whyChips()}<div class="row"><button class="btn ghost small" type="button" data-wo="go">${T("woDoIt")}</button><button class="btn ghost small" type="button" data-wo="later">${T("nudgeLater")}</button></div>`);
@@ -116,10 +128,17 @@ async function woCheckRain() {
 function woRender() { if (sheetId === "workout") renderSheet(true); renderNudge(); }
 function woSetWhy(why) {
   const t = woToday(); if (!t || t.done || !WO_WHY.includes(why)) return;
-  woState()[t.k] = { why }; WO_UI.open = false; WO_UI.err = ""; save(); sfx("pop"); buzz(10);
-  say(T("say_" + why), "", why === "tired" ? "sleepy" : "think", 3500);
+  woState()[t.k] = { why, ...(why === "sick" ? { rest: 1 } : {}) }; WO_UI.open = false; WO_UI.err = ""; save(); sfx("pop"); buzz(10);
+  say(T("say_" + why), why === "sick" ? T("woRestToast") : "", why === "tired" || why === "sick" ? "sleepy" : "think", 3500);
+  if (why === "sick") { lastS = null; prevCleared = null; refresh(true); return woRender(); }
   if (why === "rain" && store.wxOn) { woRender(); return woCheckRain(); }
   woRender();
+}
+function woRest() {
+  const t = woToday(); if (!t || t.done || !t.w || t.w.why !== "tired" || tiredRestsUsed(t.d) >= TIRED_RESTS) return;
+  t.w.rest = 1; save(); sfx("ding"); buzz(10);
+  say(T("woRestedT_tired"), T("woRestToast"), "sleepy", 3500); toast(T("woRestToast"), "shield", 3500);
+  lastS = null; prevCleared = null; refresh(true); woRender();
 }
 function woDonePlanB() {
   const t = woToday(); if (!t || t.done || !t.w) return;
@@ -140,6 +159,7 @@ function woClick(e) {
   if (a === "wxon") { store.wxOn = true; save(); return woCheckRain(); }
   if (a === "check") return woCheckRain();
   if (a === "done") return woDonePlanB();
+  if (a === "rest") return woRest();
   if (a === "later") { if (t) WO_UI.hideNudge = t.k; return renderNudge(); }
   if (a === "go") { const n = nodesFor(routineDate()).find(x => x.kind === "workout"); if (n) openSheet(n.id); return; }
   if (a === "wxtoggle") { store.wxOn = !store.wxOn; save(); toast(store.wxOn ? T("wxOnToast") : T("wxOffToast"), "check"); return renderSheet(true); }
