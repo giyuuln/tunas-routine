@@ -388,7 +388,9 @@ window.TUNAS_I18N = {
     hsLast30: "Last 30 days", hsPct: "Done", hsBest: "Best", hsListTitle: "Habit by habit", hsNone: "not started yet",
     hsLine: (n, t) => `Done <b>${n}</b> of the <b>${t}</b> days it was on your list.`, hsNew: "No days to count yet. Tick it today to start!",
     hsGridLabel: (n, t) => `Last 30 days: done ${n} of ${t} days`, hsNotToday: "This habit isn't on today's list.",
-    hsTip: "Tip: press and hold a habit to see how it's going.",
+    hsTip: "Tip: press and hold a habit to see how it's going or add a note.",
+    noteToday: "Note for today (optional)", notePh: "e.g. ran 3 km, read 10 pages", noteHint: "Tick it today to add a short note.",
+    noteSaved: "Note saved", notesTitle: "Earlier notes", noteLg: "With a note",
     hsState: { done: "Done", miss: "Missed", rest: "Rest day", off: "Not on the list", today: "Still to do" },
     // Money
     mnTitle: "Money", mnSub: "What comes in, what goes out", mnMeEmpty: "Track money in and spends each month",
@@ -810,7 +812,9 @@ window.TUNAS_I18N = {
     hsLast30: "30 hari lepas", hsPct: "Siap", hsBest: "Terbaik", hsListTitle: "Ikut tabiat", hsNone: "belum mula lagi",
     hsLine: (n, t) => `Siap <b>${n}</b> daripada <b>${t}</b> hari yang ada dalam senarai.`, hsNew: "Belum ada hari nak dikira. Tanda hari ni untuk mula!",
     hsGridLabel: (n, t) => `30 hari lepas: siap ${n} daripada ${t} hari`, hsNotToday: "Tabiat ni tak ada dalam senarai hari ni.",
-    hsTip: "Tip: tekan lama satu tabiat untuk tengok prestasinya.",
+    hsTip: "Tip: tekan lama satu tabiat untuk tengok prestasinya atau tulis nota.",
+    noteToday: "Nota hari ni (pilihan)", notePh: "cth. lari 3 km, baca 10 muka surat", noteHint: "Tanda hari ni dulu, lepas tu boleh tulis nota ringkas.",
+    noteSaved: "Nota disimpan", notesTitle: "Nota sebelum ni", noteLg: "Ada nota",
     hsState: { done: "Siap", miss: "Terlepas", rest: "Hari rehat", off: "Tak dalam senarai", today: "Belum buat" },
     // Duit
     mnTitle: "Duit", mnSub: "Duit masuk, duit keluar", mnMeEmpty: "Catat duit masuk dan belanja setiap bulan",

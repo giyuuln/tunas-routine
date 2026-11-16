@@ -355,9 +355,28 @@ let store = loadJSON(DATA_KEY, v => v && typeof v === "object" && v.days && type
 function joinState() { const j = store.join; if (j == null) return;
   if (!j || typeof j !== "object" || !/^\d{4}-\d\d-\d\d$/.test(j.day) || !(+j.at >= 0 && +j.at < 2880)) { delete store.join; return; }
   store.join = { day: j.day, at: Math.round(+j.at) }; }
+/* ================= Habit notes ================= */
+// A short optional note on a habit ticked today (e.g. "ran 3 km"), written on the habit's page and shown in its 30-day
+// stats. Saved as store.notes = { "YYYY-MM-DD": { habitId: "text" } } and carried by backups like the rest of store.
+// Notes give no XP. An unticked habit keeps its note, but it only shows while the habit is ticked that day.
+const NOTE_MAX = 80;
+function notesState() {
+  const n = store.notes; if (!n || typeof n !== "object" || Array.isArray(n)) { delete store.notes; return; }
+  Object.keys(n).forEach(k => { const v = n[k];
+    if (!/^\d{4}-\d\d-\d\d$/.test(k) || !v || typeof v !== "object" || Array.isArray(v)) return void delete n[k];
+    Object.keys(v).forEach(id => { const t = typeof v[id] === "string" ? v[id].replace(/\s+/g, " ").trim().slice(0, NOTE_MAX) : "";
+      if (t) v[id] = t; else delete v[id]; });
+    if (!Object.keys(v).length) delete n[k]; });
+}
+const noteOf = (k, id) => ((store.notes || {})[k] || {})[id] || "";
+function setNote(k, id, text) {
+  const t = String(text || "").replace(/\s+/g, " ").trim().slice(0, NOTE_MAX), n = (store.notes ||= {});
+  if (t) (n[k] ||= {})[id] = t; else if (n[k]) { delete n[k][id]; if (!Object.keys(n[k]).length) delete n[k]; }
+  save();
+}
 const beforeJoinDay = d => !!store.join && store.join.day === dkey(d);
 const beforeJoin = (n, d) => beforeJoinDay(d) && n.to != null && n.to <= store.join.at;
-function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); backState(); planState(); woState(); joinState(); trailState(); goldState(); eveState(); monthState(); if (typeof asstState === "function") asstState(); }
+function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); backState(); planState(); woState(); joinState(); notesState(); trailState(); goldState(); eveState(); monthState(); if (typeof asstState === "function") asstState(); }
 normStore();
 function save() { return storeSet(DATA_KEY, JSON.stringify(store)); }
 let soundOn = true; try { soundOn = localStorage.getItem(SND_KEY) !== "off"; } catch (e) {}
@@ -1054,14 +1073,15 @@ function taskHTML(i, checked, tag, dayKey) {
   if (dayKey && i.id !== "wo-done" && goldId(keyToDate(dayKey)) === i.id) tag += `<span class="qtag gold">${I.spark}${T("goldTag")}</span>`;
   if (i.goal && dayKey) return countHTML(i, checked, tag, dayKey);
   return `<button class="task" type="button" role="checkbox" aria-checked="${checked}" data-task="${i.id}">
-    <span class="ck">${I.check}</span><span class="tt"><b>${esc(i.t)}${tag}</b>${i.n ? `<span>${esc(i.n)}</span>` : ""}</span>${i.time ? `<span class="tm">${esc(i.time)}</span>` : ""}</button>`;
+    <span class="ck">${I.check}</span><span class="tt"><b>${esc(i.t)}${tag}</b>${i.n ? `<span>${esc(i.n)}</span>` : ""}${noteLine(i, checked, dayKey)}</span>${i.time ? `<span class="tm">${esc(i.time)}</span>` : ""}</button>`;
 }
+const noteLine = (i, checked, dayKey) => { const t = checked && dayKey ? noteOf(dayKey, i.id) : ""; return t ? `<span class="tk-note">${I.pencil}${esc(t)}</span>` : ""; };
 // How far a count habit got that day. A ticked one (also via Tick all) always shows full.
 const countOf = (i, dayKey, done) => done ? i.goal : Math.min(((store.counts[dayKey] || {})[i.id]) || 0, i.goal - 1);
 function countHTML(i, checked, tag, dayKey) {
   const n = countOf(i, dayKey, checked), label = `${i.t} · ${T("countOf", n, i.goal)}`;
   return `<div class="cnt-row"><button class="task cnt" type="button" role="checkbox" aria-checked="${checked}" data-task="${i.id}" aria-label="${esc(label)}${checked ? "" : ". " + T("countTap")}">
-    <span class="ck">${checked ? I.check : `<span class="ck-plus">${I.plus}</span>`}</span><span class="tt"><b>${esc(i.t)}${tag}</b>${i.n ? `<span>${esc(i.n)}</span>` : ""}<span class="cnt-bar" aria-hidden="true"><i style="${fillPct(100 * n / i.goal)}"></i></span></span>
+    <span class="ck">${checked ? I.check : `<span class="ck-plus">${I.plus}</span>`}</span><span class="tt"><b>${esc(i.t)}${tag}</b>${i.n ? `<span>${esc(i.n)}</span>` : ""}${noteLine(i, checked, dayKey)}<span class="cnt-bar" aria-hidden="true"><i style="${fillPct(100 * n / i.goal)}"></i></span></span>
     <span class="tm cnt-n" aria-hidden="true">${n} / ${i.goal}</span></button>${n > 0 ? `<button class="cnt-minus" type="button" data-cminus="${i.id}" aria-label="${esc(T("countMinus", i.t))}">−</button>` : ""}</div>`;
 }
 function sheetHead(icon, title, sub, st, color) {
@@ -1284,13 +1304,21 @@ function renderHabitSheet(id, keep) {
   if (!store.seen.habitHold) { store.seen.habitHold = 1; save(); }
   const tiles = [{ k: T("hsPct"), v: s.pct == null ? "–" : `${s.pct}%`, i: "", c: "--green" }, { k: T("tStreak"), v: s.streak, i: "flame", c: "--orange" }, { k: T("hsBest"), v: s.best, i: "trophy", c: "--gold" }];
   const fmt = { weekday: "short", day: "numeric", month: "short" };
-  const cells = s.days.map(x => `<i class="hs-c ${x.s}" title="${esc(x.d.toLocaleDateString(locale(), fmt))}: ${T("hsState")[x.s]}"></i>`).join("");
+  const cells = s.days.map(x => `<i class="hs-c ${x.s}${x.s === "done" && noteOf(x.k, i.id) ? " nt" : ""}" title="${esc(x.d.toLocaleDateString(locale(), fmt))}: ${T("hsState")[x.s]}"></i>`).join("");
+  const today = dkey(d), tickedToday = !!(store.days[today] || {})[i.id];
+  const noteBox = tickedToday ? `<label class="hn-box"><span class="hn-l">${I.pencil}${T("noteToday")}</span>
+      <input class="field hn-in" type="text" data-note="${esc(i.id)}" maxlength="${NOTE_MAX}" enterkeyhint="done" autocomplete="off" value="${esc(noteOf(today, i.id))}" placeholder="${esc(T("notePh"))}"></label>`
+    : shown(i, d) ? `<p class="hn-hint">${I.pencil}${T("noteHint")}</p>` : "";
+  const notes = s.days.filter(x => x.s === "done" && x.k !== today && noteOf(x.k, i.id)).reverse()
+    .map(x => `<li><small>${esc(x.d.toLocaleDateString(locale(), fmt))}</small><span>${esc(noteOf(x.k, i.id))}</span></li>`).join("");
   body.innerHTML = `<div class="card hist hs">
       <div class="tiles">${tiles.map(t => `<div class="tile" style="--c:var(${t.c})"><small>${t.k}</small><b>${t.i ? I[t.i] : ""}${t.v}</b></div>`).join("")}</div>
       <p class="ws-line">${s.due ? T("hsLine", s.done, s.due) : T("hsNew")}</p>
+      ${noteBox}
       ${masteryHTML(i)}
       <div class="hs-grid" role="img" aria-label="${esc(T("hsGridLabel", s.done, s.due))}">${cells}</div>
-      <div class="h-foot"><span><i class="lg hs-done"></i>${T("hsState").done}</span><span><i class="lg hs-miss"></i>${T("hsState").miss}</span><span><i class="lg rest"></i>${T("lgRest")}</span><span><i class="lg hs-off"></i>${T("hsState").off}</span></div>
+      <div class="h-foot"><span><i class="lg hs-done"></i>${T("hsState").done}</span><span><i class="lg hs-miss"></i>${T("hsState").miss}</span><span><i class="lg rest"></i>${T("lgRest")}</span><span><i class="lg hs-off"></i>${T("hsState").off}</span>${notes ? `<span><i class="lg hs-done nt"></i>${T("noteLg")}</span>` : ""}</div>
+      ${notes ? `<div class="hn-list"><b>${T("notesTitle")}</b><ul>${notes}</ul></div>` : ""}
     </div>${shown(i, d) ? "" : `<div class="note">${T("hsNotToday")}</div>`}`;
   if (keep) body.scrollTop = top;
 }
@@ -1372,6 +1400,7 @@ $("shBody").addEventListener("click", e => {
 $("shBody").addEventListener("input", e => {
   const t = e.target;
   if (sheetId === "editor") return editorInput(e);
+  if (t.dataset && t.dataset.note) return setNote(dkey(routineDate()), t.dataset.note, t.value);
   if (!t.dataset || !t.dataset.ex) return;
   const d = routineDate(), today = dkey(d), id = t.dataset.ex, s = +t.dataset.s;
   const logs = (store.logs[today] ||= {}), arr = (logs[id] ||= []); arr[s] ||= ["", ""]; arr[s][+t.dataset.f] = t.value.trim(); save();
@@ -1380,7 +1409,8 @@ $("shBody").addEventListener("input", e => {
   refresh(false);
 });
 $("shBody").addEventListener("change", e => { if (sheetId === "editor") editorInput(e); });
-$("shBody").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.classList && e.target.classList.contains("ed-name")) e.preventDefault(); });
+$("shBody").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.classList && e.target.classList.contains("ed-name")) e.preventDefault();
+  if (e.key === "Enter" && e.target.dataset && e.target.dataset.note) { e.preventDefault(); e.target.blur(); toast(T("noteSaved"), "check"); } });
 
 /* ================= Reminders (calendar) ================= */
 const TZ = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch (e) { return "UTC"; } })();
