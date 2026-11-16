@@ -347,6 +347,22 @@ textarea.field{min-height:140px;font-family:ui-monospace,monospace;font-size:12.
 .hs-c.rest{background:var(--sky-soft);border-color:var(--sky)}
 .hs-c.off,.lg.hs-off{background:none;border-style:dashed}
 .hs-c.today{box-shadow:0 0 0 3px var(--green);border-color:var(--card)}
+/* Habit notes */
+.hs-c.nt,.lg.nt{position:relative}
+.hs-c.nt::after,.lg.nt::after{content:"";position:absolute;right:-3px;top:-3px;width:9px;height:9px;border-radius:50%;background:var(--gold);border:2px solid var(--card)}
+.lg.nt::after{width:6px;height:6px;right:-4px;top:-4px}
+.hn-box{display:flex;flex-direction:column;gap:6px}
+.hn-l,.hn-hint{display:flex;align-items:center;gap:6px;font-size:13.5px;font-weight:900;color:var(--ink)}
+.hn-hint{margin:0;color:var(--muted);font-weight:800}
+.hn-l svg,.hn-hint svg,.tk-note svg{width:15px;height:15px;flex:none;fill:currentColor}
+.hn-in{font-weight:700}
+.task .tt > .tk-note{display:flex;align-items:center;gap:5px;margin-top:4px;color:var(--green-ink);font-weight:800;overflow-wrap:anywhere;text-decoration:none}
+.hn-list{display:flex;flex-direction:column;gap:6px}
+.hn-list b{font-size:14px;font-weight:900}
+.hn-list ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.hn-list li{display:flex;flex-direction:column;gap:1px;padding:8px 12px;border-radius:12px;background:var(--soft);border:2px solid var(--line)}
+.hn-list small{font-size:12px;font-weight:800;color:var(--muted)}
+.hn-list span{font-size:14px;font-weight:700;color:var(--ink);overflow-wrap:anywhere}
 .hs-list{gap:8px}
 .hs-row{width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;border:2px solid var(--line);background:var(--card);box-shadow:0 3px 0 var(--line);text-align:left;color:var(--ink);font:inherit}
 .hs-row:active{transform:translateY(3px);box-shadow:none}
