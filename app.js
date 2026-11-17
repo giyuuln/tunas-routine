@@ -1129,7 +1129,7 @@ const navTile = o => `<button type="button" class="nav-tile" ${o.sub ? `data-sub
   <b>${o.t}</b><span class="nt-n">${o.n}</span>${o.p != null ? `<span class="bar" aria-hidden="true"><i style="${fillPct(o.p)}"></i></span>` : ""}</button>`;
 // Sub-page header: the group's icon and title, with the page it belongs to underneath.
 const subHead = (icon, title, parent) => sheetHead(icon, title, parent, null, "--green");
-function openSub(key) { subPane = key; renderSheet(false); $("shBody").scrollTop = 0; const x = $("shClose"); x && x.focus({ preventScroll: true }); }
+function openSub(key) { if (key === "year") yearShown = null; subPane = key; renderSheet(false); $("shBody").scrollTop = 0; const x = $("shClose"); x && x.focus({ preventScroll: true }); }
 // Star meter: the sheet's progress bar shows where each of the level's 3 stars is earned.
 const sheetStars = {};
 function starAt(total) { // smallest tick count that earns star 1, 2, 3 (same rule as starsFor)
@@ -1835,6 +1835,7 @@ function renderMe(keep) {
       <div class="bar"><i style="${fillPct(100 * got.length / bTotal)}"></i></div><div class="bgrid" id="bgrid"></div>${monthShelf()}</section>` },
     finds: { ico: "chest", t: T("findsTitle"), html: findsHTML },
     wear: { ico: "sprout", t: T("wearTitle"), html: wearHTML },
+    year: { ico: "cal", t: T("yrName"), html: yearHTML },
   };
   const sp = SUB[subPane];
   if (sp) { $("shHead").innerHTML = subHead(sp.ico, sp.t, T("tabMe")); body.innerHTML = sp.html(); }
@@ -1865,6 +1866,7 @@ function renderMe(keep) {
       ${navTile({ sub: "finds", ico: "chest", t: T("findsTitle"), n: `${owned} / ${FINDS.length}`, p: 100 * owned / FINDS.length, c: "warn", isNew: newFind })}
       ${navTile({ sub: "wear", ico: "sprout", t: T("wearTitle"), n: `${wOpen} / ${WEAR.length}`, p: 100 * wOpen / WEAR.length, c: "green" })}
     </div></section>
+    ${navList("", [navRow({ sub: "year", ico: "cal", t: T("yrName"), s: T("yrRow", yearDefault()), c: "info" })])}
     ${moneyCardHTML()}
     <div class="set-group"><h3>${T("tunasColour")}</h3><p>${T("themeHelp")}</p>${themePicker()}<b class="look-sub">${T("lookStyle")}</b><p>${T("styleHelp")}</p>${segLook("style", STYLES, T("lookStyle"))}</div>`;
     $("setName").addEventListener("change", e => { const v = e.target.value.trim().slice(0, 30); const r = { ...RAW, name: v || (LANG === "ms" ? "Kawan" : "Friend") }; if (saveRoutine(r)) { toast(T("nameSaved"), "check"); contextSay(); } });
@@ -1915,6 +1917,8 @@ function settingsAction(act, el) {
     if (settingsPane !== "rm:" + id) { settingsPane = "rm:" + id; return renderSheet(true); }
     settingsPane = ""; return removePackNow(id); }
   if (act === "tickAll") return tickAll();
+  if (act === "yearShare") return shareYear();
+  if (act === "yearPrev" || act === "yearNext") { const ys = yearsWithData(), i = ys.indexOf(yearShown); yearShown = ys[Math.max(0, Math.min(ys.length - 1, i + (act === "yearNext" ? 1 : -1)))]; return renderSheet(true); }
   if (act === "clearDay") { const box = document.createElement("div"); box.className = "confirm nl-confirm"; box.setAttribute("role", "group");
     box.innerHTML = `<span>${T("clearConfirm")}</span><button class="btn small danger" type="button" data-cd="yes">${T("clear")}</button><button class="btn ghost small" type="button" data-cd="no">${T("keep")}</button>`;
     el.replaceWith(box); box.querySelector('[data-cd="no"]').focus();
@@ -3411,6 +3415,114 @@ function renderMonth() {
   const note = spare > 0 ? T("monthSpare", spare) : spare === 0 ? T("monthTight") : T("monthGone", esc(nextName));
   el.innerHTML = `${head(T("monthGoal", e.goal))}<div class="tr-goal m-goal"><div class="bar green" role="img" aria-label="${have} / ${e.goal}"><i style="${fillPct(100 * have / e.goal)}"></i><b aria-hidden="true">${have} / ${e.goal}</b></div></div>
     <p class="m-note">${note}</p>${spare >= 0 ? `<p class="tr-gift">${I.chest}<span>${esc(T("monthPrize", monthName(k)))}</span></p>` : ""}<p class="tr-pause">${T("monthHow")}</p>${shelf}`;
+}
+
+/* ================= Year in Tunas ================= */
+// Me → Year in Tunas: a summary of one calendar year (good days, habits ticked, best streak, most-kept habit, finds,
+// XP), worked out on the phone from the saved days, so nothing new is saved and a restored backup shows the same year.
+// It counts from the day you started (or 1 January), up to today. "Share as image" draws a card on a canvas and hands
+// the PNG to the phone's share sheet (or downloads it); nothing is sent anywhere by the app.
+let yearShown = null; // the year on screen; null = the default (this year, or last year in early January)
+function yearsWithData() {
+  const now = routineDate().getFullYear(), from = +sinceDay().slice(0, 4), out = [];
+  for (let y = Math.max(from, now - 20); y <= now; y++) out.push(y);
+  return out;
+}
+function yearDefault() { const d = routineDate(), ys = yearsWithData(); return d.getMonth() === 0 && d.getDate() <= 14 && ys.includes(d.getFullYear() - 1) ? d.getFullYear() - 1 : d.getFullYear(); }
+function yearStats(y) {
+  const today = dkey(routineDate()), since = sinceDay(), pre = y + "-", pr = computePRs();
+  const first = `${y}-01-01` > since ? `${y}-01-01` : since, last = `${y}-12-31` < today ? `${y}-12-31` : today;
+  const out = { y, days: 0, good: 0, perfect: 0, ticks: 0, workouts: 0, xp: 0, best: 0, top: null, month: null, finds: [], badges: 0, monthly: 0 };
+  if (first > last) return out;
+  const per = {}, months = {}; let run = 0;
+  for (const c = keyToDate(first), end = keyToDate(last); c <= end && out.days < 400; c.setDate(c.getDate() + 1)) {
+    const k = dkey(c), dn = store.days[k] || {}, ids = itemsFor(c); out.days++;
+    const ok = dayOK(c); if (ok) { out.good++; months[k.slice(0, 7)] = (months[k.slice(0, 7)] || 0) + 1; }
+    if (ok || isKept(c)) out.best = Math.max(out.best, ++run); else if (k !== today) run = 0;
+    if (ids.length && ids.every(id => dn[id])) out.perfect++;
+    ids.forEach(id => { if (dn[id]) { out.ticks++; if (id !== "wo-done") per[id] = (per[id] || 0) + 1; } });
+    if (dn["wo-done"]) out.workouts++;
+  }
+  new Set([...Object.keys(store.days), ...Object.keys(store.logs)]).forEach(k => { if (k.startsWith(pre) && k <= today) out.xp += dayXP(k, pr.byDay); });
+  Object.keys(store.weeks).forEach(w => { if (w.startsWith(pre)) Object.values(store.weeks[w] || {}).forEach(v => { if (v) { out.ticks++; out.xp += XP.weekly; } }); });
+  const topId = Object.keys(per).filter(habitById).sort((a, b) => per[b] - per[a])[0];
+  if (topId) out.top = { t: itemTitle(habitById(topId).i, routineDate()), n: per[topId] };
+  const mk = Object.keys(months).sort((a, b) => months[b] - months[a] || a.localeCompare(b))[0];
+  if (mk) out.month = { k: mk, n: months[mk] };
+  const f = findsState(); out.finds = FINDS.filter(x => findCount(f, x.id) && String((f.got[x.id] || {}).d || "").startsWith(pre));
+  out.badges = BADGES.filter(b => typeof store.seen[b.id] === "string" && store.seen[b.id].startsWith(pre)).length;
+  out.monthly = Object.keys(monthState()).filter(k => k.startsWith(pre) && store.month[k].won).length;
+  return out;
+}
+const yearNum = n => Number(n).toLocaleString(locale());
+const yearTiles = s => [
+  { ico: "check", n: s.good, t: T("yrGood") }, { ico: "star", n: s.ticks, t: T("meTicks") }, { ico: "flame", n: s.best, t: T("yrBest") },
+  { ico: "trophy", n: s.perfect, t: T("mePerfect") }, { ico: "bolt", n: s.xp, t: T("yrXP") }, { ico: "chest", n: s.finds.length, t: T("yrFinds") }];
+function yearHTML() {
+  const ys = yearsWithData(); if (!ys.includes(yearShown)) yearShown = yearDefault();
+  const y = yearShown, s = yearStats(y), i = ys.indexOf(y), now = routineDate().getFullYear();
+  const nav = `<div class="h-top yr-nav"><button class="x" type="button" data-act="yearPrev" aria-label="${T("yrPrev")}" ${i > 0 ? "" : "disabled"}>‹</button><b>${y}</b><button class="x" type="button" data-act="yearNext" aria-label="${T("yrNext")}" ${i < ys.length - 1 ? "" : "disabled"}>›</button></div>`;
+  const hero = `<div class="card yr-hero"><div class="mascot yr-av happy" aria-hidden="true">${mascotSVG()}</div><div><b>${T(y === now ? "yrSoFar" : "yrTitle", y)}</b><span>${s.ticks ? T("yrDays", s.days) : T("yrEmpty")}</span></div></div>`;
+  if (!s.ticks) return nav + hero;
+  const lines = [];
+  if (s.top) lines.push(`<li>${I.trophy}<span>${T("yrTop", esc(s.top.t), s.top.n)}</span></li>`);
+  if (s.month && s.month.n > 1) lines.push(`<li>${I.cal}<span>${T("yrMonth", esc(monthName(s.month.k)), s.month.n)}</span></li>`);
+  if (s.workouts) lines.push(`<li>${I.dumb}<span>${T("yrWorkouts", s.workouts)}</span></li>`);
+  if (s.badges || s.monthly) lines.push(`<li>${I.star}<span>${T("yrBadges", s.badges + s.monthly)}</span></li>`);
+  const finds = s.finds.length ? `<div class="yr-finds"><b>${T("yrFindsNew", s.finds.length)}</b><ul>${s.finds.map(x => `<li class="r${x.r}" title="${esc(findName(x.id))}"><span class="find-art">${findArt(x)}</span><span class="sr">${esc(findName(x.id))}</span></li>`).join("")}</ul></div>` : "";
+  return `${nav}${hero}
+    <div class="me-stats yr-stats">${yearTiles(s).map(t => `<div class="me-stat"><span class="me-n">${I[t.ico]}<b>${yearNum(t.n)}</b></span><span>${t.t}</span></div>`).join("")}</div>
+    ${lines.length ? `<ul class="card yr-lines">${lines.join("")}</ul>` : ""}${finds}
+    <div class="set-group yr-share"><p>${T("yrShareHelp")}</p><div class="row"><button class="btn small" type="button" data-act="yearShare">${I.share}${T("yrShare")}</button></div></div>`;
+}
+// The share card: 1080 × 1350, drawn with the theme's colours and fonts. The finds are the same SVG art, loaded from
+// data: URLs (allowed by the page's img-src), so no image is downloaded.
+function svgImg(svg) {
+  return new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null);
+    im.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg.replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" ')); });
+}
+async function yearCanvas(s) {
+  const W = 1080, H = 1350, cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  const x = cv.getContext("2d"), css = getComputedStyle(document.documentElement), v = n => css.getPropertyValue(n).trim();
+  const disp = v("--display") || "sans-serif", body = v("--body") || "sans-serif";
+  try { await document.fonts.ready; } catch (e) {}
+  const rr = (X, Y, w, h, r) => { x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + w, Y, X + w, Y + h, r); x.arcTo(X + w, Y + h, X, Y + h, r); x.arcTo(X, Y + h, X, Y, r); x.arcTo(X, Y, X + w, Y, r); x.closePath(); };
+  const fit = (t, max, size, fam, wt) => { let z = size; do { x.font = `${wt} ${z}px ${fam}`; } while (x.measureText(t).width > max && (z -= 2) > 20); };
+  x.fillStyle = v("--green") || "#4aa85c"; x.fillRect(0, 0, W, H);
+  x.fillStyle = "rgba(255,255,255,.12)"; [[140, 160, 220], [960, 1220, 260], [980, 120, 120]].forEach(([a, b, r]) => { x.beginPath(); x.arc(a, b, r, 0, 7); x.fill(); });
+  x.fillStyle = "#fff"; x.textAlign = "center"; x.textBaseline = "alphabetic";
+  fit(T("yrCardTitle", s.y), 960, 84, disp, 700); x.fillText(T("yrCardTitle", s.y), W / 2, 170);
+  fit(T("yrDays", s.days), 940, 40, body, 800); x.fillStyle = "rgba(255,255,255,.88)"; x.fillText(T("yrDays", s.days), W / 2, 232);
+  const tiles = yearTiles(s), tw = 300, th = 230, gx = 30, gy = 30, ox = (W - 3 * tw - 2 * gx) / 2, oy = 300;
+  tiles.forEach((t, i) => { const X = ox + (i % 3) * (tw + gx), Y = oy + Math.floor(i / 3) * (th + gy);
+    x.fillStyle = "rgba(0,0,0,.14)"; rr(X, Y + 10, tw, th, 40); x.fill(); x.fillStyle = "#ffffff"; rr(X, Y, tw, th, 40); x.fill();
+    x.fillStyle = "#20352a"; const num = yearNum(t.n); fit(num, tw - 40, 96, disp, 700); x.fillText(num, X + tw / 2, Y + 125);
+    x.fillStyle = "#526b5c"; fit(t.t, tw - 36, 34, body, 800); x.fillText(t.t, X + tw / 2, Y + 185); });
+  let Y = oy + 2 * (th + gy) + 40;
+  if (s.top) { x.fillStyle = "rgba(0,0,0,.14)"; rr(60, Y + 10, W - 120, 150, 40); x.fill(); x.fillStyle = "#fff"; rr(60, Y, W - 120, 150, 40); x.fill();
+    x.fillStyle = "#526b5c"; fit(T("yrTopShort"), W - 200, 32, body, 800); x.fillText(T("yrTopShort"), W / 2, Y + 55);
+    x.fillStyle = "#20352a"; const t = `${s.top.t} · ${T("yrDaysN", s.top.n)}`; fit(t, W - 200, 52, disp, 700); x.fillText(t, W / 2, Y + 120); Y += 190; }
+  const arts = (await Promise.all([...s.finds].sort((a, b) => b.r - a.r).slice(0, 7).map(f => svgImg(findArt(f))))).filter(Boolean);
+  if (arts.length) { const sz = 104, gap = 20, w = arts.length * sz + (arts.length - 1) * gap; let X = (W - w) / 2;
+    arts.forEach(im => { x.fillStyle = "rgba(255,255,255,.9)"; x.beginPath(); x.arc(X + sz / 2, Y + sz / 2, sz / 2 + 6, 0, 7); x.fill(); x.drawImage(im, X + 10, Y + 10, sz - 20, sz - 20); X += sz + gap; }); }
+  x.fillStyle = "#fff"; x.font = `700 44px ${disp}`; x.fillText("Tunas Routine", W / 2, H - 70);
+  return cv;
+}
+let yearBusy = false;
+async function shareYear() {
+  if (yearBusy) return; yearBusy = true;
+  try {
+    const s = yearStats(yearShown || yearDefault()), cv = await yearCanvas(s);
+    const blob = await new Promise(r => cv.toBlob(r, "image/png")); if (!blob) throw new Error("no image");
+    const name = `tunas-year-${s.y}.png`;
+    let file = null; try { file = new File([blob], name, { type: "image/png" }); } catch (e) {}
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: T("yrCardTitle", s.y) }); return; } catch (e) { if (e && e.name === "AbortError") return; }
+    }
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); toast(T("yrSaved"), "check");
+  } catch (e) { reportError("year-share", e, "errDownload"); }
+  finally { yearBusy = false; }
 }
 
 /* ================= Refresh + comparisons ================= */

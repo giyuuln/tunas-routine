@@ -1458,3 +1458,27 @@ p.wo-say{display:block}
 .bgrid + .mshelf{margin:14px 4px 0}
 .month-find{border-color:var(--gold);box-shadow:0 4px 0 var(--gold-ink)} .month-find small{color:var(--gold-ink)}
 .month-find .find-art{background:var(--gold-soft)} .month-find .find-art svg{width:84%;height:84%}
+
+/* Year in Tunas (Me → Year in Tunas) */
+.yr-nav{margin-bottom:10px}
+.yr-nav b{font-size:22px}
+.yr-hero{display:flex;align-items:center;gap:12px;padding:16px;margin-bottom:10px;background:var(--green-soft);border-color:var(--green)}
+.yr-hero > div:last-child{display:flex;flex-direction:column;gap:2px;min-width:0}
+.yr-hero b{font-family:var(--display);font-weight:700;font-size:22px;line-height:1.15;color:var(--ink)}
+.yr-hero span{font-size:14px;font-weight:700;color:var(--muted)}
+.yr-av{flex:none;width:72px;height:72px}
+.yr-stats .me-n{font-size:20px}
+.yr-stats .me-stat:nth-child(5) .me-n svg{fill:var(--gold)}
+.yr-stats .me-stat:nth-child(6) .me-n svg{fill:var(--orange)}
+.yr-lines{list-style:none;margin:10px 0 0;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.yr-lines li{display:flex;align-items:flex-start;gap:10px;font-size:14.5px;line-height:1.35}
+.yr-lines svg{flex:none;width:20px;height:20px;fill:var(--green);margin-top:1px}
+.yr-lines b{font-weight:900}
+.yr-finds{margin-top:12px}
+.yr-finds > b{display:block;font-family:var(--display);font-weight:700;font-size:17px;margin-bottom:8px}
+.yr-finds ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
+.yr-finds .find-art{width:48px;height:48px;border:2px solid var(--line)}
+.yr-finds .r1 .find-art{border-color:var(--sky)}
+.yr-finds .r2 .find-art{border-color:var(--gold)}
+.yr-share{margin-top:14px}
+.yr-share .btn svg{width:18px;height:18px;fill:currentColor;margin-right:6px;vertical-align:-3px}

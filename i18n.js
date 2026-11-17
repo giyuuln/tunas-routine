@@ -432,6 +432,15 @@ window.TUNAS_I18N = {
     mnTipLess: x => `You spent ${x} less than last month. Tunas is proud!`,
     mnTipMore: x => `${x} more than last month. Was something a one-off? If so, no worries.`,
     mnTipNice: "Nice tracking! Knowing where it goes is half the win.",
+    // Year in Tunas
+    yrName: "Year in Tunas", yrRow: y => `Look back on ${y}`, yrSoFar: y => `Your ${y} so far`, yrTitle: y => `Your ${y}`,
+    yrDays: n => `${n} day${n === 1 ? "" : "s"} with Tunas`, yrEmpty: "Nothing ticked in this year yet. Every tick you make shows up here.",
+    yrGood: "Good days", yrBest: "Best streak", yrXP: "XP earned", yrFinds: "New finds",
+    yrTop: (t, n) => `Most-kept habit: <b>${t}</b> (${n} day${n === 1 ? "" : "s"})`, yrMonth: (m, n) => `Best month: <b>${m}</b>, ${n} good days`,
+    yrWorkouts: n => `${n} workout${n === 1 ? "" : "s"} done`, yrBadges: n => `${n} badge${n === 1 ? "" : "s"} earned`, yrFindsNew: n => `New in your collection (${n})`,
+    yrShareHelp: "Turn this into a picture to share. It's made on your phone, and nothing is sent anywhere.", yrShare: "Share as image",
+    yrCardTitle: y => `My ${y} with Tunas`, yrTopShort: "Most-kept habit", yrDaysN: n => `${n} day${n === 1 ? "" : "s"}`,
+    yrSaved: "Image saved to your downloads.", yrPrev: "Previous year", yrNext: "Next year",
   },
   ms: {
     locale: "ms-MY",
@@ -861,5 +870,14 @@ window.TUNAS_I18N = {
     mnTipLess: x => `Belanja ${x} kurang daripada bulan lepas. Tunas bangga!`,
     mnTipMore: x => `${x} lebih daripada bulan lepas. Ada belanja sekali-sekala ke? Kalau ya, tak apa.`,
     mnTipNice: "Rajin catat, bagus! Tahu ke mana duit pergi pun dah separuh menang.",
+    // Year in Tunas
+    yrName: "Setahun dengan Tunas", yrRow: y => `Imbas kembali tahun ${y}`, yrSoFar: y => `${y} setakat ni`, yrTitle: y => `Tahun ${y}`,
+    yrDays: n => `${n} hari bersama Tunas`, yrEmpty: "Belum ada tabiat ditanda tahun ni. Setiap tanda lepas ni akan muncul di sini.",
+    yrGood: "Hari baik", yrBest: "Streak terbaik", yrXP: "XP dikumpul", yrFinds: "Hadiah baru",
+    yrTop: (t, n) => `Tabiat paling konsisten: <b>${t}</b> (${n} hari)`, yrMonth: (m, n) => `Bulan terbaik: <b>${m}</b>, ${n} hari yang baik`,
+    yrWorkouts: n => `${n} sesi senaman siap`, yrBadges: n => `${n} lencana dikumpul`, yrFindsNew: n => `Baru dalam koleksi (${n})`,
+    yrShareHelp: "Jadikan rumusan ni satu gambar untuk dikongsi. Gambar dibuat terus dalam telefon, tak ada apa-apa dihantar ke mana-mana.", yrShare: "Kongsi sebagai gambar",
+    yrCardTitle: y => `Tahun ${y} saya bersama Tunas`, yrTopShort: "Tabiat paling konsisten", yrDaysN: n => `${n} hari`,
+    yrSaved: "Gambar dah disimpan dalam folder muat turun.", yrPrev: "Tahun sebelumnya", yrNext: "Tahun seterusnya",
   }
 };
