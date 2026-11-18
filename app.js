@@ -928,7 +928,8 @@ function renderLevelDetail(d, mins, target, S) {
   el.className = "lv-detail";
   el.innerHTML = `<div class="ld-h"><b>${esc(target.title)}</b><span${ended ? ' class="ended"' : ""}>${T("of", st.n, st.total)}${when ? " · " + when : ""}</span></div>
     ${nx ? `<p>${T("nextIs", esc(nx))}</p>` : ""}
-    <button class="btn ld-go" type="button" data-node="${target.id}">${st.n === 0 ? T("start") : T("cont")}</button>`;
+    <button class="btn ld-go" type="button" data-node="${target.id}">${st.n === 0 ? T("start") : T("cont")}</button>
+    <button class="linkish ld-quick" type="button" data-node="quick">${I.check}${T("qtLink")}</button>`;
 }
 /* ================= First-time tips ================= */
 // One short tip at a time, shown in place under what it explains. "Got it" hides it for good.
@@ -1049,6 +1050,7 @@ function openSheet(id) {
   if (!parentSheet) lastFocus = document.activeElement;
   // Restoring a backup from the welcome screen opens a sheet on top of it.
   document.body.classList.toggle("sheet-top", !$("welcome").hidden);
+  if (id === "quick" && !parentSheet) qtAll = false;
   sheetId = id; if (TAB_PAGES.includes(id)) subPane = sub;
   $("scrim").hidden = false; $("sheet").hidden = false; document.body.classList.add("locked");
   renderSheet(false);
@@ -1163,6 +1165,7 @@ function renderSheet(keep) {
   if (sheetId.startsWith("day:")) return renderDaySheet(sheetId.slice(4), keep);
   if (sheetId.startsWith("habit:")) return renderHabitSheet(sheetId.slice(6), keep);
   if (sheetId === "history") return renderProgressSheet(sheetId, keep);
+  if (sheetId === "quick") return renderQuick(keep);
   const d = routineDate(), today = dkey(d), node = nodesFor(d).find(n => n.id === sheetId); if (!node) { closeSheet(); return; }
   const st = nodeState(node, d), body = $("shBody"), top = keep ? body.scrollTop : 0;
   $("shHead").innerHTML = sheetHead(node.icon, esc(node.title), `${esc(node.range)}${node.range ? " · " : ""}${T("of", st.n, st.total)}`, st, st.cleared ? "--gold" : "--green");
@@ -1229,6 +1232,44 @@ function renderDaySheet(key, keep) {
   });
   body.innerHTML = h; if (keep) body.scrollTop = top;
 }
+/* ================= Quick tick ================= */
+// One plain list of every habit due now (sections whose time has started, missed ones included), for people who just
+// want to tick and go. Opened from the "Quick tick" link on Today or the home-screen shortcut (?open=quick).
+// Ticks here are the same ticks as in the sections: same XP, combo, golden habit, celebrations and Undo.
+let qtAll = false; // "Show later habits too" for this visit
+function quickGroups(d, all) {
+  const mins = nowMins(), out = [];
+  const started = n => all || n.from == null || mins >= n.from;
+  nodesFor(d).forEach(n => {
+    if (n.kind === "block") { const items = n.b.items.filter(i => shown(i, d)); if (!items.length) return;
+      out.push({ n, items, later: !started(n) }); }
+    else if (n.kind === "workout" && !restedNode(n, d)) out.push({ n, items: [{ id: "wo-done", t: T("workoutOf", n.W.name) }], later: !started(n) });
+  });
+  return out;
+}
+function renderQuick(keep) {
+  const d = routineDate(), today = dkey(d), done = store.days[today] || {}, body = $("shBody"), top = keep ? body.scrollTop : 0;
+  const groups = quickGroups(d), now = groups.filter(g => !g.later), later = groups.filter(g => g.later);
+  const shownG = qtAll ? groups : now, ids = shownG.flatMap(g => g.items.map(i => i.id)), st = { n: ids.filter(id => done[id]).length, total: ids.length };
+  const laterN = later.reduce((s, g) => s + g.items.filter(i => !done[i.id]).length, 0);
+  $("shHead").innerHTML = sheetHead("check", T("qtTitle"), st.total ? (st.n === st.total ? T("qtAllDone") : T("qtLeft", st.total - st.n)) : T("qtNone"), st.total ? st : null, st.total && st.n === st.total ? "--gold" : "--green");
+  $("shClose").onclick = closeSheet;
+  let h = "";
+  shownG.forEach(g => { const n = g.items.filter(i => done[i.id]).length;
+    h += `<h3 class="grp qt-grp"><span>${esc(g.n.title)}</span><small>${g.later && g.n.from != null ? T("startsAt", fmtClock(g.n.from)) : T("of", n, g.items.length)}</small></h3>`;
+    g.items.forEach(i => { if (i.dyn) i = { ...i, ...FOCUS[d.getDay()] };
+      const tag = i.id === "wo-done" ? `<span class="qtag">★</span>` : i.key ? `<span class="qtag">★</span>` : "";
+      h += taskHTML({ ...i, n: "" }, !!done[i.id], tag, today); }); });
+  if (!shownG.length) h += `<div class="qt-empty"><div class="mascot happy" aria-hidden="true">${mascotSVG()}</div><p>${laterN ? T("qtNoneNow") : T("qtNothing")}</p></div>`;
+  if (!qtAll && laterN) h += `<button class="btn ghost small qt-more" type="button" data-qt-more>${T("qtLater", laterN)}</button>`;
+  h += `<button class="linkish qt-path" type="button" data-qt-path>${T("qtPath")}</button>`;
+  body.innerHTML = h; if (keep) body.scrollTop = top;
+}
+$("shBody").addEventListener("click", e => {
+  if (sheetId !== "quick") return;
+  if (e.target.closest("[data-qt-more]")) { qtAll = true; renderSheet(true); return; }
+  if (e.target.closest("[data-qt-path]")) closeSheet();
+});
 function tickAll() {
   const d = routineDate(), today = dkey(d), node = nodesFor(d).find(n => n.id === sheetId); if (!node || node.kind !== "block") return;
   const done = (store.days[today] ||= {}); let xp = 0;
@@ -2737,7 +2778,11 @@ function queueCele(c) { celeQ.push(c); if ($("cele").hidden) nextCele(); }
 function celeReturn() {
   const back = celeBack; celeBack = null;
   if (!back || sheetId || !$("cele").hidden || !$("welcome").hidden) return;
-  const d = routineDate(), n = nodesFor(d).find(x => x.id === back.id); if (!n || nodeState(n, d).cleared) return;
+  const d = routineDate();
+  // Quick tick comes back while anything is left to tick today; a section comes back while it isn't cleared.
+  if (back.id === "quick") { const done = store.days[dkey(d)] || {}; if (!quickGroups(d).some(g => g.items.some(i => !done[i.id]))) return;
+    openSheet("quick"); if (back.all) { qtAll = true; renderSheet(false); } $("shBody").scrollTop = back.top; return; }
+  const n = nodesFor(d).find(x => x.id === back.id); if (!n || nodeState(n, d).cleared) return;
   const nb = document.querySelector(`#path [data-node="${back.id}"]`); if (nb) nb.focus({ preventScroll: true }); // Close comes back here
   openSheet(back.id); $("shBody").scrollTop = back.top;
 }
@@ -2745,7 +2790,7 @@ function nextCele() {
   const c = celeQ.shift(); if (!c) { $("cele").hidden = true; contextSay(); setTimeout(playHome, 150); flushToasts(); if (celeBack) setTimeout(celeReturn, 250); return; }
   holdToasts();
   if (sheetId && !["settings", "routine", "me", "money", "editor", "packs", "wosetup", "skinsetup"].includes(sheetId) && !sheetId.startsWith("day:") && !sheetId.startsWith("lock:")) {
-    celeBack = nodesFor(routineDate()).some(n => n.id === sheetId) ? { id: sheetId, top: $("shBody").scrollTop } : null;
+    celeBack = sheetId === "quick" || nodesFor(routineDate()).some(n => n.id === sheetId) ? { id: sheetId, top: $("shBody").scrollTop, all: qtAll } : null;
     closeSheet(); }
   const el = $("cele"); el.hidden = false;
   el.innerHTML = `${c.art || `<div class="mascot cheer" id="celeMascot">${mascotSVG()}</div>`}<h2 class="${c.color || ""}">${c.title}</h2><p>${c.sub}</p>${c.extra || ""}
@@ -3618,6 +3663,7 @@ if ($("welcome").hidden) { const h = new Date().getHours(), S0 = lastS || comput
   const d = routineDate(), nodes = nodesFor(d);
   if (q === "settings") return openSheet("settings");
   if (["history", "badges", "me", "routine", "settings"].includes(q)) return openSheet(q);
+  if (q === "quick") return openSheet("quick");
   const id = q === "now" ? (pathTarget(d, nowMins(), nodes) || {}).id : q;
   if (id && nodes.some(n => n.id === id)) return openSheet(id);
   if (q === "workout") toast(T("noWorkout"), "star");

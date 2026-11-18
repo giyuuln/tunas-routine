@@ -28,7 +28,8 @@ A cute, gamified daily routine tracker that you can install on your phone. Tunas
 - **Tunas grows:** as you tick habits over time, Tunas grows from Sprout to Leafy (50 habits ticked), Budding (200) and Blooming (500), with a small celebration at each stage. Tunas never shrinks: unticking or a quiet week never takes a stage away. Me shows how far the next stage is
 - **Year in Tunas:** Me → Year in Tunas sums up a year: good days, habits ticked, best streak, perfect days, XP, new finds, your most-kept habit and best month. It is worked out on your phone from what is already saved. **Share as image** makes a picture card and opens the share sheet (or saves the PNG); nothing is sent anywhere by the app
 - **Comeback bonus:** back after 2+ quiet days? Tunas says welcome back instead of showing a zero, and ticking 3 habits that first day gives +60 XP
-- **Continue button and home-screen shortcuts:** long-press the app icon for Today, Workout, Night or History
+- **Continue button and home-screen shortcuts:** long-press the app icon for Quick tick, Today, Workout, Night or History (some phones show only the first 4)
+- **Quick tick:** a plain list of every habit due now (missed sections included), for days you just want to tick and go. Open it from the **Quick tick** link under Continue on Today, or the home-screen shortcut. Ticks there earn the same XP, combos and celebrations as in the sections
 - **A page for every tab:** Routine, Progress, Me and Settings are full pages. Each one shows its main controls up front and opens bigger groups (your week, packs, reminders, backup, badges, chest finds...) as their own pages with a back arrow, so nothing hides in a dropdown
 - **Routine editor:** add, rename, reorder and delete sections, habits, workouts and weekly tasks right in the app
 - **Welcome screen and 4 templates:** Student, Worker, Fitness and Simple, so new users start in seconds

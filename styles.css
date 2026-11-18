@@ -617,6 +617,16 @@ body.sheet-top .scrim{z-index:74} body.sheet-top .sheet{z-index:75}
 .lv-detail p{margin:0;font-size:14.5px;font-weight:800;color:var(--muted)}
 .lv-detail p b{color:var(--ink);font-weight:900}
 .lv-detail .ld-go{width:100%;margin-top:2px}
+/* Quick tick: a link under Continue, and one plain list of the habits due now */
+.lv-detail .ld-quick{align-self:center;display:inline-flex;align-items:center;gap:6px;padding:6px 8px;min-height:44px;margin:-4px 0 -8px}
+.lv-detail .ld-quick svg{width:18px;height:18px;fill:currentColor;flex:none}
+.qt-grp{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.qt-grp small{font-family:var(--body);font-size:13px;font-weight:900;color:var(--green-ink)}
+.qt-more{width:100%;margin-top:12px}
+.qt-path{display:block;margin:6px auto 0}
+.qt-empty{text-align:center;padding:12px 8px 4px}
+.qt-empty .mascot{width:96px;height:96px;margin:0 auto}
+.qt-empty p{margin:8px 0 0;font-weight:800;color:var(--muted)}
 .lv-detail.all{background:var(--gold-soft);align-items:flex-start}
 .lv-detail.all .ld-h{width:100%;align-items:center}
 
