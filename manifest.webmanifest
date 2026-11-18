@@ -36,6 +36,17 @@
   ],
   "shortcuts": [
     {
+      "name": "Quick tick",
+      "short_name": "Quick tick",
+      "url": "./?open=quick",
+      "icons": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
       "name": "Continue today",
       "short_name": "Today",
       "url": "./?open=now",

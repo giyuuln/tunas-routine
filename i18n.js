@@ -441,6 +441,9 @@ window.TUNAS_I18N = {
     yrShareHelp: "Turn this into a picture to share. It's made on your phone, and nothing is sent anywhere.", yrShare: "Share as image",
     yrCardTitle: y => `My ${y} with Tunas`, yrTopShort: "Most-kept habit", yrDaysN: n => `${n} day${n === 1 ? "" : "s"}`,
     yrSaved: "Image saved to your downloads.", yrPrev: "Previous year", yrNext: "Next year",
+    qtTitle: "Quick tick", qtLink: "Quick tick: just the list", qtLeft: n => `${n} left to tick now`, qtAllDone: "All caught up for now!", qtNone: "Nothing due right now",
+    qtNoneNow: "Nothing due yet. Your next habits start later today.", qtNothing: "No habits today. Enjoy the break!",
+    qtLater: n => `Show later today (${n})`, qtPath: "Back to today's path",
   },
   ms: {
     locale: "ms-MY",
@@ -879,5 +882,8 @@ window.TUNAS_I18N = {
     yrShareHelp: "Jadikan rumusan ni satu gambar untuk dikongsi. Gambar dibuat terus dalam telefon, tak ada apa-apa dihantar ke mana-mana.", yrShare: "Kongsi sebagai gambar",
     yrCardTitle: y => `Tahun ${y} saya bersama Tunas`, yrTopShort: "Tabiat paling konsisten", yrDaysN: n => `${n} hari`,
     yrSaved: "Gambar dah disimpan dalam folder muat turun.", yrPrev: "Tahun sebelumnya", yrNext: "Tahun seterusnya",
+    qtTitle: "Tanda cepat", qtLink: "Tanda cepat: senarai je", qtLeft: n => `${n} lagi nak ditanda`, qtAllDone: "Semua dah siap buat masa ni!", qtNone: "Tiada apa-apa buat masa ni",
+    qtNoneNow: "Belum ada lagi. Tabiat seterusnya mula nanti.", qtNothing: "Tiada tabiat hari ni. Rehatlah!",
+    qtLater: n => `Tunjuk tabiat nanti (${n})`, qtPath: "Balik ke laluan hari ini",
   }
 };
