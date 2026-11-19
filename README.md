@@ -18,6 +18,7 @@ A cute, gamified daily routine tracker that you can install on your phone. Tunas
 - **Count habits:** give a habit a target like 8 glasses of water and tap +1 each time
 - **Focus timer:** start a 25-minute focus round from the focus-hour habit; Tunas ticks it at zero and gives you a 5-minute break
 - **Rest the workout when tired or sick:** in the workout's "Can't train today?" card, Sick rests the workout in one tap, and Tired offers a 10-minute stretch or a rest (up to 2 a week). A rested workout gives no XP but never counts against your day or streak
+- **Exercise habits get reasons too:** habits like "30 min walk" (or any habit with the Exercise box ticked in the editor) show "Can't do it today?". Raining, home late, tired or sick gives the same plan B or rest as the workout. A plan B ticks the habit for 60% of its XP. A rested habit gives no XP, never counts against your day or streak, and leaves its section at 2 stars. Tired rests are shared with the workout: 2 tired days a week.
 - **Rest days:** protect your streak when you're sick or busy (2 per month)
 - **Streak shields:** chests sometimes drop a shield (hold up to 2) that covers a missed day automatically. If the streak restarts anyway, the shield comes back to you
 - **Weekly chest:** reach your goal (80% done, or a rest day) on 5 of 7 days and a bigger chest opens with last week's summary the first time you open Tunas in the new week (any day, not just Monday): 2 finds, one Rare or better for sure, plus a streak shield if you have room

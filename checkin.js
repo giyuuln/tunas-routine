@@ -165,6 +165,102 @@ function woClick(e) {
   if (a === "wxtoggle") { store.wxOn = !store.wxOn; save(); toast(store.wxOn ? T("wxOnToast") : T("wxOffToast"), "check"); return renderSheet(true); }
 }
 $("shBody").addEventListener("click", woClick);
+/* ---- Exercise habits: the same check-in for habits like "30 min walk" (see Exercise habits in app.js) ----
+   Same reasons and rules as the workout: sick rests it, tired gets a stretch or a rest (TIRED_RESTS a week, shared with
+   the workout and counted in days), rain gets an indoor version (real rain from the rain check excuses it), home late
+   gets a 10-minute version. A plan B ticks the habit for EX_PLANB of its XP. State: store.ex[day][habitId]. */
+const EX_UI = { open: "", busy: "", err: "" }; // per-session UI state, not saved
+function exPlan(why) {
+  if (why === "late") return [T("pbExLateT"), 10, T("pbExLateMoves")];
+  if (why === "tired") return [T("pbTiredT"), 10, T("pbTiredMoves")];
+  if (why === "rain") return [T("pbExRainT"), 12, T("pbExRainMoves")];
+  return [T("pbSickT"), 0, []];
+}
+const exXP = (i, d) => Math.round((keyIds(d).includes(i.id) ? XP.key : XP.item) * EX_PLANB);
+const exChips = id => `<div class="wo-why" role="group" aria-label="${T("woWhyQ")}">${WO_WHY.map(k =>
+  `<button type="button" class="wo-chip" data-hxwhy="${k}" data-hx-id="${esc(id)}"><span aria-hidden="true">${WHY_EMO[k]}</span>${T("why_" + k)}</button>`).join("")}</div>`;
+// Under an exercise habit that isn't ticked yet (today only): a small "Can't do it today?" that opens the reasons.
+function exCheckHTML(i, d) {
+  if (dkey(d) !== dkey(routineDate())) return "";
+  const id = esc(i.id), e = exOf(d, i.id), change = `<button class="linkish" type="button" data-hx="reset" data-hx-id="${id}">${T("woWhyChange")}</button>`;
+  if (!e) return EX_UI.open === i.id
+    ? `<div class="wo-ci ex-ci"><b>${T("woWhyQ")}</b>${exChips(i.id)}<button class="linkish" type="button" data-hx="close" data-hx-id="${id}">${T("exNever")}</button></div>`
+    : `<button class="ex-cant" type="button" data-hx="open" data-hx-id="${id}" aria-label="${esc(T("exCantA", i.t))}"><span aria-hidden="true">🌧️🌙🥱🤒</span>${T("exCant")}</button>`;
+  let say;
+  if (e.why !== "rain") say = `<p class="wo-say"><b>${T("say_" + e.why)}</b> ${change}</p>`;
+  else if (EX_UI.busy === i.id) say = `<p class="wo-say" role="status"><span class="wo-spin" aria-hidden="true"></span>${T("wxChecking")}</p>`;
+  else if (e.rain === false) say = `<p class="wo-say" role="status"><b>${T("wxNo")}</b> ${T("wxNoSub")} ${change}</p>`;
+  else { const err = EX_UI.err && EX_UI.open === i.id ? `<p class="wo-err" role="alert">${EX_UI.err}</p>` : "";
+    say = !store.wxOn ? `<div class="wo-say"><b>${T("wxAsk")}</b><p>${T("exWxAskSub")}</p>${err}
+      <div class="row"><button class="btn small" type="button" data-hx="wxon" data-hx-id="${id}">${I.rain}${T("wxOnCheck")}</button>${change}</div></div>`
+      : `<div class="wo-say">${err}<div class="row"><button class="btn small" type="button" data-hx="check" data-hx-id="${id}">${I.rain}${T("wxCheck")}</button>${change}</div></div>`; }
+  if (EX_UI.busy === i.id) return `<div class="wo-ci ex-ci">${say}</div>`;
+  const [title, min, moves] = exPlan(e.why), left = Math.max(0, TIRED_RESTS - tiredRestsUsed(d));
+  const rest = e.why !== "tired" ? "" : left ? `<button class="btn ghost small wo-rest" type="button" data-hx="rest" data-hx-id="${id}">${I.moon}${T("woRestBtn", left)}</button>`
+    : `<p class="wo-rest-none">${T("exRestNone", TIRED_RESTS)}</p>`;
+  return `<div class="wo-ci ex-ci">${say}<div class="pb"><div class="pb-h"><b>${T("pbTitle")}: ${title}</b><span>${T("pbMin", min)} · +${exXP(i, d)} XP</span></div>
+    <ol class="pb-list">${moves.map(m => `<li>${m}</li>`).join("")}</ol>
+    <button class="btn small" type="button" data-hx="done" data-hx-id="${id}">${I.check}${T("pbDone")}</button></div>${rest}</div>`;
+}
+// A rested exercise habit (or one real rain excused) shows in its section as resting, with a way to change the reason.
+function exRestedHTML(i, d) {
+  const e = exOf(d, i.id), today = dkey(d) === dkey(routineDate());
+  const head = e.why === "rain" ? T("exRainT", esc(i.t)) : T("exRestedT", esc(i.t), T("why_" + e.why));
+  return `<div class="wo-ci wo-rested ex-rested"><p class="wo-say ok" role="status"><b>${I.moon}${head}</b> ${T("woRestedSub")}
+    ${today ? `<button class="linkish" type="button" data-hx="reset" data-hx-id="${esc(i.id)}">${T("woWhyChange")}</button>` : ""}</p></div>`;
+}
+// A reason or a rest is not a tick, so it never plays a "cleared" celebration (the baseline is reset first).
+function exRedraw(tick) { if (!tick) { lastS = null; prevCleared = null; } refresh(true); }
+function exFocus(id, sel) { const b = $("shBody").querySelector(`${sel}[data-hx-id="${CSS.escape(id)}"]`); if (b) b.focus({ preventScroll: true }); }
+function exSetWhy(id, why) {
+  const d = routineDate(), h = habitById(id); if (!h || !isExercise(h.i) || (store.days[dkey(d)] || {})[id] || !WO_WHY.includes(why)) return;
+  (exState()[dkey(d)] ||= {})[id] = { why, ...(why === "sick" ? { rest: 1 } : {}) }; EX_UI.err = ""; save(); sfx("pop"); buzz(10);
+  say(T("say_" + why), why === "sick" ? T("exRestToast") : "", why === "tired" || why === "sick" ? "sleepy" : "think", 3500);
+  exRedraw();
+  if (why === "rain" && store.wxOn) return exCheckRain(id);
+  exFocus(id, why === "sick" ? '[data-hx="reset"]' : '[data-hx="done"]');
+}
+function exRest(id) {
+  const d = routineDate(), e = exOf(d, id); if (!e || e.why !== "tired" || (store.days[dkey(d)] || {})[id] || tiredRestsUsed(d) >= TIRED_RESTS) return;
+  e.rest = 1; save(); sfx("ding"); buzz(10);
+  say(T("exRestedT", esc(habitById(id).i.t), T("why_tired")), T("exRestToast"), "sleepy", 3500); toast(T("exRestToast"), "shield", 3500);
+  exRedraw(); exFocus(id, '[data-hx="reset"]');
+}
+function exDonePlanB(id) {
+  const d = routineDate(), k = dkey(d), e = exOf(d, id), h = habitById(id); if (!e || !h || (store.days[k] || {})[id]) return;
+  const box = (store.days[k] ||= {}); box[id] = true; e.b = 1; save();
+  const xp = xpFor(id, d), b = $("shBody").querySelector(`[data-hx="done"][data-hx-id="${CSS.escape(id)}"]`);
+  sfx("ding"); buzz(); if (b) { const r = b.getBoundingClientRect(); floatXP(r.right - 90, r.top, `+${xp} XP`); flyXP(r); }
+  say(T("pbDoneSay"), `+${xp} XP`, "cheer", 3500); jump($("mascot"));
+  offerUndo(T("pbDoneUndo"), () => { delete box[id]; delete e.b; save(); sfx("undo"); exRedraw(); });
+  exRedraw(true); const t = $("shBody").querySelector(`[data-task="${CSS.escape(id)}"]`); if (t) t.focus({ preventScroll: true });
+}
+async function exCheckRain(id) {
+  const d = routineDate(), e = exOf(d, id), h = habitById(id); if (!e || e.why !== "rain" || EX_UI.busy) return;
+  EX_UI.busy = id; EX_UI.open = id; EX_UI.err = ""; if (sheetId) renderSheet(true);
+  try {
+    const wet = await wxRained({ from: h ? h.b.from : null }), cur = exOf(routineDate(), id); if (!cur || cur.why !== "rain") return;
+    cur.rain = wet; save(); sfx(wet ? "ding" : "pop");
+    if (wet) { say(T("wxYesSay"), T("exWxYesToast"), "happy", 4000); toast(T("exWxYesToast"), "shield", 3500); }
+  } catch (err) {
+    EX_UI.err = err && err.code === 1 ? T("wxNoLoc") : err && err.code ? T("wxNoFix") : T("wxOffline");
+  } finally { EX_UI.busy = ""; exRedraw(); }
+}
+function exClick(e) {
+  const c = e.target.closest("[data-hxwhy]"); if (c) { audio(); return exSetWhy(c.dataset.hxId, c.dataset.hxwhy); }
+  const b = e.target.closest("[data-hx]"); if (!b) return;
+  audio(); const a = b.dataset.hx, id = b.dataset.hxId, d = routineDate();
+  if (a === "open") { EX_UI.open = id; renderSheet(true); return exFocus(id, "[data-hxwhy]"); }
+  if (a === "close") { EX_UI.open = ""; renderSheet(true); return exFocus(id, '[data-hx="open"]'); }
+  if (a === "reset") { const day = (store.ex || {})[dkey(d)]; if (day && day[id] && !(store.days[dkey(d)] || {})[id]) { delete day[id]; if (!Object.keys(day).length) delete store.ex[dkey(d)]; save(); }
+    EX_UI.err = ""; EX_UI.open = id; exRedraw(); return exFocus(id, "[data-hxwhy]"); }
+  if (a === "wxon") { store.wxOn = true; save(); return exCheckRain(id); }
+  if (a === "check") return exCheckRain(id);
+  if (a === "done") return exDonePlanB(id);
+  if (a === "rest") return exRest(id);
+}
+$("shBody").addEventListener("click", exClick);
+
 $("nudge").addEventListener("click", woClick);
 woState();
 if (typeof booted !== "undefined" && booted) { renderNudge(); if (sheetId) renderSheet(true); }
