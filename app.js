@@ -250,7 +250,8 @@ function applyRoutine(r) {
     return { id: slug(b.id || b.title), title: b.title || "Section", icon: I[b.icon] ? b.icon : "star", range: b.from && b.to ? fmtRange(from, to) : (b.range || ""), from, to, remind: b.remind ? tm(b.remind, null) : null,
       say: Array.isArray(b.say) ? b.say : null,
       items: (b.items || []).map(i => ({ id: slug(i.id || i.title), t: i.title || "", n: i.note || "", time: i.time || "",
-        key: !!i.quest, alt: !!i.everyOtherDay, hide: Array.isArray(i.hideOnDays) && i.hideOnDays.length ? i.hideOnDays.map(Number) : null, dyn: !!i.useFocus, on: weekdays(i.onDays), dt: i.days === "work" || i.days === "off" ? i.days : null, goal: goalOf(i.target) })) };
+        key: !!i.quest, alt: !!i.everyOtherDay, hide: Array.isArray(i.hideOnDays) && i.hideOnDays.length ? i.hideOnDays.map(Number) : null, dyn: !!i.useFocus, on: weekdays(i.onDays), dt: i.days === "work" || i.days === "off" ? i.days : null, goal: goalOf(i.target),
+        exo: typeof i.exercise === "boolean" ? i.exercise : null })) };
   });
   FOCUS = {};
   for (let k = 0; k < 7; k++) { const f = (r.focus || {})[k] || (r.focus || {})[String(k)] || {}; FOCUS[k] = { t: f.title || (LANG === "ms" ? "1 jam: fokus" : "1 hour: focus"), n: f.note || "" }; }
@@ -378,7 +379,7 @@ function setNote(k, id, text) {
 }
 const beforeJoinDay = d => !!store.join && store.join.day === dkey(d);
 const beforeJoin = (n, d) => beforeJoinDay(d) && n.to != null && n.to <= store.join.at;
-function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); backState(); planState(); woState(); joinState(); notesState(); trailState(); goldState(); eveState(); monthState(); if (typeof asstState === "function") asstState(); }
+function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); backState(); planState(); woState(); exState(); joinState(); notesState(); trailState(); goldState(); eveState(); monthState(); if (typeof asstState === "function") asstState(); }
 normStore();
 function save() { return storeSet(DATA_KEY, JSON.stringify(store)); }
 let soundOn = true; try { soundOn = localStorage.getItem(SND_KEY) !== "off"; } catch (e) {}
@@ -396,8 +397,10 @@ const isAltDay = d => dayNum(d) % 2 === 0;
 const WEEKDAYS = [1, 2, 3, 4, 5];
 const workDays = () => (CFG && CFG.away ? weekdays(CFG.away.days) || WEEKDAYS : null);
 const isWorkDay = d => { const w = workDays(); return !!w && w.includes(d.getDay()); };
-const shown = (i, d) => !(i.alt && !isAltDay(d)) && !(i.hide && i.hide.includes(d.getDay())) && !(i.on && !i.on.includes(d.getDay()))
+const due = (i, d) => !(i.alt && !isAltDay(d)) && !(i.hide && i.hide.includes(d.getDay())) && !(i.on && !i.on.includes(d.getDay()))
   && !(i.dt === "work" && workDays() && !isWorkDay(d)) && !(i.dt === "off" && workDays() && isWorkDay(d));
+// A habit is "shown" on a day when it is due and wasn't rested with a reason (see Exercise habits below).
+const shown = (i, d) => due(i, d) && !exOff(d, i.id);
 const firstName = () => esc(CFG.name || (LANG === "ms" ? "Kawan" : "Friend"));
 
 // The habits a day has under the current routine.
@@ -413,9 +416,14 @@ function liveKeys(d) { const out = [], jd = joinDone(d); BLOCKS.forEach(b => { c
 // So it never counts against the day, the ★ habits, the quests or the chest, and it gives no XP.
 function woOff(d) { const k = dkey(d), w = (store.wo || {})[k]; return !!(w && w.rest === 1 && !(store.days[k] || {})["wo-done"]); }
 const dropWo = (ids, d) => (woOff(d) ? ids.filter(id => id !== "wo-done") : ids);
-function itemsFor(d) { const p = planOf(d), live = liveItems(d); if (!p) return dropWo(live, d); const done = store.days[dkey(d)] || {}; return dropWo([...p.ids, ...live.filter(id => done[id] && !p.ids.includes(id))], d); }
-function keyIds(d) { const p = planOf(d), live = liveKeys(d); if (!p) return dropWo(live, d); const done = store.days[dkey(d)] || {}; return dropWo([...p.keys, ...live.filter(id => done[id] && !p.ids.includes(id))], d); }
-function baseXP(id, d) { return id === "wo-done" ? (woPlanB(d) ? XP.planB : XP.workout) : keyIds(d).includes(id) ? XP.key : XP.item; }
+// An exercise habit rested for a reason leaves the day's list the same way (see Exercise habits).
+const dropEx = (ids, d) => ids.filter(id => !exOff(d, id));
+// keepEx keeps rested exercise habits in (for the golden habit, so resting can't move the gold to another habit).
+function itemsFor(d, keepEx) { const p = planOf(d), live = liveItems(d), done = store.days[dkey(d)] || {};
+  const ids = dropWo(p ? [...p.ids, ...live.filter(id => done[id] && !p.ids.includes(id))] : live, d); return keepEx ? ids : dropEx(ids, d); }
+function keyIds(d) { const p = planOf(d), live = liveKeys(d); if (!p) return dropEx(dropWo(live, d), d); const done = store.days[dkey(d)] || {}; return dropEx(dropWo([...p.keys, ...live.filter(id => done[id] && !p.ids.includes(id))], d), d); }
+// An exercise habit done as its shorter plan B gives EX_PLANB of its usual XP (like the workout's plan B: 30 of 50).
+function baseXP(id, d) { if (id === "wo-done") return woPlanB(d) ? XP.planB : XP.workout; const x = keyIds(d).includes(id) ? XP.key : XP.item; return exPlanB(d, id) ? Math.round(x * EX_PLANB) : x; }
 // The golden habit of the day (see Golden habit) gives double. Everything else uses the base XP.
 function xpFor(id, d) { const x = baseXP(id, d); return id !== "wo-done" && goldId(d) === id ? x * GOLD_X : x; }
 // Workout check-in (see checkin.js). Saved as store.wo = { day: { why: "rain" | "late" | "tired", rain: true/false once the
@@ -436,8 +444,39 @@ const woOf = d => (store.wo && store.wo[dkey(d)]) || null;
 const woRested = d => { const w = woOf(d); return !!(w && w.rest === 1); };
 const woExcused = d => { const w = woOf(d); return !!(w && ((w.why === "rain" && w.rain === true) || w.rest === 1)); };
 // Tired rests already used in d's week (Monday to Sunday), not counting d itself.
-const tiredRestsUsed = d => { const wk = wkey(d), k = dkey(d); return Object.keys(store.wo || {}).filter(x => x !== k && store.wo[x].why === "tired" && store.wo[x].rest === 1 && wkey(keyToDate(x)) === wk).length; };
+// Shared by the workout and exercise habits, and counted in days: resting the walk and the workout on the same tired day
+// uses one tired rest, not two.
+const tiredRestsUsed = d => { const wk = wkey(d), k = dkey(d), days = new Set();
+  Object.keys(store.wo || {}).forEach(x => { if (x !== k && store.wo[x].why === "tired" && store.wo[x].rest === 1 && wkey(keyToDate(x)) === wk) days.add(x); });
+  Object.keys(store.ex || {}).forEach(x => { if (x !== k && wkey(keyToDate(x)) === wk && Object.values(store.ex[x]).some(e => e.why === "tired" && e.rest === 1)) days.add(x); });
+  return days.size; };
 const woPlanB = d => { const w = woOf(d); return !!(w && w.b === 1); };
+/* ================= Exercise habits ================= */
+// Habits like "30 min walk" get the same "Can't do it today?" as the workout (see checkin.js): rain, home late, tired or
+// sick, each with a plan B or a rest. A habit counts as exercise when its title has an exercise word, or when the
+// Exercise box in the editor says so (routine item field exercise: true/false wins over the guess).
+const EX_RE = /\b(walk|walking|run|running|jog|jogging|stretch|stretching|exercise|workout|gym|yoga|pilates|cycle|cycling|bike|swim|swimming|hike|hiking|futsal|badminton|football|basketball|jalan|berjalan|lari|berlari|joging|regangan|regang|senaman|bersenam|basikal|berbasikal|renang|berenang|mendaki|bergerak)\b/i;
+const EX_PLANB = 0.6;
+// The same guess for a routine item as saved (title, target, exercise), used by the editor's Exercise box.
+const edIsEx = it => typeof it.exercise === "boolean" ? it.exercise : !it.useFocus && !goalOf(it.target) && EX_RE.test(it.title || "");
+const isExercise = i => !!i && !i.dyn && i.id !== "wo-done" && (i.exo != null ? i.exo : !i.goal && EX_RE.test(i.t || ""));
+// Saved as store.ex = { day: { habitId: { why, rain?, b?, rest? } } }, the same shape as store.wo. Old data has none.
+function exState() {
+  if (!store.ex || typeof store.ex !== "object" || Array.isArray(store.ex)) { store.ex = {}; return store.ex; }
+  const old = new Date(Date.now() - 400 * 864e5).toISOString().slice(0, 10);
+  Object.keys(store.ex).forEach(k => { const day = store.ex[k];
+    if (!/^\d{4}-\d\d-\d\d$/.test(k) || k < old || !day || typeof day !== "object" || Array.isArray(day)) return void delete store.ex[k];
+    Object.keys(day).forEach(id => { const w = day[id];
+      if (!w || typeof w !== "object" || !WO_WHY.includes(w.why)) return void delete day[id];
+      const rest = w.why === "sick" || (w.why === "tired" && w.rest === 1 && w.b !== 1);
+      day[id] = { why: w.why, ...(typeof w.rain === "boolean" && w.why === "rain" ? { rain: w.rain } : {}), ...(w.b === 1 && !rest ? { b: 1 } : {}), ...(rest ? { rest: 1 } : {}) }; });
+    if (!Object.keys(day).length) delete store.ex[k]; });
+  return store.ex;
+}
+const exOf = (d, id) => ((store.ex || {})[dkey(d)] || {})[id] || null;
+// Rested (tired or sick) or real rain, and not ticked anyway: off the day's list, no XP, never against the streak.
+function exOff(d, id) { const e = exOf(d, id); return !!(e && (e.rest === 1 || (e.why === "rain" && e.rain === true)) && !(store.days[dkey(d)] || {})[id]); }
+const exPlanB = (d, id) => { const e = exOf(d, id); return !!(e && e.b === 1); };
 function ratio(d) { const done = store.days[dkey(d)] || {}, ids = woExcused(d) && !done["wo-done"] ? itemsFor(d).filter(id => id !== "wo-done") : itemsFor(d); return ids.length ? ids.filter(id => done[id]).length / ids.length : 0; }
 const REST_PER_MONTH = 2;
 const isRest = d => !!store.rest[dkey(d)];
@@ -533,7 +572,7 @@ function nodesFor(d) {
   const W = WORKOUTS[d.getDay()], out = [];
   const woNode = () => ({ id: "workout", kind: "workout", W, title: W.name, icon: "dumb", range: W.when, from: W.from, to: W.to, say: W.say });
   // A section with nothing to do today (e.g. all its habits are work-day only on a day off) is left off the path.
-  BLOCKS.forEach(b => { if (b.items.some(i => shown(i, d))) out.push({ id: b.id, kind: "block", b, title: b.title, icon: b.icon, range: b.range, from: b.from, to: b.to, say: b.say });
+  BLOCKS.forEach(b => { if (b.items.some(i => due(i, d))) out.push({ id: b.id, kind: "block", b, title: b.title, icon: b.icon, range: b.range, from: b.from, to: b.to, say: b.say });
     if (W && W.after === b.id) out.push(woNode()); });
   if (W && !BLOCKS.some(b => b.id === W.after)) out.push(woNode());
   if (WEEKLY.length) out.push({ id: "weekly", kind: "weekly", title: T("thisWeek"), icon: "cal", range: T("resetsMonday") });
@@ -543,13 +582,15 @@ const inWindow = (n, mins) => n.from != null && n.to != null && mins >= n.from &
 function nodeState(node, d) {
   const today = dkey(d), done = store.days[today] || {};
   if (node.kind === "block") { const ids = node.b.items.filter(i => shown(i,d)); const n = ids.filter(i => done[i.id]).length;
-    return { n, total: ids.length, cleared: ids.length > 0 && n === ids.length, xp: ids.filter(i => done[i.id]).reduce((s,i) => s + xpFor(i.id,d), 0) }; }
+    const rested = node.b.items.filter(i => due(i, d) && exOff(d, i.id)).length; // rested exercise habits (see Exercise habits)
+    return { n, total: ids.length, cleared: ids.length > 0 && n === ids.length, rested, xp: ids.filter(i => done[i.id]).reduce((s,i) => s + xpFor(i.id,d), 0) }; }
   if (node.kind === "workout") { const logs = store.logs[today] || {}; const n = node.W.ex.filter(ex => (logs[ex.id] || []).some(s => s && s[1])).length + (done["wo-done"] ? 1 : 0);
     return { n, total: node.W.ex.length + 1, cleared: !!done["wo-done"], xp: done["wo-done"] ? XP.workout : 0 }; }
   const wd = store.weeks[wkey(d)] || {}; const n = WEEKLY.filter(i => wd[i.id]).length;
   return { n, total: WEEKLY.length, cleared: n === WEEKLY.length, xp: n * XP.weekly };
 }
-const restedNode = (n, d) => n.kind === "workout" && woExcused(d) && !(store.days[dkey(d)] || {})["wo-done"];
+const restedNode = (n, d) => n.kind === "workout" ? woExcused(d) && !(store.days[dkey(d)] || {})["wo-done"]
+  : n.kind === "block" && !n.b.items.some(i => shown(i, d)); // every habit in it rested today
 function pathTarget(d, mins, nodes) {
   const open = n => !nodeState(n, d).cleared && !restedNode(n, d);
   return nodes.find(n => inWindow(n, mins) && open(n)) || nodes.find(n => open(n) && n.kind !== "weekly") || null;
@@ -871,7 +912,8 @@ function renderQuests(S) {
 }
 /* ================= Today: game-level strip ================= */
 // Each section is a level. Stars show progress in thirds; the little Tunas stands on the level to play next.
-const starsFor = st => (st.cleared ? 3 : st.n === 0 || !st.total ? 0 : Math.max(1, Math.floor(3 * st.n / st.total)));
+// A section cleared with a rested habit in it gets 2 stars: the third star is for doing everything.
+const starsFor = st => (st.cleared ? (st.rested ? 2 : 3) : st.n === 0 || !st.total ? 0 : Math.max(1, Math.floor(3 * st.n / st.total)));
 const starRow = (k, cls, from) => `<span class="stars${cls ? " " + cls : ""}" aria-hidden="true">${[0, 1, 2].map(i => `<i class="${i < k ? "on" : ""}${from != null && i >= from && i < k ? " pop" : ""}"${from != null && i >= from && i < k ? ` style="--d:${300 + (i - from) * 160}ms"` : ""}>${I.star}</i>`).join("")}</span>`;
 function nextTitle(node, d) { const x = nextOpen(node, d); if (!x) return ""; return node.kind === "workout" ? x.name : node.kind === "block" ? itemTitle(x, d) : x.t; }
 // What the home strip last showed while visible. Changes made inside a sheet play here once home is back in view.
@@ -885,7 +927,7 @@ function renderPath(S) {
   const live = homeVisible() && shownPath && shownPath.day === cur.day && !reduced();
   const was = live ? shownPath : null;
   // The section holding today's golden habit (see Golden habit) wears a small gold spark until it's ticked.
-  const gId = goldId(d), gNode = gId && !(store.days[dkey(d)] || {})[gId] ? (nodes.find(n => n.kind === "block" && n.b.items.some(i => i.id === gId)) || {}).id : null;
+  const gId = goldId(d), gNode = gId && !(store.days[dkey(d)] || {})[gId] && !exOff(d, gId) ? (nodes.find(n => n.kind === "block" && n.b.items.some(i => i.id === gId)) || {}).id : null;
   strip.innerHTML = nodes.map(n => {
     const st = nodeState(n, d), isT = n === target, k = starsFor(st), gold = n.id === gNode;
     const rested = restedNode(n, d), cls = st.cleared ? "done" : rested ? "rested" : isT ? "go" : st.n > 0 ? "started" : "";
@@ -1180,8 +1222,10 @@ function renderSheet(keep) {
       if (i.dyn) i = { ...i, ...FOCUS[d.getDay()] };
       if (i.alt && !isAltDay(d)) { h += `<div class="note">${esc(CFG.everyOtherDayNote || T("altNote"))}</div>`; return; }
       if (i.hide && i.hide.includes(d.getDay())) { h += `<div class="note">${esc(CFG.hideNote || T("hideNote"))}</div>`; return; }
+      if (exOff(d, i.id) && typeof exRestedHTML === "function") { h += exRestedHTML(i, d); return; }
       const tag = i.key ? `<span class="qtag">★ +${XP.key}</span>` : i.alt ? `<span class="qtag alt">${T("every2")}</span>` : "";
       h += taskHTML(i, !!done[i.id], tag, today);
+      if (!done[i.id] && isExercise(i) && typeof exCheckHTML === "function") h += exCheckHTML(i, d);
       if (i.dyn && !done[i.id] && !ftOn()) h += `<button class="btn ghost small ft-go" type="button" data-focus="${esc(i.id)}">${I.play}${T("ftStart", FT_FOCUS / 60)}</button>`;
     });
     if (!store.seen.habitHold) h += `<div class="note hs-tip">${T("hsTip")}</div>`;
@@ -2125,6 +2169,7 @@ function renderEditor(keep) {
             <p class="ed-count-help">${T("edCountHelp")}</p>
             <label class="ed-check"><input type="checkbox" data-ed-check="alt" data-bi="${bi}" data-ii="${ii}" ${it.everyOtherDay ? "checked" : ""}>${T("edAlt")}</label>
             <label class="ed-check"><input type="checkbox" data-ed-check="skip" data-bi="${bi}" data-ii="${ii}" ${it.hideOnDays && it.hideOnDays.length ? "checked" : ""} ${woDays ? "" : "disabled"}>${T("edSkipWo")}</label>
+            ${it.useFocus ? "" : `<label class="ed-check"><input type="checkbox" data-ed-check="ex" data-bi="${bi}" data-ii="${ii}" ${edIsEx(it) ? "checked" : ""}>${T("edEx")}</label><p class="ed-count-help">${T("edExHelp")}</p>`}
             <div class="ed-row">${edBtn("itemUp", `data-bi="${bi}" data-ii="${ii}"`, I.up, T("edUp"))}${edBtn("itemDown", `data-bi="${bi}" data-ii="${ii}"`, I.down, T("edDown"))}${delBtn(`item.${bi}.${ii}`, `data-bi="${bi}" data-ii="${ii}"`)}</div>
           </div>` : ""}</div>`;
       });
@@ -2215,6 +2260,7 @@ function editorClick(e) {
     if (kind === "alt") { const it = D.blocks[+chk.dataset.bi].items[+chk.dataset.ii]; it.everyOtherDay = chk.checked; }
     if (kind === "ondays" && !chk.checked) { delete D.blocks[+chk.dataset.bi].items[+chk.dataset.ii].onDays; markDirty(); return renderEditor(true); }
     if (kind === "skip") { const it = D.blocks[+chk.dataset.bi].items[+chk.dataset.ii]; it.hideOnDays = chk.checked ? Object.keys(D.workouts || {}).map(Number) : []; }
+    if (kind === "ex") { D.blocks[+chk.dataset.bi].items[+chk.dataset.ii].exercise = chk.checked; }
     if (kind === "bw") { D.workouts[chk.dataset.k].exercises[+chk.dataset.ei].bodyweight = chk.checked; }
     markDirty(); return;
   }
@@ -3356,7 +3402,7 @@ function goldDay(d) { const k = dkey(d); if (!store.gold || k < store.gold.from)
   const w = wkey(d); if (!goldWeek.has(w)) goldWeek.set(w, dayHash(w, "gold") % 7);
   return goldWeek.get(w) === (d.getDay() + 6) % 7; }
 function goldId(d) { if (!goldDay(d)) return null; const k = dkey(d); let best = null, bh = 0;
-  itemsFor(d).forEach(id => { if (id === "wo-done") return; const h = dayHash(k, "gold:" + id); if (best === null || h < bh) { best = id; bh = h; } });
+  itemsFor(d, true).forEach(id => { if (id === "wo-done") return; const h = dayHash(k, "gold:" + id); if (best === null || h < bh) { best = id; bh = h; } });
   return best; }
 // Ticking the golden habit: a short shimmer, a chime and a toast on top of the usual tick.
 function goldHit(xp) { setTimeout(() => { sfx("star3"); buzz([12, 40, 12, 40, 20]); toast(T("goldToast", xp), "spark", 3200); }, 260); }

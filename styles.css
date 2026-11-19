@@ -1494,3 +1494,10 @@ p.wo-say{display:block}
 .yr-finds .r2 .find-art{border-color:var(--gold)}
 .yr-share{margin-top:14px}
 .yr-share .btn svg{width:18px;height:18px;fill:currentColor;margin-right:6px;vertical-align:-3px}
+
+/* Exercise habits: "Can't do it today?" under a habit like "30 min walk", its plan B, and the rested row */
+.ex-cant{display:inline-flex;align-items:center;gap:8px;align-self:flex-start;min-height:44px;margin-top:-2px;padding:6px 14px;border:2px dashed var(--line);border-radius:999px;background:var(--card);color:var(--muted);font:inherit;font-weight:900;font-size:13.5px;cursor:pointer}
+.ex-cant > span{font-size:15px;letter-spacing:-2px}
+.ex-cant:focus-visible{outline:3px solid var(--green-ink);outline-offset:2px}
+.ex-ci{margin-top:-2px}
+.ex-rested b svg{width:16px;height:16px;fill:currentColor;vertical-align:-3px;margin-right:6px}
