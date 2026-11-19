@@ -440,6 +440,8 @@ a.btn{text-decoration:none;display:inline-block}
 .ed-foot .btn{flex:1}
 /* Welcome */
 .cele.welcome{justify-content:flex-start;overflow-y:auto;padding-top:calc(32px + env(safe-area-inset-top,0px))}
+/* The welcome title takes focus on each new step (for screen readers and keyboards); it isn't a control, so no ring. */
+#welcome h2[tabindex="-1"]:focus{outline:none}
 .w-in{width:min(100%,440px);display:flex;flex-direction:column;align-items:center;gap:16px;margin:auto 0}
 .w-in.wide{width:min(100%,520px)}
 .w-in .seg{width:100%}

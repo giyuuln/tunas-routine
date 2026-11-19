@@ -892,8 +892,8 @@ function renderPath(S) {
     const fresh = was && st.cleared && !was.cleared[n.id], from = was ? Math.min(was.k[n.id] || 0, k) : k;
     return `<div class="lvl${st.cleared ? " cleared" : ""}${isT ? " is-target" : ""}${fresh ? " just-cleared" : ""}" style="--from:${from}">
       ${isT ? `<span class="lvl-me mascot happy" aria-hidden="true">${mascotSVG()}</span>` : ""}
-      <button class="lvl-node ${cls}" type="button" data-node="${n.id}" aria-label="${esc(n.title)}, ${rested ? T("woRestAria") : T("of", st.n, st.total)}${isT ? ", " + T("upNext") : ""}${gold ? ", " + T("goldNode") : ""}">${st.cleared ? I.check : rested ? I.moon : I[n.icon] || I.star}</button>${gold ? `<span class="lvl-gold" aria-hidden="true">${I.spark}</span>` : ""}
-      ${starRow(k, "", from)}<span class="lvl-name">${esc(n.title)}</span></div>`;
+      <button class="lvl-node ${cls}" type="button" data-node="${n.id}" aria-label="${esc(n.title)}, ${rested ? T("woRestAria") : T("of", st.n, st.total)}${k ? ", " + T("starsOf", k) : ""}${isT ? ", " + T("upNext") : ""}${gold ? ", " + T("goldNode") : ""}">${st.cleared ? I.check : rested ? I.moon : I[n.icon] || I.star}</button>${gold ? `<span class="lvl-gold" aria-hidden="true">${I.spark}</span>` : ""}
+      ${starRow(k, "", from)}<span class="lvl-name" aria-hidden="true">${esc(n.title)}</span></div>`;
   }).join("");
   $("pathTitle").textContent = T("todayIs", d.toLocaleDateString(locale(), { weekday: "long" }));
   renderLevelDetail(d, mins, target, S || lastS || computeAll());
@@ -2329,9 +2329,22 @@ function openWelcome(step, switching) {
   WEL = newWel(step, switching);
   $("welcome").hidden = false; document.body.classList.add("locked"); renderWelcome();
 }
-function closeWelcome() { $("welcome").hidden = true; document.body.classList.remove("locked"); }
+function closeWelcome() { welShown = null; $("welcome").hidden = true; document.body.classList.remove("locked"); }
+// Each step redraws the whole screen. To keep keyboard and screen-reader users in place, a redraw on the same step puts
+// focus back on the control they used (a toggle, a language), and a new step puts it on the step's title.
+let welShown = null;
+function welKey(el) {
+  const a = document.activeElement; if (!a || !el.contains(a)) return "";
+  if (a.id) return "#" + a.id;
+  return [...a.attributes].filter(x => x.name.startsWith("data-")).map(x => `[${x.name}="${CSS.escape(x.value)}"]`).join("");
+}
+function welFocus(el, key) {
+  const h = el.querySelector("h2"); if (h) { h.id = "welT"; h.tabIndex = -1; el.setAttribute("aria-labelledby", "welT"); }
+  const same = welShown === WEL.step && key ? el.querySelector(key) : null; welShown = WEL.step;
+  const to = same || h; if (to) to.focus({ preventScroll: true });
+}
 function renderWelcome() {
-  const el = $("welcome");
+  const el = $("welcome"), key = welKey(el);
   if (WEL.step === 1) {
     el.innerHTML = `<div class="w-in"><div class="mascot cheer" id="wMascot">${mascotSVG()}</div><h2 class="green">${T("wHi")}</h2><p>${T("wSub")}</p>
       ${IOS && STANDALONE ? `<div class="w-ios"><span>${T("wPasteIOS")}</span><button class="btn small" type="button" data-wpaste>${T("pasteData")}</button></div>` : ""}
@@ -2368,6 +2381,7 @@ function renderWelcome() {
     if ($("wFile")) $("wFile").onclick = () => $("fileRoutine").click();
     $("wGo").onclick = finishWelcome;
   }
+  welFocus(el, key);
 }
 $("welcome").addEventListener("click", e => { const b = e.target.closest("[data-lang]"); if (b) { setLang(b.dataset.lang); renderWelcome(); return; }
   const t = e.target.closest("[data-theme-pick]"); if (t) { applyTheme(t.dataset.themePick, true); sfx("ding"); renderWelcome(); } });
@@ -2512,7 +2526,7 @@ const packCount = (r, id) => (r.blocks || []).reduce((n, b) => n + (b.items || [
 function packGridHTML(sel, skip) {
   return window.TUNAS_PACK_CATS.map(c => {
     const list = window.TUNAS_PACKS.filter(p => p.cat === c.id && !(skip && skip.has(p.id))); if (!list.length) return "";
-    return `<h4 class="pk-cat">${esc(R(c.title))}</h4><div class="pk-grid">${list.map(p => `<button type="button" class="pk" data-pack="${esc(p.id)}" aria-pressed="${sel.has(p.id)}">
+    return `<h3 class="pk-cat">${esc(R(c.title))}</h3><div class="pk-grid">${list.map(p => `<button type="button" class="pk" data-pack="${esc(p.id)}" aria-pressed="${sel.has(p.id)}">
       <span class="pk-emo" aria-hidden="true">${esc(p.emoji)}</span><span class="tpl-tick">${I.check}</span><b>${esc(R(p.title))}</b><span>${esc(R(p.desc))}</span><small>${p.setup ? T("packAsks") : T("packHabits", p.habits.length)}</small></button>`).join("")}</div>`;
   }).join("");
 }
@@ -2775,6 +2789,15 @@ const celeQ = [];
 // A section that is cleared stays closed, so the path can play its stars.
 let celeBack = null;
 function queueCele(c) { celeQ.push(c); if ($("cele").hidden) nextCele(); }
+// While a celebration is up, everything behind it is inert, so Tab and screen readers stay on it and nothing behind can
+// pull focus away. When the last one closes, focus goes back to where it was (if that is still on screen).
+const CELE_BEHIND = [".wrap", "#tabbar", "#scrim", "#sheet", "#welcome", "#restbar", "#focusbar", "#updbar"];
+let celeFrom = null;
+function celeInert(on) {
+  if (on && $("cele").hidden) { const a = document.activeElement; celeFrom = a && a !== document.body ? a : null; }
+  CELE_BEHIND.forEach(q => { const e = document.querySelector(q); if (e) e.inert = on; });
+  if (!on) { const a = celeFrom; celeFrom = null; if (a && a.isConnected && a.getClientRects().length && !a.closest("[hidden]")) a.focus({ preventScroll: true }); }
+}
 function celeReturn() {
   const back = celeBack; celeBack = null;
   if (!back || sheetId || !$("cele").hidden || !$("welcome").hidden) return;
@@ -2782,20 +2805,23 @@ function celeReturn() {
   // Quick tick comes back while anything is left to tick today; a section comes back while it isn't cleared.
   if (back.id === "quick") { const done = store.days[dkey(d)] || {}; if (!quickGroups(d).some(g => g.items.some(i => !done[i.id]))) return;
     openSheet("quick"); if (back.all) { qtAll = true; renderSheet(false); } $("shBody").scrollTop = back.top; return; }
+  const nb = document.querySelector(`#path [data-node="${back.id}"]`); if (nb) nb.focus({ preventScroll: true }); // Close (or a cleared section) comes back here
   const n = nodesFor(d).find(x => x.id === back.id); if (!n || nodeState(n, d).cleared) return;
-  const nb = document.querySelector(`#path [data-node="${back.id}"]`); if (nb) nb.focus({ preventScroll: true }); // Close comes back here
   openSheet(back.id); $("shBody").scrollTop = back.top;
 }
 function nextCele() {
-  const c = celeQ.shift(); if (!c) { $("cele").hidden = true; contextSay(); setTimeout(playHome, 150); flushToasts(); if (celeBack) setTimeout(celeReturn, 250); return; }
+  const c = celeQ.shift(); if (!c) { if (!$("cele").hidden) { $("cele").hidden = true; celeInert(false); } contextSay(); setTimeout(playHome, 150); flushToasts(); if (celeBack) setTimeout(celeReturn, 250); return; }
   holdToasts();
   if (sheetId && !["settings", "routine", "me", "money", "editor", "packs", "wosetup", "skinsetup"].includes(sheetId) && !sheetId.startsWith("day:") && !sheetId.startsWith("lock:")) {
     celeBack = sheetId === "quick" || nodesFor(routineDate()).some(n => n.id === sheetId) ? { id: sheetId, top: $("shBody").scrollTop, all: qtAll } : null;
     closeSheet(); }
-  const el = $("cele"); el.hidden = false;
-  el.innerHTML = `${c.art || `<div class="mascot cheer" id="celeMascot">${mascotSVG()}</div>`}<h2 class="${c.color || ""}">${c.title}</h2><p>${c.sub}</p>${c.extra || ""}
-    ${c.tiles.length ? `<div class="tiles">${c.tiles.map(t => `<div class="tile" style="--c:var(${t.c})"><small>${t.k}</small><b>${t.i ? I[t.i] : ""}${t.v}</b></div>`).join("")}</div>` : ""}
+  const el = $("cele"); celeInert(true); el.hidden = false;
+  el.innerHTML = `${c.art || `<div class="mascot cheer" id="celeMascot" aria-hidden="true">${mascotSVG()}</div>`}<h2 class="${c.color || ""}" id="celeT">${c.title}</h2><p>${c.sub}</p>${c.extra || ""}
+    ${c.tiles.length ? `<div class="tiles">${c.tiles.map(t => `<div class="tile" style="--c:var(${t.c})"><small>${t.k}</small><b>${t.i ? I[t.i].replace("<svg ", '<svg aria-hidden="true" ') : ""}${t.v}</b></div>`).join("")}</div>` : ""}
     <button class="btn" type="button" id="celeGo">${c.btn || T("cont")}</button>${c.alt ? `<button class="linkish" type="button" id="celeAlt">${c.alt.t}</button>` : ""}`;
+  // A screen reader reads the title, then the line, the finds and the tiles, then lands on the button.
+  const desc = [...el.children].filter(x => x.tagName !== "H2" && x.tagName !== "BUTTON" && x.getAttribute("aria-hidden") !== "true");
+  desc.forEach((x, i) => { x.id = "celeD" + i; }); el.setAttribute("aria-describedby", desc.map(x => x.id).join(" "));
   $("celeGo").onclick = () => { nextCele(); if (c.then) c.then(); }; $("celeGo").focus({ preventScroll: true });
   if (c.alt) $("celeAlt").onclick = () => { nextCele(); c.alt.go(); };
   if ($("celeMascot")) jump($("celeMascot")); sfx(c.sound || "clear"); buzz([30,60,30]); confetti();
@@ -2927,7 +2953,7 @@ function openWeekChest() {
 // This week's progress toward the next weekly chest, for the streak card in History.
 function wchestRow() {
   const n = Math.min(WCHEST_GOAL, goalDays(keyToDate(wkey(routineDate())))), pips = Array.from({ length: WCHEST_GOAL }, (_, i) => `<i class="${i < n ? "on" : ""}"></i>`).join("");
-  return `<div class="wchest-row">${I.chest}<span><b>${T("wchestName")}</b> ${n >= WCHEST_GOAL ? T("wchestReady") : T("wchestProgress", n, WCHEST_GOAL)}</span><span class="wc-pips" role="img" aria-label="${n}/${WCHEST_GOAL}">${pips}</span></div>`;
+  return `<div class="wchest-row">${I.chest}<span><b>${T("wchestName")}</b> ${n >= WCHEST_GOAL ? T("wchestReady") : T("wchestProgress", n, WCHEST_GOAL)}</span><span class="wc-pips" aria-hidden="true">${pips}</span></div>`;
 }
 
 /* ================= Chest finds ================= */
@@ -3035,9 +3061,9 @@ function findsHTML() {
   const pity = Math.max(1, RARE_PITY - f.dry);
   const cell = x => { const n = findCount(f, x.id);
     const sz = x.m ? (inSeason(x) ? T("seasonNow") : seasonName(x)) : "";
-    if (!n) return `<li class="fcell lock r${x.r}${x.m && inSeason(x) ? " now" : ""}" aria-label="${T("findLocked")} · ${rarityName(x.r)}${sz ? " · " + sz : ""}"><span class="find-art">${findArt(x)}</span><b aria-hidden="true">? ? ?</b><small aria-hidden="true">${sz || rarityName(x.r)}</small></li>`;
+    if (!n) return `<li class="fcell lock r${x.r}${x.m && inSeason(x) ? " now" : ""}"><span class="sr">${T("findLocked")} · ${rarityName(x.r)}${sz ? " · " + sz : ""}</span><span class="find-art">${findArt(x)}</span><b aria-hidden="true">? ? ?</b><small aria-hidden="true">${sz || rarityName(x.r)}</small></li>`;
     const sh = n >= SHINY_AT, lv = upLv(x.id), label = `${findName(x.id)}${lv ? " +" + lv : ""} · ${rarityName(x.r)}${sh ? " · " + T("shinyTag") : ""} · ×${n}`;
-    return `<li class="fcell r${x.r}${sh ? " shiny" : ""}${lv ? " g" + lv : ""}${upSel === x.id ? " sel" : ""}">${lv ? `<i class="f-lv" aria-hidden="true">+${lv}</i>` : ""}<button class="fc-hit" type="button" data-up="${x.id}" aria-label="${esc(label)} · ${T("upOpenA")}"></button><span class="find-art">${findArt(x)}${sh ? SPARKS : ""}</span><b aria-hidden="true">${findName(x.id)}</b><small aria-hidden="true">${rarityName(x.r)}${n > 1 ? ` · ×${n}` : ""}</small>${f.log[today] === x.id ? `<i class="b-new" aria-hidden="true">${T("newBadge")}</i>` : ""}</li>`; };
+    return `<li class="fcell r${x.r}${sh ? " shiny" : ""}${lv ? " g" + lv : ""}${upSel === x.id ? " sel" : ""}">${lv ? `<i class="f-lv" aria-hidden="true">+${lv}</i>` : ""}<button class="fc-hit" type="button" data-up="${x.id}" aria-expanded="${upSel === x.id}" aria-label="${esc(label)}${f.log[today] === x.id ? " · " + T("newBadge") : ""} · ${T("upOpenA")}"></button><span class="find-art">${findArt(x)}${sh ? SPARKS : ""}</span><b aria-hidden="true">${findName(x.id)}</b><small aria-hidden="true">${rarityName(x.r)}${n > 1 ? ` · ×${n}` : ""}</small>${f.log[today] === x.id ? `<i class="b-new" aria-hidden="true">${T("newBadge")}</i>` : ""}</li>`; };
   return `<section class="me-trophy me-finds" aria-labelledby="findsT"><div class="me-th"><h3 id="findsT">${T("findsTitle")}</h3><span>${owned.length} / ${FINDS.length}</span></div>
     <div class="bar"><i style="${fillPct(100 * owned.length / FINDS.length)}"></i></div>
     ${owned.length ? (owned.length < FINDS.length ? `<p class="f-pity">${I.chest}<span>${T("findsPity", pity)}</span></p>` : "")
@@ -3095,17 +3121,20 @@ function tryUpgrade() {
   if (!calm) [0, 1, 2].forEach(i => setTimeout(() => sfx("star" + (i + 1)), 350 + i * 380));
   buzz(10);
   setTimeout(() => {
-    upBusy = false; if (sheetId === "me") renderSheet(true);
+    upBusy = false; if (sheetId === "me") { renderSheet(true); upFocus(); }
     if (win) queueCele({ title: T("upWinT", n + 1), sub: T("upWinSub", findName(id), n + 1), color: "green", sound: "level", art: upCard(x, n + 1, true), tiles: [] });
     else { sfx("undo"); buzz(20); toast(T("upFail", findName(id), upChance(id)), "heart", 3800); const b = $("upBox"); if (b && !calm) b.classList.add("miss"); }
   }, calm ? 300 : 1500);
 }
+// The panel is drawn again after a try, so focus goes back to it (the next try, or Close when it can't be tried).
+function upFocus() { const b = $("upBox"); if (b) (b.querySelector("[data-up-try]:not([disabled])") || b.querySelector("[data-up-close]")).focus({ preventScroll: true }); }
 $("shBody").addEventListener("click", e => {
   if (sheetId !== "me") return;
   const o = e.target.closest("[data-up]");
   if (o) { audio(); upSel = upSel === o.dataset.up ? "" : o.dataset.up; renderSheet(true); sfx("pop");
-    const b = $("upBox"); if (b) { b.scrollIntoView({ block: "nearest", behavior: reduced() ? "auto" : "smooth" }); (b.querySelector("[data-up-try]:not([disabled])") || b.querySelector("[data-up-close]")).focus({ preventScroll: true }); } return; }
-  if (e.target.closest("[data-up-close]")) { upSel = ""; renderSheet(true); return; }
+    const b = $("upBox"); if (b) { b.scrollIntoView({ block: "nearest", behavior: reduced() ? "auto" : "smooth" }); upFocus(); }
+    else { const c = $("shBody").querySelector(`[data-up="${o.dataset.up}"]`); if (c) c.focus({ preventScroll: true }); } return; }
+  if (e.target.closest("[data-up-close]")) { const id = upSel; upSel = ""; renderSheet(true); const c = $("shBody").querySelector(`[data-up="${id}"]`); if (c) c.focus({ preventScroll: true }); return; }
   if (e.target.closest("[data-up-try]")) { audio(); tryUpgrade(); }
 });
 
@@ -3205,7 +3234,7 @@ function wearNewCards() {
 function wearHTML() {
   const w = wearState(), owned = wearOwned(), open = WEAR.filter(x => wearOpen(x, owned)).length;
   const tile = x => { const ok = wearOpen(x, owned), on = w.on === x.id;
-    if (!ok) return `<li><span class="wcell lock" aria-label="${wearName(x.id)} · ${T("findLocked")} · ${wearNeed(x)}"><span class="find-art">${wearArt(x)}</span><b>${wearName(x.id)}</b><small aria-hidden="true">${wearNeed(x)}</small></span></li>`;
+    if (!ok) return `<li><span class="wcell lock"><span class="sr">${wearName(x.id)} · ${T("findLocked")} · ${wearNeed(x)}</span><span class="find-art">${wearArt(x)}</span><b aria-hidden="true">${wearName(x.id)}</b><small aria-hidden="true">${wearNeed(x)}</small></span></li>`;
     return `<li><button type="button" class="wcell${on ? " on" : ""}" data-wear="${x.id}" aria-pressed="${on}"><span class="find-art">${wearArt(x)}</span><b>${wearName(x.id)}</b><small>${on ? T("wearOn") : T("wearTry")}</small>${on ? `<i class="w-tick" aria-hidden="true">${I.check}</i>` : ""}</button></li>`; };
   return `<section class="me-trophy me-wear" aria-labelledby="wearT"><div class="me-th"><h3 id="wearT">${T("wearTitle")}</h3><span>${open} / ${WEAR.length}</span></div>
     <p class="w-help">${T("wearHelp")}</p>
