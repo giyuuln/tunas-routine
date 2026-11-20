@@ -308,7 +308,7 @@ const titleOf = n => { const t = T("titles"); return t[Math.min(n - 1, t.length 
 
 /* ================= Level rewards ================= */
 // Every new level gives a gift to keep: even levels a find that is Rare or better, odd levels a streak shield (or a
-// normal find when 2 shields are already held). Levels 2 to 10 also bring a new title. Gifts are given once per level:
+// normal find when 2 shields are already held), and every level a restore point (see Find upgrade). Levels 2 to 10 also bring a new title. Gifts are given once per level:
 // store.lvup = { top: highest level already rewarded }. Unticking and ticking again can't earn the same level twice.
 // Old data without it starts at the current level, so nothing is handed out in a burst.
 const lvGift = n => (n % 2 ? "shield" : "find"), lvNewTitle = n => n >= 2 && n <= T("titles").length;
@@ -321,7 +321,7 @@ function lvupState() {
 function lvNextText(level) {
   const n = level + 1, parts = [];
   if (lvNewTitle(n)) parts.push(T("lvGiftTitle", titleOf(n)));
-  parts.push(T(lvGift(n) === "find" ? "lvGiftFind" : "lvGiftShield"));
+  parts.push(T(lvGift(n) === "find" ? "lvGiftFind" : "lvGiftShield"), T("lvGiftRp"));
   return T("lvNext", n, parts.join(" + "));
 }
 // Gives the gifts for levels above the last rewarded one and returns their cards for the celebration.
@@ -334,6 +334,7 @@ function grantLevels(level) {
     if (lvGift(n) === "find") cards.push(findCard(openFind(today, Math.random, 1)));
     else cards.push(rollShield(today, () => 0) ? shieldCard() : findCard(openFind(today)));
   }
+  cards.push(rpCard(rpGive(level - u.top)));
   const wc = wearNewCards(); if (wc) cards.push(wc);
   u.top = level; save(); return cards;
 }
@@ -2968,7 +2969,7 @@ const CHEST = `<div class="chest-art" aria-hidden="true"><svg viewBox="0 0 120 1
 /* ================= Weekly chest ================= */
 // A week (Monday to Sunday) with 5+ goal days earns a bigger chest. A goal day is one with 80%+ of habits ticked, or a
 // rest day; a day a streak shield covered doesn't count. It holds 2 finds (the first is Rare or better for sure) and a
-// streak shield if there's room. Last week's chest opens after last week's summary (first open of the new week), or
+// streak shield if there's room, plus a restore point. Last week's chest opens after last week's summary (first open of the new week), or
 // from History any time this week.
 // Saved as store.wchest = { Monday of the week: day opened }. Old data without it just has no chests opened yet.
 const WCHEST_GOAL = 5;
@@ -2991,9 +2992,9 @@ function openWeekChest() {
   if (wchestLast() !== "open") return;
   const w = wchestState(), today = dkey(routineDate()); w[dkey(lastMonday())] = today;
   Object.keys(w).forEach(k => { if (k < dkey(new Date(Date.now() - 70 * 864e5))) delete w[k]; });
-  const a = openFind(today, Math.random, 1), b = openFind(today), sh = rollShield(today, () => 0), wc = wearNewCards(); save();
+  const a = openFind(today, Math.random, 1), b = openFind(today), sh = rollShield(today, () => 0), rp = rpGive(1), wc = wearNewCards(); save();
   queueCele({ title: T("wchestTitle"), sub: T("wchestSub", goalDays(lastMonday())), color: "green", sound: "level", art: CHEST.replace('class="chest-art"', 'class="chest-art wk"'),
-    extra: `<div class="find-list">${findCard(a)}${findCard(b)}${sh ? shieldCard() : ""}${wc}</div>`, btn: T("chestBtn"), tiles: [] });
+    extra: `<div class="find-list">${findCard(a)}${findCard(b)}${sh ? shieldCard() : ""}${rpCard(rp)}${wc}</div>`, btn: T("chestBtn"), tiles: [] });
   refresh(true);
 }
 // This week's progress toward the next weekly chest, for the streak card in History.
@@ -3108,13 +3109,13 @@ function findsHTML() {
   const cell = x => { const n = findCount(f, x.id);
     const sz = x.m ? (inSeason(x) ? T("seasonNow") : seasonName(x)) : "";
     if (!n) return `<li class="fcell lock r${x.r}${x.m && inSeason(x) ? " now" : ""}"><span class="sr">${T("findLocked")} · ${rarityName(x.r)}${sz ? " · " + sz : ""}</span><span class="find-art">${findArt(x)}</span><b aria-hidden="true">? ? ?</b><small aria-hidden="true">${sz || rarityName(x.r)}</small></li>`;
-    const sh = n >= SHINY_AT, lv = upLv(x.id), label = `${findName(x.id)}${lv ? " +" + lv : ""} · ${rarityName(x.r)}${sh ? " · " + T("shinyTag") : ""} · ×${n}`;
-    return `<li class="fcell r${x.r}${sh ? " shiny" : ""}${lv ? " g" + lv : ""}${upSel === x.id ? " sel" : ""}">${lv ? `<i class="f-lv" aria-hidden="true">+${lv}</i>` : ""}<button class="fc-hit" type="button" data-up="${x.id}" aria-expanded="${upSel === x.id}" aria-label="${esc(label)}${f.log[today] === x.id ? " · " + T("newBadge") : ""} · ${T("upOpenA")}"></button><span class="find-art">${findArt(x)}${sh ? SPARKS : ""}</span><b aria-hidden="true">${findName(x.id)}</b><small aria-hidden="true">${rarityName(x.r)}${n > 1 ? ` · ×${n}` : ""}</small>${f.log[today] === x.id ? `<i class="b-new" aria-hidden="true">${T("newBadge")}</i>` : ""}</li>`; };
+    const sh = n >= SHINY_AT, lv = upLv(x.id), mk = upState().mark[x.id], label = `${findName(x.id)}${lv ? " +" + lv : ""} · ${rarityName(x.r)}${sh ? " · " + T("shinyTag") : ""} · ×${n}${mk ? " · " + T("rpMarkA", mk) : ""}`;
+    return `<li class="fcell r${x.r}${sh ? " shiny" : ""}${lv ? " g" + lv : ""}${upSel === x.id ? " sel" : ""}">${lv ? `<i class="f-lv" aria-hidden="true">+${lv}</i>` : ""}${mk ? `<i class="f-mk" aria-hidden="true">${RP_ICO}</i>` : ""}<button class="fc-hit" type="button" data-up="${x.id}" aria-expanded="${upSel === x.id}" aria-label="${esc(label)}${f.log[today] === x.id ? " · " + T("newBadge") : ""} · ${T("upOpenA")}"></button><span class="find-art">${findArt(x)}${sh ? SPARKS : ""}</span><b aria-hidden="true">${findName(x.id)}</b><small aria-hidden="true">${rarityName(x.r)}${n > 1 ? ` · ×${n}` : ""}</small>${f.log[today] === x.id ? `<i class="b-new" aria-hidden="true">${T("newBadge")}</i>` : ""}</li>`; };
   return `<section class="me-trophy me-finds" aria-labelledby="findsT"><div class="me-th"><h3 id="findsT">${T("findsTitle")}</h3><span>${owned.length} / ${FINDS.length}</span></div>
     <div class="bar"><i style="${fillPct(100 * owned.length / FINDS.length)}"></i></div>
     ${owned.length ? (owned.length < FINDS.length ? `<p class="f-pity">${I.chest}<span>${T("findsPity", pity)}</span></p>` : "")
       : `<p class="f-empty">${I.chest}<span>${T("findsEmpty")}</span></p>`}
-    ${owned.length ? `<p class="f-up">${I.star}<span>${T("upStars", starsLeft())}</span></p>${upPanelHTML()}` : ""}
+    ${owned.length ? `<p class="f-up">${I.star}<span>${T("upStars", starsLeft())}</span></p><p class="f-rp">${RP_ICO}<span>${T("rpHave", rpHeld())}</span></p>${upPanelHTML()}` : ""}
     ${owned.length ? `<p class="f-shiny"><i aria-hidden="true">${I.spark}</i><span><b>${T("findsShiny", shinyN, FINDS.length)}</b> ${shinyN === FINDS.length ? T("findsShinyAll") : T("findsShinyHelp", SHINY_AT)}</span></p>` : ""}
     ${FINDS.filter(x => x.m && inSeason(x)).map(x => `<p class="f-season">${I.spark}<span>${findCount(f, x.id) ? T("seasonGot", findName(x.id)) : T("seasonLine", seasonName(x))}</span></p>`).join("")}
     <div class="fsets">${SETS.map(st => { const n = setHave(st, f), all = n === st.ids.length, w = WEAR.find(x => x.id === st.wear);
@@ -3125,42 +3126,74 @@ function findsHTML() {
 
 /* ================= Find upgrade ================= */
 // Spend a spare copy of a find plus Stars to try to raise it a glow tier (+1 to +5). The chance is shown before every
-// try. A failed try never lowers or removes anything: it uses the spare and the Stars, and adds +10% to that find's next
-// try, so success always comes within a few tries. Spares are copies beyond the first; spent ones are counted apart, so
+// try. A failed try uses the spare and the Stars and adds +10% to that find's next try, so success always comes within a
+// few tries. From +2 up, a failed try can also slip the find one grade (never below +1, and a find is never lost); the
+// risk is shown before the try. A slipped find keeps a restore mark that never expires: 1 restore point puts it back to
+// the grade it had. Restore points come only from real habits: 1 per new level, 1 per weekly chest and 1 per 7 days of
+// a streak (7, 14, 21...); everyone starts with 1. They can't be bought. Spares are copies beyond the first; spent ones are counted apart, so
 // a shiny find stays shiny. Stars to spend = Stars earned on every day so far (3 per finished section, as on the path)
 // minus Stars already spent, and never below 0. Saved as store.up = { lv: { id: tier }, used: { id: spares spent },
-// pity: { id: extra % }, spent: Stars spent }. Old data without it has nothing upgraded.
+// pity: { id: extra % }, spent: Stars spent, mark: { id: grade to restore to }, rp: restore points held, sm: last day a
+// 7-day streak point was given }. Old data without it has nothing upgraded; without rp it starts with 1,
+// and without sm it starts from the current streak, so nothing is handed out in a burst.
 const UP_MAX = 5, UP_ODDS = [90, 75, 60, 45, 35], UP_STARS = [10, 20, 30, 40, 50], UP_PITY = 10;
+const UP_DROP = [0, 0, 20, 30, 40], RP_START = 1, RP_MAX = 99, RP_STREAK = 7; // UP_DROP: % a miss slips one grade, by the grade it's at
 function upState() {
   const u = store.up && typeof store.up === "object" && !Array.isArray(store.up) ? store.up : (store.up = {});
-  ["lv", "used", "pity"].forEach(k => { if (!u[k] || typeof u[k] !== "object" || Array.isArray(u[k])) u[k] = {};
-    Object.keys(u[k]).forEach(id => { const v = Math.floor(+u[k][id]); if (!(v > 0) || !FINDS.some(x => x.id === id)) delete u[k][id]; else u[k][id] = Math.min(v, k === "lv" ? UP_MAX : k === "pity" ? 100 : 9999); }); });
-  u.spent = Math.max(0, Math.floor(+u.spent) || 0); return u;
+  ["lv", "used", "pity", "mark"].forEach(k => { if (!u[k] || typeof u[k] !== "object" || Array.isArray(u[k])) u[k] = {};
+    Object.keys(u[k]).forEach(id => { const v = Math.floor(+u[k][id]); if (!(v > 0) || !FINDS.some(x => x.id === id)) delete u[k][id]; else u[k][id] = Math.min(v, k === "lv" || k === "mark" ? UP_MAX : k === "pity" ? 100 : 9999); }); });
+  // A mark only stays while the find is below the grade it can go back to.
+  Object.keys(u.mark).forEach(id => { if (u.mark[id] <= (u.lv[id] || 0) || !u.lv[id]) delete u.mark[id]; });
+  u.spent = Math.max(0, Math.floor(+u.spent) || 0);
+  const rp = Math.floor(+u.rp); u.rp = u.rp == null || !(rp >= 0) ? RP_START : Math.min(rp, RP_MAX);
+  if (typeof u.sm !== "string" || (u.sm && !/^\d{4}-\d\d-\d\d$/.test(u.sm))) delete u.sm;
+  return u;
 }
 const upLv = id => upState().lv[id] || 0;
 const upSpare = (id, f = findsState()) => Math.max(0, findCount(f, id) - 1 - (upState().used[id] || 0));
 function starsEarned() { let s = 0; Object.keys(store.days).forEach(k => { const d = keyToDate(k); nodesFor(d).forEach(n => { if (n.kind !== "weekly") s += starsFor(nodeState(n, d)); }); }); return s; }
 const starsLeft = () => Math.max(0, starsEarned() - upState().spent);
 const upChance = id => { const n = upLv(id); return n >= UP_MAX ? 0 : Math.min(100, UP_ODDS[n] + (upState().pity[id] || 0)); };
+// Chance this try ends one grade lower: it has to miss, then slip.
+const upRisk = id => Math.round((100 - upChance(id)) * (UP_DROP[upLv(id)] || 0) / 100);
+const rpHeld = () => upState().rp;
+function rpGive(n) { const u = upState(), had = u.rp; u.rp = Math.min(RP_MAX, u.rp + Math.max(0, n)); return u.rp - had; }
+// Every 7 days of a streak (7, 14, 21...) gives a restore point. Each one is tied to the day it was reached, and only
+// days after the last one rewarded count, so unticking and ticking again, or fixing an old day that joins two streaks,
+// can't earn the same point twice. sm = that last day ("" = none yet).
+function checkStreakRp(S, live) {
+  const u = upState(), x = routineDate(); if (!dayOK(x)) x.setDate(x.getDate() - 1);
+  x.setDate(x.getDate() - Math.max(0, S.streak - 1));
+  const days = []; for (let k = 1; k <= Math.floor(S.streak / RP_STREAK); k++) { const d = new Date(x); d.setDate(d.getDate() + k * RP_STREAK - 1); days.push(dkey(d)); }
+  if (u.sm == null) { u.sm = days.slice(-1)[0] || ""; save(); return; }
+  const fresh = days.filter(k => k > u.sm); if (!fresh.length) return;
+  const got = rpGive(fresh.length), m = days.length; u.sm = fresh.slice(-1)[0]; save();
+  if (live && got) { toast(T("rpStreak", m * RP_STREAK, rpHeld()), "flame", 4200); sfx("level"); buzz([20, 40, 20]); }
+}
 let upSel = "", upBusy = false;
 const upCard = (x, n, big) => `<div class="up-card r${x.r}${n ? " g" + n : ""}${big ? " big" : ""}" aria-hidden="true"><span class="find-art">${findArt(x)}</span>${n ? `<i class="f-lv">+${n}</i>` : ""}</div>`;
 function upPanelHTML() {
   const f = findsState(), x = FINDS.find(v => v.id === upSel); if (!x || !findCount(f, x.id)) return "";
   const n = upLv(x.id), u = upState(), spare = upSpare(x.id, f), stars = starsLeft(), cost = UP_STARS[n] || 0, ch = upChance(x.id), pity = u.pity[x.id] || 0;
-  const okSpare = spare >= 1, okStars = stars >= cost;
+  const okSpare = spare >= 1, okStars = stars >= cost, risk = upRisk(x.id), mk = u.mark[x.id], rp = u.rp;
+  const rest = mk ? `<div class="up-rest">${RP_ICO}<p><b>${T("rpMarkT", mk)}</b><span>${rp ? T("rpMarkHow", rp) : T("rpNone")}</span></p>
+    <button class="btn small" type="button" data-up-restore ${rp ? "" : "disabled"}>${T("rpUse", mk)}</button></div>` : "";
   return `<section class="upbox" id="upBox" aria-labelledby="upT"><button class="up-x" type="button" data-up-close aria-label="${T("close")}">${I.x}</button>
-    ${upCard(x, n)}<h4 id="upT">${findName(x.id)}${n ? ` +${n}` : ""}</h4>
-    ${n >= UP_MAX ? `<p class="up-why">${T("upMax")}</p>` : `<div class="up-odds"><b>${T("upTo", n + 1)}</b><span class="up-pct">${ch}%</span>${pity ? `<small>${T("upPity", pity)}</small>` : ""}</div>
+    ${upCard(x, n)}<h4 id="upT">${findName(x.id)}${n ? ` +${n}` : ""}</h4>${rest}
+    ${n >= UP_MAX ? `<p class="up-why">${T("upMax")}</p>` : `<div class="up-odds"><b>${T("upTo", n + 1)}</b><span class="up-pct">${ch}%</span>${pity ? `<small>${T("upPity", pity)}</small>` : ""}
+      ${n >= 2 ? `<span class="up-risk">${T("upRisk", risk, n - 1)}</span>` : ""}</div>
     <ul class="up-cost"><li class="${okSpare ? "ok" : "no"}">${findArt(x)}<span>${T("upCostDup", spare)}</span></li><li class="${okStars ? "ok" : "no"}">${I.star}<span>${T("upCostStars", cost, stars)}</span></li></ul>
     <button class="btn" type="button" data-up-try ${okSpare && okStars ? "" : "disabled"}>${T("upTry", ch)}</button>
-    <p class="up-why">${!okSpare ? T("upNeedDup") : !okStars ? T("upNeedStars") : T("upSafe")}</p>`}</section>`;
+    <p class="up-why">${!okSpare ? T("upNeedDup") : !okStars ? T("upNeedStars") : n >= 2 ? T("upSafeDrop", UP_DROP[n]) : T("upSafe")}</p>`}</section>`;
 }
 function tryUpgrade() {
   const id = upSel, u = upState(), f = findsState(), n = upLv(id), x = FINDS.find(v => v.id === id);
   if (upBusy || !x || n >= UP_MAX || upSpare(id, f) < 1 || starsLeft() < UP_STARS[n]) return;
   const ch = upChance(id), win = Math.random() * 100 < ch;
   u.used[id] = (u.used[id] || 0) + 1; u.spent += UP_STARS[n];
-  if (win) { u.lv[id] = n + 1; delete u.pity[id]; } else u.pity[id] = Math.min(100, (u.pity[id] || 0) + UP_PITY);
+  const slip = !win && Math.random() * 100 < UP_DROP[n];
+  if (win) { u.lv[id] = n + 1; delete u.pity[id]; if ((u.mark[id] || 0) <= n + 1) delete u.mark[id]; }
+  else { u.pity[id] = Math.min(100, (u.pity[id] || 0) + UP_PITY); if (slip) { u.lv[id] = n - 1; u.mark[id] = Math.max(u.mark[id] || 0, n); } }
   save(); upBusy = true;
   // Suspense: the card shakes while its glow builds, three rising ticks, then the reveal.
   const box = $("upBox"), calm = reduced(); if (box) { box.classList.add("rolling"); const b = box.querySelector("[data-up-try]"); if (b) b.disabled = true; }
@@ -3169,11 +3202,23 @@ function tryUpgrade() {
   setTimeout(() => {
     upBusy = false; if (sheetId === "me") { renderSheet(true); upFocus(); }
     if (win) queueCele({ title: T("upWinT", n + 1), sub: T("upWinSub", findName(id), n + 1), color: "green", sound: "level", art: upCard(x, n + 1, true), tiles: [] });
-    else { sfx("undo"); buzz(20); toast(T("upFail", findName(id), upChance(id)), "heart", 3800); const b = $("upBox"); if (b && !calm) b.classList.add("miss"); }
+    else { sfx("undo"); buzz(20); toast(slip ? T("upSlip", findName(id), n - 1, n, rpHeld()) : T("upFail", findName(id), upChance(id)), "heart", slip ? 5200 : 3800); const b = $("upBox"); if (b && !calm) b.classList.add("miss"); }
   }, calm ? 300 : 1500);
 }
+// Spend 1 restore point to put a slipped find back to the grade it had.
+function useRestore() {
+  const id = upSel, u = upState(), x = FINDS.find(v => v.id === id), mk = u.mark[id];
+  if (upBusy || !x || !mk || u.rp < 1) return;
+  u.rp--; u.lv[id] = mk; delete u.mark[id]; save();
+  if (sheetId === "me") { renderSheet(true); upFocus(); }
+  queueCele({ title: T("rpBackT", mk), sub: T("rpBackSub", findName(id), mk, u.rp), color: "green", sound: "level", art: upCard(x, mk, true), tiles: [] });
+}
 // The panel is drawn again after a try, so focus goes back to it (the next try, or Close when it can't be tried).
-function upFocus() { const b = $("upBox"); if (b) (b.querySelector("[data-up-try]:not([disabled])") || b.querySelector("[data-up-close]")).focus({ preventScroll: true }); }
+function upFocus() { const b = $("upBox"); if (b) (b.querySelector("[data-up-restore]:not([disabled])") || b.querySelector("[data-up-try]:not([disabled])") || b.querySelector("[data-up-close]")).focus({ preventScroll: true }); }
+const RP_SVG = `<circle cx="24" cy="24" r="20" fill="var(--green)" stroke="var(--green-d)" stroke-width="3"/><path d="M33.5 26.5A10 10 0 1 1 30 15.5" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round"/>
+  <path d="M26.5 10.5l9 2.5-3.5 8.5z" fill="#fff" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/><ellipse cx="15" cy="13" rx="3.5" ry="2" fill="#fff" opacity=".5" transform="rotate(-35 15 13)"/>`;
+const RP_ICO = `<svg class="rp-ico" viewBox="0 0 48 48" aria-hidden="true">${RP_SVG}</svg>`;
+const rpCard = n => n ? `<div class="find rp-find"><span class="find-art">${RP_ICO}</span><span class="find-txt"><small>${T("shieldBonus")}</small><b>${T("rpName", n)}</b><span>${T("rpGot", rpHeld())}</span></span></div>` : "";
 $("shBody").addEventListener("click", e => {
   if (sheetId !== "me") return;
   const o = e.target.closest("[data-up]");
@@ -3182,6 +3227,7 @@ $("shBody").addEventListener("click", e => {
     else { const c = $("shBody").querySelector(`[data-up="${o.dataset.up}"]`); if (c) c.focus({ preventScroll: true }); } return; }
   if (e.target.closest("[data-up-close]")) { const id = upSel; upSel = ""; renderSheet(true); const c = $("shBody").querySelector(`[data-up="${id}"]`); if (c) c.focus({ preventScroll: true }); return; }
   if (e.target.closest("[data-up-try]")) { audio(); tryUpgrade(); }
+  if (e.target.closest("[data-up-restore]")) { audio(); useRestore(); }
 });
 
 /* ================= Tunas grows ================= */
@@ -3686,7 +3732,7 @@ function refresh(keepSheet) {
   if (gifts || (lastS && S.level > lastS.level)) queueCele({ title: T("levelTitle", S.level), color: "sky", sub: T("levelSub", titleOf(S.level)), sound: "level",
     extra: gifts ? `<div class="find-list">${gifts.join("")}</div><p class="lv-next-c">${esc(lvNextText(S.level))}</p>` : "",
     tiles: gifts ? [] : [{ k:T("tTotal"), v:S.xp, i:"bolt", c:"--gold" }, { k:T("tNext"), v:`${S.L.span - S.L.cur}`, i:"", c:"--sky" }] });
-  checkGrow(S, !!lastS);
+  checkGrow(S, !!lastS); checkStreakRp(S, !!lastS);
   prevCleared = states; lastS = S;
   checkChest(); checkTrail(S); checkMonth(); renderMonth(); renderTrail(S); renderEve(S); checkRecap(); checkWeekRecap(); coach();
   if (!mascotTimer) contextSay();
