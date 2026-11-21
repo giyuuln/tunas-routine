@@ -655,7 +655,7 @@ function comboHit(rect) {
 // never cover the chest, the gifts or the title. Toasts already on screen when it opens step aside and come back after
 // with their full time. Error toasts always show right away.
 const heldToasts = [], celeUp = () => !$("cele").hidden;
-function toast(html, icon, ms, action) { const t = document.createElement("div"); t.className = "toast" + (icon === "x" ? " err" : ""); t.innerHTML = `<i>${I[icon || "star"]}</i><span>${html}</span>`;
+function toast(html, icon, ms, action) { const t = document.createElement("div"); t.className = "toast" + (icon === "x" ? " err" : ""); t.innerHTML = `<i>${I[icon || "star"] || icon}</i><span>${html}</span>`;
   if (action) { const b = document.createElement("button"); b.type = "button"; b.className = "toast-act"; b.textContent = action.label;
     b.onclick = () => { t.remove(); action.fn(); }; t.appendChild(b); t.classList.add("has-act"); }
   t.dataset.ms = ms || 2800;
@@ -1380,13 +1380,27 @@ function masteryState() {
   Object.keys(m).forEach(k => { const v = Math.round(+m[k]); if (!(v >= 1 && v <= 3)) delete m[k]; else m[k] = v; });
   return m;
 }
+// One big medal moment per tier a day: the first Bronze (or Silver, or Gold) reached today gets the full celebration, and
+// more medals of that tier the same day arrive as a short toast instead. A player who started all their habits together
+// reaches 7 days on all of them at once, and a dozen full-screen pop-ups in one evening made each medal mean less.
+// Each new toast replaces the last one, counting today's medals, so they never stack up. Kept in memory only: after a
+// reload the next medal simply celebrates in full again.
+let mastShown = { day: "", tiers: [], n: {} }, mastToastEl = null;
 function checkMastery(live) {
   const habits = BLOCKS.flatMap(b => b.items), m = masteryState(), up = [];
   if (!m) { store.mastery = {}; habits.forEach(i => { const t = tierOf(habitTicks(i.id)); if (t) store.mastery[i.id] = t; }); save(); return; }
   habits.forEach(i => { const t = tierOf(habitTicks(i.id)); if (t > (m[i.id] || 0)) { m[i.id] = t; up.push({ i, t }); } });
   if (!up.length) return; save();
   if (!live) return;
-  const d = routineDate(), top = up.sort((a, b) => b.t - a.t)[0];
+  const d = routineDate(), day = dkey(d), top = up.sort((a, b) => b.t - a.t)[0];
+  if (mastShown.day !== day) mastShown = { day, tiers: [], n: {} };
+  up.forEach(u => { mastShown.n[u.t] = (mastShown.n[u.t] || 0) + 1; });
+  if (up.every(u => mastShown.tiers.includes(u.t))) {
+    if (mastToastEl) { mastToastEl.dataset.gone = 1; clearTimeout(mastToastEl._out); mastToastEl.remove(); }
+    mastToastEl = toast(T("mastToast", T("mastTier")[top.t], up.map(u => esc(itemTitle(u.i, d))).join(", "), mastShown.n[top.t]), medalSVG(top.t), 3500);
+    sfx("ding"); buzz(15); return;
+  }
+  up.forEach(u => { if (!mastShown.tiers.includes(u.t)) mastShown.tiers.push(u.t); });
   queueCele({ title: T("mastTitle", T("mastTier")[top.t]), sub: up.map(u => T("mastSub", esc(itemTitle(u.i, d)), MASTERY[u.t - 1])).join("<br>"), color: "green", sound: "level",
     art: `<div class="mast-art">${medalSVG(top.t)}</div>`, tiles: [] });
 }
