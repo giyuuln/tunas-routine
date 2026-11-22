@@ -478,13 +478,19 @@ const exOf = (d, id) => ((store.ex || {})[dkey(d)] || {})[id] || null;
 // Rested (tired or sick) or real rain, and not ticked anyway: off the day's list, no XP, never against the streak.
 function exOff(d, id) { const e = exOf(d, id); return !!(e && (e.rest === 1 || (e.why === "rain" && e.rain === true)) && !(store.days[dkey(d)] || {})[id]); }
 const exPlanB = (d, id) => { const e = exOf(d, id); return !!(e && e.b === 1); };
-function ratio(d) { const done = store.days[dkey(d)] || {}, ids = woExcused(d) && !done["wo-done"] ? itemsFor(d).filter(id => id !== "wo-done") : itemsFor(d); return ids.length ? ids.filter(id => done[id]).length / ids.length : 0; }
+// The habits a day is judged by: an excused workout that wasn't done anyway leaves the list.
+function ratioIds(d) { const done = store.days[dkey(d)] || {}; return woExcused(d) && !done["wo-done"] ? itemsFor(d).filter(id => id !== "wo-done") : itemsFor(d); }
+function ratio(d) { const done = store.days[dkey(d)] || {}, ids = ratioIds(d); return ids.length ? ids.filter(id => done[id]).length / ids.length : 0; }
 const REST_PER_MONTH = 2;
 const isRest = d => !!store.rest[dkey(d)];
 // A day counts for the streak at 80% done, as a rest day, or when a streak shield covered it (see Streak shields).
 const dayDone = d => isRest(d) || ratio(d) >= 0.8;
 const isShielded = d => !!((store.shield || {}).used || {})[dkey(d)];
 const dayOK = d => dayDone(d) || isShielded(d);
+// Ticks still needed today for it to count toward the streak (0 once it counts), worked out the same way as ratio().
+let begunSaid = "";
+function streakNeed(d) { if (dayOK(d)) return 0; const done = store.days[dkey(d)] || {}, ids = ratioIds(d);
+  return Math.max(1, Math.ceil(0.8 * ids.length - 1e-9) - ids.filter(id => done[id]).length); }
 // A day a shield covered before it came back (see Streak shields): counts for the best streak only.
 const isKept = d => !!((store.shield || {}).kept || {})[dkey(d)];
 function restsInMonth(d) { const p = dkey(d).slice(0, 7); return Object.keys(store.rest).filter(k => store.rest[k] && k.startsWith(p)).length; }
@@ -3733,8 +3739,13 @@ function refresh(keepSheet) {
     } else {
       Object.keys(states).forEach(id => { const now = states[id], was = prevCleared[id];
         if (now.cleared && was && !was.cleared) { const n = nodesFor(d).find(x => x.id === id);
-          queueCele({ title: T("clearedTitle", esc(n.title)), color: "green", sub: pick(T("clearedSubs")),
-            tiles: [{ k:T("tXP"), v:`+${now.xp}`, i:"bolt", c:"--gold" }, { k:T("tDone"), v:`${now.n}/${now.total}`, i:"", c:"--green" }, { k:T("tStreak"), v:S.streak, i:"flame", c:"--orange" }] }); } });
+          // No streak yet (a first day, or after a break): show how close today is to starting one, never a flat "Streak 0".
+          // The first clear on the day a streak starts says so (once).
+          const need = S.streak ? 0 : streakNeed(d), begun = S.streak === 1 && dayOK(d) && begunSaid !== dkey(d);
+          if (begun) begunSaid = dkey(d);
+          queueCele({ title: T("clearedTitle", esc(n.title)), color: "green", sub: need ? T("streakGoSub", need) : begun ? T("streakBegunSub") : pick(T("clearedSubs")),
+            tiles: [{ k:T("tXP"), v:`+${now.xp}`, i:"bolt", c:"--gold" }, { k:T("tDone"), v:`${now.n}/${now.total}`, i:"", c:"--green" },
+              need ? { k:T("tToStreak"), v:need, i:"flame", c:"--orange" } : { k:T("tStreak"), v:S.streak, i:"flame", c:"--orange" }] }); } });
     }
     if (S.questTotal && S.questDone === S.questTotal && lastS.questDone < lastS.questTotal) toast(T("questDone", XP.quest), "star");
     if (S.backWon && !lastS.backWon) { toast(T("backWon", XP.back), "bolt", 3500); setTimeout(() => sfx("level"), 250); buzz([20, 40, 20]); say(T("backSay"), `+${XP.back} XP`, "cheer", 3200); }
