@@ -1416,6 +1416,30 @@ function masteryHTML(i) {
   return `<div class="mast${t ? "" : " none"}">${medalSVG(Math.max(1, t))}<div class="mast-t"><b>${t ? T("mastName", T("mastTier")[t]) : T("mastNone")} · ${T("mastTicks", n)}</b>
     ${next ? `<span class="bar"><i style="${fillPct(100 * n / next)}"></i></span>` : ""}<span>${line}</span></div></div>`;
 }
+// Medal shelf (Me → Medal shelf): every habit's medal on one page, with how many more days each one needs for its next
+// medal, closest first, so the next medal is always in sight. Tapping a habit opens its page. It reads the same tick
+// counts as the medals themselves, so nothing new is saved and old data shows its medals straight away.
+function medalRows() {
+  const d = routineDate();
+  return BLOCKS.flatMap(b => b.items).map(i => { const n = habitTicks(i.id), t = tierOf(n), next = MASTERY[t];
+    return { i, n, t, next, left: next ? next - n : 0, title: itemTitle(i, d) }; })
+    .sort((a, b) => (!a.next - !b.next) || a.left - b.left || b.n - a.n);
+}
+function medalShelfHTML() {
+  const rows = medalRows(); if (!rows.length) return `<div class="note">${T("shelfEmpty")}</div>`;
+  const cnt = [0, 0, 0, 0]; rows.forEach(r => cnt[r.t]++);
+  const top = rows[0].next ? rows[0] : null, tier = t => T("mastTier")[t];
+  const pod = [3, 2, 1, 0].map(t => `<div class="shelf-pod${cnt[t] ? "" : " zero"}">${medalSVG(Math.max(1, t)).replace('class="medal-ico', `class="medal-ico${t ? "" : " gh"}`)}<b>${cnt[t]}</b><span>${t ? tier(t) : T("shelfNotYet")}</span></div>`).join("");
+  const next = top ? `<div class="shelf-next"><div class="shelf-next-ico">${medalSVG(top.t + 1)}</div><div class="mast-t"><small>${T("shelfNextH")}</small><b>${esc(top.title)}</b>
+      <span class="bar" aria-hidden="true"><i style="${fillPct(100 * top.n / top.next)}"></i></span><span>${T("shelfLeft", top.left, tier(top.t + 1))}</span></div></div>`
+    : `<div class="shelf-next gold"><div class="shelf-next-ico">${medalSVG(3)}</div><div class="mast-t"><b>${T("shelfAllGold")}</b></div></div>`;
+  const list = rows.map(r => { const line = r.next ? T("shelfLeft", r.left, tier(r.t + 1)) : `${tier(3)} · ${T("mastTicks", r.n)}`;
+    return `<button class="hs-row shelf-row${r.t ? "" : " none"}" type="button" data-habit="${esc(r.i.id)}" aria-label="${esc(r.title)}: ${r.t ? T("mastName", tier(r.t)) : T("mastNone")}, ${line}">
+      ${medalSVG(Math.max(1, r.t))}<span class="hs-t"><b>${esc(r.title)}</b>${r.next ? `<span class="bar" aria-hidden="true"><i style="${fillPct(100 * r.n / r.next)}"></i></span>` : ""}<small aria-hidden="true">${line}</small></span>
+      ${r.next ? `<span class="shelf-to" aria-hidden="true">${medalSVG(r.t + 1)}<b>${r.left}</b></span>` : ""}</button>`; }).join("");
+  return `<div class="card hist shelf-card"><div class="shelf-pods">${pod}</div>${next}</div>
+    <div class="card hist hs-list">${list}</div><p class="shelf-how">${T("shelfHow")}</p>`;
+}
 function renderHabitSheet(id, keep) {
   const h0 = habitById(id); if (!h0) { closeSheet(); return; }
   const { i, b } = h0, d = routineDate(), body = $("shBody"), top = keep ? body.scrollTop : 0, s = habitStats(i), title = itemTitle(i, d);
@@ -1933,6 +1957,12 @@ function renderRoutinePage(keep) {
 }
 // Me: who you are in Tunas. Your name, level and lifetime stats, Tunas's colour, and your collection as tiles that open
 // their own pages: badges, chest finds, outfits and Money.
+// The Medal shelf row on Me says which habit is closest to its next medal.
+function shelfRowHTML() {
+  const rows = medalRows(), won = rows.filter(r => r.t).length, top = rows[0];
+  const s = !rows.length ? T("shelfEmpty") : top.next ? T("shelfRow", esc(top.title), top.left, T("mastTier")[top.t + 1]) : T("shelfAllGold");
+  return navRow({ sub: "medals", ico: medalSVG(Math.max(1, ...rows.map(r => r.t), 1)), t: T("shelfName"), s, tag: rows.length ? `${won} / ${rows.length}` : "", c: "gold" });
+}
 function renderMe(keep) {
   const body = $("shBody"), top = keep ? body.scrollTop : 0, S = lastS || computeAll();
   const got = BADGES.filter(b => b.test(S)), bTotal = badgesFor(S).length, today = dkey(routineDate());
@@ -1942,9 +1972,10 @@ function renderMe(keep) {
     finds: { ico: "chest", t: T("findsTitle"), html: findsHTML },
     wear: { ico: "sprout", t: T("wearTitle"), html: wearHTML },
     year: { ico: "cal", t: T("yrName"), html: yearHTML },
+    medals: { ico: "trophy", t: T("shelfName"), html: medalShelfHTML, art: () => medalSVG(3) },
   };
   const sp = SUB[subPane];
-  if (sp) { $("shHead").innerHTML = subHead(sp.ico, sp.t, T("tabMe")); body.innerHTML = sp.html(); }
+  if (sp) { $("shHead").innerHTML = subHead(sp.ico, sp.t, T("tabMe")); if (sp.art) $("shHead").querySelector(".sh-ico").innerHTML = sp.art(); body.innerHTML = sp.html(); }
   else {
     $("shHead").innerHTML = sheetHead("star", T("tabMe"), T("meSub"), null, "--green");
     $("shHead").querySelector(".sh-ico").innerHTML = I.sprout;
@@ -1972,7 +2003,7 @@ function renderMe(keep) {
       ${navTile({ sub: "finds", ico: "chest", t: T("findsTitle"), n: `${owned} / ${FINDS.length}`, p: 100 * owned / FINDS.length, c: "warn", isNew: newFind })}
       ${navTile({ sub: "wear", ico: "sprout", t: T("wearTitle"), n: `${wOpen} / ${WEAR.length}`, p: 100 * wOpen / WEAR.length, c: "green" })}
     </div></section>
-    ${navList("", [navRow({ sub: "year", ico: "cal", t: T("yrName"), s: T("yrRow", yearDefault()), c: "info" })])}
+    ${navList("", [shelfRowHTML(), navRow({ sub: "year", ico: "cal", t: T("yrName"), s: T("yrRow", yearDefault()), c: "info" })])}
     ${moneyCardHTML()}
     <div class="set-group"><h3>${T("tunasColour")}</h3><p>${T("themeHelp")}</p>${themePicker()}<b class="look-sub">${T("lookStyle")}</b><p>${T("styleHelp")}</p>${segLook("style", STYLES, T("lookStyle"))}</div>`;
     $("setName").addEventListener("change", e => { const v = e.target.value.trim().slice(0, 30); const r = { ...RAW, name: v || (LANG === "ms" ? "Kawan" : "Friend") }; if (saveRoutine(r)) { toast(T("nameSaved"), "check"); contextSay(); } });

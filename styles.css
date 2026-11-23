@@ -1516,3 +1516,24 @@ p.wo-say{display:block}
 .ex-cant:focus-visible{outline:3px solid var(--green-ink);outline-offset:2px}
 .ex-ci{margin-top:-2px}
 .ex-rested b svg{width:16px;height:16px;fill:currentColor;vertical-align:-3px;margin-right:6px}
+/* Medal shelf (Me): a podium of medal counts, the closest next medal, and every habit with the days it still needs */
+.shelf-pods{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.shelf-pod{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 2px;border-radius:14px;background:var(--soft);border:2px solid var(--line)}
+.shelf-pod .medal-ico{width:30px;height:30px;margin:0}
+.shelf-pod .medal-ico.gh,.shelf-pod.zero .medal-ico{filter:grayscale(1);opacity:.45}
+.shelf-pod b{font-family:var(--display);font-size:20px;font-weight:900;color:var(--ink);line-height:1.1}
+.shelf-pod span{font-size:11.5px;font-weight:800;color:var(--muted);text-align:center}
+.shelf-next{display:flex;align-items:center;gap:12px;margin-top:10px;padding:12px;border-radius:16px;border:2px solid var(--gold);background:var(--gold-soft)}
+.shelf-next .mast-t small{font-size:12px;font-weight:800;color:var(--gold-ink);text-transform:uppercase;letter-spacing:.03em}
+.shelf-next .mast-t b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.shelf-next-ico .medal-ico{width:48px;height:48px;margin:0}
+.shelf-next:not(.gold) .shelf-next-ico .medal-ico{filter:grayscale(.75);opacity:.7}
+@media (prefers-reduced-motion:no-preference){.shelf-next:not(.gold) .shelf-next-ico{animation:shBob 2.4s ease-in-out infinite}}
+@keyframes shBob{0%,100%{transform:none}50%{transform:translateY(-3px) rotate(-4deg)}}
+.shelf-row>.medal-ico{width:30px;height:30px;margin:0}
+.shelf-row.none>.medal-ico{filter:grayscale(1);opacity:.4}
+.shelf-row .hs-t small{font-size:12.5px;font-weight:700;color:var(--muted)}
+.shelf-to{display:flex;align-items:center;gap:2px;flex:none;font-family:var(--display);font-weight:900;font-size:15px;color:var(--ink)}
+.shelf-to .medal-ico{width:18px;height:18px;margin:0;filter:grayscale(.6);opacity:.8}
+.shelf-how{margin:10px 4px 0;font-size:13px;color:var(--muted);font-weight:700;text-align:center}
+.nr-ico .medal-ico{width:22px;height:22px;margin:0}
