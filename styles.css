@@ -1537,3 +1537,24 @@ p.wo-say{display:block}
 .shelf-to .medal-ico{width:18px;height:18px;margin:0;filter:grayscale(.6);opacity:.8}
 .shelf-how{margin:10px 4px 0;font-size:13px;color:var(--muted);font-weight:700;text-align:center}
 .nr-ico .medal-ico{width:22px;height:22px;margin:0}
+/* Habit pause */
+.hp-card{padding:14px;display:flex;flex-direction:column;align-items:flex-start;gap:10px}
+.hp-card.on{flex-direction:row;align-items:center;gap:12px;background:var(--soft);border-color:var(--line)}
+.hp-card .btn{display:inline-flex;align-items:center;gap:6px}
+.hp-card .btn svg,.hs-pz svg{width:15px;height:15px;flex:none;fill:currentColor}
+.hp-ico{flex:none;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--card);border:2px solid var(--line);color:var(--muted)}
+.hp-ico svg{width:20px;height:20px;fill:currentColor}
+.hp-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.hp-t b{font-weight:900;font-size:14.5px}
+.hp-t span,.hp-help{font-size:13px;color:var(--muted);font-weight:700;margin:0}
+.hp-hint{margin:0;font-size:13.5px;font-weight:800;color:var(--ink)}
+.hs-row.paused{background:var(--soft)}
+.hs-row.paused .hs-t .bar{opacity:.45}
+.hs-pz{flex:none;display:inline-flex;align-items:center;gap:3px;min-width:38px;font-weight:900;font-size:12px;color:var(--muted)}
+.hp-tip{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:14px;background:var(--soft);border:2px dashed var(--line)}
+.hp-tip p{margin:0;font-size:13.5px;font-weight:700;color:var(--ink)}
+.hp-tip-b{display:flex;gap:8px;flex-wrap:wrap}
+.hp-row{display:flex;align-items:center;gap:8px}
+.hp-row svg{width:15px;height:15px;flex:none;fill:currentColor}
+.hp-row span{flex:1;min-width:0;overflow-wrap:anywhere}
+.hp-row .linkish{flex:none;min-height:44px;padding:0 4px}

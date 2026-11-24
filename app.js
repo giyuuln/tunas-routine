@@ -378,9 +378,54 @@ function setNote(k, id, text) {
   if (t) (n[k] ||= {})[id] = t; else if (n[k]) { delete n[k][id]; if (!Object.keys(n[k]).length) delete n[k]; }
   save();
 }
+/* ================= Habit pause ================= */
+// A habit can be paused (holiday, injury, a busy season) from its page. While paused it leaves the day's list, so it never
+// counts against the day, the streak, the ★ habits, the quests or the chest, and it gives no XP. Its medals, ticks and
+// notes stay as they are, and it can be resumed any time. A habit already ticked on a paused day stays on that day's list,
+// so pausing after ticking never takes XP back. Saved as store.pause = { habitId: [[from, to], ...] }: each pair is a
+// pause from day "from" up to (not including) day "to"; the last pair has no "to" while the habit is still paused.
+// Keeping the old pairs means the days it was paused stay "not on the list" in its 30-day stats after it's resumed.
+const PAUSE_SPANS = 12;
+function pauseState() {
+  const p = store.pause; if (p == null) return;
+  if (!p || typeof p !== "object" || Array.isArray(p)) { delete store.pause; return; }
+  const ok = k => typeof k === "string" && /^\d{4}-\d\d-\d\d$/.test(k);
+  Object.keys(p).forEach(id => { const v = Array.isArray(p[id]) ? p[id] : [];
+    const out = v.filter(x => Array.isArray(x) && ok(x[0]) && (x[1] == null || (ok(x[1]) && x[1] > x[0]))).map(x => (x[1] == null ? [x[0]] : [x[0], x[1]]))
+      .sort((a, b) => (a[0] < b[0] ? -1 : 1)).filter((x, n, a) => n === a.length - 1 || x[1] != null).slice(-PAUSE_SPANS);
+    if (out.length) p[id] = out; else delete p[id]; });
+}
+const pauseSpan = (id, k) => ((store.pause || {})[id] || []).some(x => x[0] <= k && (x[1] == null || k < x[1]));
+const isPausedNow = id => { const v = (store.pause || {})[id]; return !!(v && v.length && v[v.length - 1][1] == null); };
+const pausedSince = id => (isPausedNow(id) ? store.pause[id][store.pause[id].length - 1][0] : null);
+// Paused on day d and not ticked that day: off the list.
+const pausedOff = (i, d) => { if (!store.pause) return false; const k = dkey(d); return pauseSpan(i.id, k) && !(store.days[k] || {})[i.id]; };
+// It starts today when nothing has been ticked yet today, and tomorrow otherwise, so pausing the habits still left at
+// night can't turn a half-done day into a perfect day, a cleared quest or a chest.
+const dayStarted = k => Object.values(store.days[k] || {}).some(v => v === true);
+function pauseFrom() { const d = routineDate(), k = dkey(d); if (!dayStarted(k)) return k; d.setDate(d.getDate() + 1); return dkey(d); }
+function pauseHabit(id) {
+  if (isPausedNow(id)) return false;
+  const k = pauseFrom(), v = ((store.pause ||= {})[id] ||= []);
+  const last = v[v.length - 1]; if (last && last[1] === k) last.pop(); else v.push([k]); // paused again on the day it was resumed
+  pauseState(); save(); return true;
+}
+function resumeHabit(id) {
+  if (!isPausedNow(id)) return false;
+  const k = dkey(routineDate()), v = store.pause[id], last = v[v.length - 1];
+  if (last[0] >= k) v.pop(); else last[1] = k; // paused and resumed the same day: as if it never happened
+  pauseState(); save(); return true;
+}
+// Pausing every habit would leave an empty day that can't count, so at least one has to stay going.
+const activeHabits = () => BLOCKS.flatMap(b => b.items).filter(i => !isPausedNow(i.id)).length;
+// The gentle suggestion: after 30 days with Tunas, a habit that was ticked on under 20% of its days in the last 30 (and was
+// on the list at least 10 of them) gets a kind note that pausing is okay. It's only ever a suggestion; nothing pauses on its own.
+const PAUSE_HINT_DAYS = 30, PAUSE_HINT_PCT = 20;
+const pauseHint = (i, s) => !isPausedNow(i.id) && s.pct != null && s.due >= 10 && s.pct < PAUSE_HINT_PCT
+  && dayNum(routineDate()) - dayNum(keyToDate(sinceDay())) >= PAUSE_HINT_DAYS;
 const beforeJoinDay = d => !!store.join && store.join.day === dkey(d);
 const beforeJoin = (n, d) => beforeJoinDay(d) && n.to != null && n.to <= store.join.at;
-function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); backState(); planState(); woState(); exState(); joinState(); notesState(); trailState(); goldState(); eveState(); monthState(); if (typeof asstState === "function") asstState(); }
+function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); backState(); planState(); woState(); exState(); joinState(); notesState(); pauseState(); trailState(); goldState(); eveState(); monthState(); if (typeof asstState === "function") asstState(); }
 normStore();
 function save() { return storeSet(DATA_KEY, JSON.stringify(store)); }
 let soundOn = true; try { soundOn = localStorage.getItem(SND_KEY) !== "off"; } catch (e) {}
@@ -398,7 +443,7 @@ const isAltDay = d => dayNum(d) % 2 === 0;
 const WEEKDAYS = [1, 2, 3, 4, 5];
 const workDays = () => (CFG && CFG.away ? weekdays(CFG.away.days) || WEEKDAYS : null);
 const isWorkDay = d => { const w = workDays(); return !!w && w.includes(d.getDay()); };
-const due = (i, d) => !(i.alt && !isAltDay(d)) && !(i.hide && i.hide.includes(d.getDay())) && !(i.on && !i.on.includes(d.getDay()))
+const due = (i, d) => !pausedOff(i, d) && !(i.alt && !isAltDay(d)) && !(i.hide && i.hide.includes(d.getDay())) && !(i.on && !i.on.includes(d.getDay()))
   && !(i.dt === "work" && workDays() && !isWorkDay(d)) && !(i.dt === "off" && workDays() && isWorkDay(d));
 // A habit is "shown" on a day when it is due and wasn't rested with a reason (see Exercise habits below).
 const shown = (i, d) => due(i, d) && !exOff(d, i.id);
@@ -1227,6 +1272,7 @@ function renderSheet(keep) {
     if (left > 1) h += `<button class="btn small tickall" type="button" data-act="tickAll">${T("tickAll", left)}</button>`;
     node.b.items.forEach(i => {
       if (i.dyn) i = { ...i, ...FOCUS[d.getDay()] };
+      if (pausedOff(i, d)) { h += `<div class="note hp-row">${I.pause}<span><b>${esc(itemTitle(i, d))}</b> · ${T("hpTag")}</span><button class="linkish" type="button" data-resume="${esc(i.id)}">${T("hpResume")}</button></div>`; return; }
       if (i.alt && !isAltDay(d)) { h += `<div class="note">${esc(CFG.everyOtherDayNote || T("altNote"))}</div>`; return; }
       if (i.hide && i.hide.includes(d.getDay())) { h += `<div class="note">${esc(CFG.hideNote || T("hideNote"))}</div>`; return; }
       if (exOff(d, i.id) && typeof exRestedHTML === "function") { h += exRestedHTML(i, d); return; }
@@ -1443,7 +1489,7 @@ function medalShelfHTML() {
 function renderHabitSheet(id, keep) {
   const h0 = habitById(id); if (!h0) { closeSheet(); return; }
   const { i, b } = h0, d = routineDate(), body = $("shBody"), top = keep ? body.scrollTop : 0, s = habitStats(i), title = itemTitle(i, d);
-  $("shHead").innerHTML = sheetHead(b.icon, esc(title), `${esc(b.title)} · ${T("hsLast30")}`, null, "--green");
+  $("shHead").innerHTML = sheetHead(b.icon, esc(title), `${esc(b.title)} · ${isPausedNow(i.id) ? T("hpTag") : T("hsLast30")}`, null, "--green");
   $("shClose").onclick = closeSheet;
   if (!store.seen.habitHold) { store.seen.habitHold = 1; save(); }
   const tiles = [{ k: T("hsPct"), v: s.pct == null ? "–" : `${s.pct}%`, i: "", c: "--green" }, { k: T("tStreak"), v: s.streak, i: "flame", c: "--orange" }, { k: T("hsBest"), v: s.best, i: "trophy", c: "--gold" }];
@@ -1455,6 +1501,13 @@ function renderHabitSheet(id, keep) {
     : shown(i, d) ? `<p class="hn-hint">${I.pencil}${T("noteHint")}</p>` : "";
   const notes = s.days.filter(x => x.s === "done" && x.k !== today && noteOf(x.k, i.id)).reverse()
     .map(x => `<li><small>${esc(x.d.toLocaleDateString(locale(), fmt))}</small><span>${esc(noteOf(x.k, i.id))}</span></li>`).join("");
+  // Pause card (see Habit pause): resume when paused, else a quiet pause button, with a kind note when it's been hard lately.
+  const since = pausedSince(i.id), dFmt = k => keyToDate(k).toLocaleDateString(locale(), { day: "numeric", month: "short" });
+  const pauseBox = since ? `<div class="card hp-card on"><div class="hp-ico">${I.pause}</div><div class="hp-t"><b>${since > today ? T("hpSoon") : T("hpSince", dFmt(since))}</b><span>${T("hpKept")}</span></div>
+      <button class="btn small" type="button" data-resume="${esc(i.id)}">${I.play}${T("hpResume")}</button></div>`
+    : activeHabits() <= 1 ? `<div class="card hp-card"><p class="hp-help">${T("hpLast")}</p></div>`
+    : `<div class="card hp-card">${pauseHint(i, s) ? `<p class="hp-hint">${T("hpHint", s.pct)}</p>` : `<p class="hp-help">${T("hpHelp")}</p>`}
+      <button class="btn ghost small" type="button" data-pause="${esc(i.id)}">${I.pause}${T(dayStarted(today) ? "hpBtnTmr" : "hpBtn")}</button></div>`;
   body.innerHTML = `<div class="card hist hs">
       <div class="tiles">${tiles.map(t => `<div class="tile" style="--c:var(${t.c})"><small>${t.k}</small><b>${t.i ? I[t.i] : ""}${t.v}</b></div>`).join("")}</div>
       <p class="ws-line">${s.due ? T("hsLine", s.done, s.due) : T("hsNew")}</p>
@@ -1463,18 +1516,36 @@ function renderHabitSheet(id, keep) {
       <div class="hs-grid" role="img" aria-label="${esc(T("hsGridLabel", s.done, s.due))}">${cells}</div>
       <div class="h-foot"><span><i class="lg hs-done"></i>${T("hsState").done}</span><span><i class="lg hs-miss"></i>${T("hsState").miss}</span><span><i class="lg rest"></i>${T("lgRest")}</span><span><i class="lg hs-off"></i>${T("hsState").off}</span>${notes ? `<span><i class="lg hs-done nt"></i>${T("noteLg")}</span>` : ""}</div>
       ${notes ? `<div class="hn-list"><b>${T("notesTitle")}</b><ul>${notes}</ul></div>` : ""}
-    </div>${shown(i, d) ? "" : `<div class="note">${T("hsNotToday")}</div>`}`;
+    </div>${shown(i, d) || pausedSince(i.id) ? "" : `<div class="note">${T("hsNotToday")}</div>`}${pauseBox}`;
   if (keep) body.scrollTop = top;
 }
 // "Habit by habit" list at the bottom of Progress: every button opens that habit's stats.
+// A paused habit shows a Paused tag instead of its streak. One habit that has been hard lately can get a gentle tip that
+// pausing is okay (see Habit pause); "Not now" hides the tip for 30 days.
+const PAUSE_TIP_SNOOZE = 30;
 function habitListHTML() {
-  const rows = BLOCKS.flatMap(b => b.items).map(i => { const s = habitStats(i), t = itemTitle(i, routineDate()), mt = tierOf(habitTicks(i.id));
-    return `<button class="hs-row" type="button" data-habit="${esc(i.id)}" aria-label="${esc(t)}: ${s.pct == null ? T("hsNone") : s.pct + "%"}, ${T("streakDays", s.streak)}${mt ? ", " + T("mastName", T("mastTier")[mt]) : ""}">
+  const d = routineDate(); let tip = null;
+  const rows = BLOCKS.flatMap(b => b.items).map(i => { const s = habitStats(i), t = itemTitle(i, d), mt = tierOf(habitTicks(i.id)), pz = isPausedNow(i.id);
+    if (!tip && !pz && pauseHint(i, s)) tip = { i, t };
+    return `<button class="hs-row${pz ? " paused" : ""}" type="button" data-habit="${esc(i.id)}" aria-label="${esc(t)}: ${pz ? T("hpTag") + ", " : ""}${s.pct == null ? T("hsNone") : s.pct + "%"}, ${T("streakDays", s.streak)}${mt ? ", " + T("mastName", T("mastTier")[mt]) : ""}">
       <span class="hs-t"><b>${mt ? medalSVG(mt) : ""}${esc(t)}</b><span class="bar green" aria-hidden="true"><i style="${fillPct(s.pct || 0)}"></i></span></span>
-      <span class="hs-n" aria-hidden="true">${s.pct == null ? "–" : s.pct + "%"}</span><span class="hs-fl${s.streak ? "" : " off"}" aria-hidden="true">${I.flame}${s.streak}</span></button>`; }).join("");
-  return rows ? `<div class="card hist hs-list"><div class="ws-h"><b>${T("hsListTitle")}</b><span>${T("hsLast30")}</span></div>${rows}</div>` : "";
+      <span class="hs-n" aria-hidden="true">${s.pct == null ? "–" : s.pct + "%"}</span>${pz ? `<span class="hs-pz" aria-hidden="true">${I.pause}${T("hpTag")}</span>` : `<span class="hs-fl${s.streak ? "" : " off"}" aria-hidden="true">${I.flame}${s.streak}</span>`}</button>`; }).join("");
+  const snoozed = +store.seen.pauseTip > 0 && dayNum(d) - store.seen.pauseTip < PAUSE_TIP_SNOOZE;
+  const tipHTML = tip && !snoozed ? `<div class="hp-tip"><p>${T("hpTip", esc(tip.t))}</p><div class="hp-tip-b"><button class="btn small" type="button" data-habit="${esc(tip.i.id)}">${T("hpTipSee")}</button>
+      <button class="btn ghost small" type="button" data-pausetip="no">${T("hpTipNo")}</button></div></div>` : "";
+  return rows ? `<div class="card hist hs-list"><div class="ws-h"><b>${T("hsListTitle")}</b><span>${T("hsLast30")}</span></div>${tipHTML}${rows}</div>` : "";
 }
 $("shBody").addEventListener("click", e => { const r = e.target.closest("[data-habit]"); if (r) { audio(); openSheet("habit:" + r.dataset.habit); } });
+// Habit pause buttons on a habit's page, and "Not now" on the pause tip in Progress.
+$("shBody").addEventListener("click", e => {
+  const p = e.target.closest("[data-pause],[data-resume],[data-pausetip]"); if (!p) return; audio();
+  if (p.dataset.pausetip) { store.seen.pauseTip = dayNum(routineDate()); save(); p.closest(".hp-tip").remove(); return; }
+  const id = p.dataset.pause || p.dataset.resume, h = habitById(id); if (!h) return;
+  const t = esc(itemTitle(h.i, routineDate()));
+  if (p.dataset.pause) { if (activeHabits() <= 1 || !pauseHabit(id)) return; sfx("pop"); buzz(10); toast(T(pausedSince(id) > dkey(routineDate()) ? "hpToastTmr" : "hpToast", t), "pause", 3500); }
+  else { if (!resumeHabit(id)) return; sfx("ding"); buzz(15); toast(T("hpBackToast", t), "play", 3500); }
+  refresh(); const f = $("shBody").querySelector("[data-pause],[data-resume]"); if (f) f.focus();
+});
 // Press and hold a habit in a section or day sheet. A right-click / long-press menu does the same.
 let holdT = null, holdXY = null, holdFired = 0;
 const holdable = t => t && sheetId && sheetId !== "weekly" && !sheetId.startsWith("habit:") && habitById(t.dataset.task);
