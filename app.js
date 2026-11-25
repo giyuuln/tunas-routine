@@ -425,7 +425,7 @@ const pauseHint = (i, s) => !isPausedNow(i.id) && s.pct != null && s.due >= 10 &
   && dayNum(routineDate()) - dayNum(keyToDate(sinceDay())) >= PAUSE_HINT_DAYS;
 const beforeJoinDay = d => !!store.join && store.join.day === dkey(d);
 const beforeJoin = (n, d) => beforeJoinDay(d) && n.to != null && n.to <= store.join.at;
-function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); backState(); planState(); woState(); exState(); joinState(); notesState(); pauseState(); trailState(); goldState(); eveState(); monthState(); if (typeof asstState === "function") asstState(); }
+function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); backState(); planState(); woState(); exState(); joinState(); notesState(); pauseState(); gardenState(); trailState(); goldState(); eveState(); monthState(); if (typeof asstState === "function") asstState(); }
 normStore();
 function save() { return storeSet(DATA_KEY, JSON.stringify(store)); }
 let soundOn = true; try { soundOn = localStorage.getItem(SND_KEY) !== "off"; } catch (e) {}
@@ -1225,7 +1225,7 @@ const navTile = o => `<button type="button" class="nav-tile" ${o.sub ? `data-sub
   <b>${o.t}</b><span class="nt-n">${o.n}</span>${o.p != null ? `<span class="bar" aria-hidden="true"><i style="${fillPct(o.p)}"></i></span>` : ""}</button>`;
 // Sub-page header: the group's icon and title, with the page it belongs to underneath.
 const subHead = (icon, title, parent) => sheetHead(icon, title, parent, null, "--green");
-function openSub(key) { if (key === "year") yearShown = null; subPane = key; renderSheet(false); $("shBody").scrollTop = 0; const x = $("shClose"); x && x.focus({ preventScroll: true }); }
+function openSub(key) { if (key === "year") yearShown = null; if (key === "garden") gdSel = -1; subPane = key; renderSheet(false); $("shBody").scrollTop = 0; const x = $("shClose"); x && x.focus({ preventScroll: true }); }
 // Star meter: the sheet's progress bar shows where each of the level's 3 stars is earned.
 const sheetStars = {};
 function starAt(total) { // smallest tick count that earns star 1, 2, 3 (same rule as starsFor)
@@ -2044,6 +2044,7 @@ function renderMe(keep) {
     wear: { ico: "sprout", t: T("wearTitle"), html: wearHTML },
     year: { ico: "cal", t: T("yrName"), html: yearHTML },
     medals: { ico: "trophy", t: T("shelfName"), html: medalShelfHTML, art: () => medalSVG(3) },
+    garden: { ico: "flower", t: T("gdName"), html: gardenHTML },
   };
   const sp = SUB[subPane];
   if (sp) { $("shHead").innerHTML = subHead(sp.ico, sp.t, T("tabMe")); if (sp.art) $("shHead").querySelector(".sh-ico").innerHTML = sp.art(); body.innerHTML = sp.html(); }
@@ -2074,7 +2075,7 @@ function renderMe(keep) {
       ${navTile({ sub: "finds", ico: "chest", t: T("findsTitle"), n: `${owned} / ${FINDS.length}`, p: 100 * owned / FINDS.length, c: "warn", isNew: newFind })}
       ${navTile({ sub: "wear", ico: "sprout", t: T("wearTitle"), n: `${wOpen} / ${WEAR.length}`, p: 100 * wOpen / WEAR.length, c: "green" })}
     </div></section>
-    ${navList("", [shelfRowHTML(), navRow({ sub: "year", ico: "cal", t: T("yrName"), s: T("yrRow", yearDefault()), c: "info" })])}
+    ${navList("", [shelfRowHTML(), gardenRowHTML(), navRow({ sub: "year", ico: "cal", t: T("yrName"), s: T("yrRow", yearDefault()), c: "info" })])}
     ${moneyCardHTML()}
     <div class="set-group"><h3>${T("tunasColour")}</h3><p>${T("themeHelp")}</p>${themePicker()}<b class="look-sub">${T("lookStyle")}</b><p>${T("styleHelp")}</p>${segLook("style", STYLES, T("lookStyle"))}</div>`;
     $("setName").addEventListener("change", e => { const v = e.target.value.trim().slice(0, 30); const r = { ...RAW, name: v || (LANG === "ms" ? "Kawan" : "Friend") }; if (saveRoutine(r)) { toast(T("nameSaved"), "check"); contextSay(); } });
@@ -3350,6 +3351,97 @@ $("shBody").addEventListener("click", e => {
   if (e.target.closest("[data-up-close]")) { const id = upSel; upSel = ""; renderSheet(true); const c = $("shBody").querySelector(`[data-up="${id}"]`); if (c) c.focus({ preventScroll: true }); return; }
   if (e.target.closest("[data-up-try]")) { audio(); tryUpgrade(); }
   if (e.target.closest("[data-up-restore]")) { audio(); useRestore(); }
+});
+
+/* ================= Tunas garden ================= */
+// Me → Tunas garden: a small scene around Tunas where finds you own can be planted in spots. Tap a spot, pick a find;
+// a find can be moved to another spot or taken out any time, and it always stays in the collection (planting spends
+// nothing, so upgrades and shiny copies are untouched). The garden starts with 3 spots and opens 1 more for every 3
+// different finds owned, up to 9, so new finds always have somewhere to go. It gives no XP and never locks anything.
+// Saved as store.garden = { s: [findId or "", ...] } (spot by spot) and carried by backups like the rest of store.
+// A planted find that isn't owned (e.g. after restoring an older backup) shows as an empty spot; nothing is deleted.
+const GD_MIN = 3, GD_MAX = 9, GD_EVERY = 3;
+// Where each spot sits in the scene (left %, top %, size): the first ones open at the front, later ones further back.
+const GD_POS = [[50, 77, 1], [20, 75, 1], [80, 75, 1], [35, 59, .86], [65, 59, .86], [9, 56, .82], [91, 56, .82], [20, 41, .72], [80, 41, .72]];
+I.flower = '<svg class="ico" viewBox="0 0 24 24"><path d="M11 13h2v9h-2z"/><path d="M12.5 19c1-3 3.5-4.5 6.5-4.5-.5 3-3 4.5-6.5 4.5z"/><circle cx="12" cy="5" r="3.3"/><circle cx="16.4" cy="8.2" r="3.3"/><circle cx="14.7" cy="13" r="3.3"/><circle cx="9.3" cy="13" r="3.3"/><circle cx="7.6" cy="8.2" r="3.3"/></svg>';
+function gardenState() {
+  const g = store.garden; if (g == null) return;
+  if (!g || typeof g !== "object" || Array.isArray(g)) { delete store.garden; return; }
+  const seen = new Set();
+  // Runs at startup before FINDS and GD_MAX exist (9 = GD_MAX), so ids are only checked for shape here; gdAt shows a spot
+  // only if its find is owned.
+  g.s = (Array.isArray(g.s) ? g.s : []).slice(0, 9).map(id => (typeof id === "string" && /^[a-z0-9]{1,24}$/.test(id) && !seen.has(id) ? (seen.add(id), id) : ""));
+  while (g.s.length && !g.s[g.s.length - 1]) g.s.pop();
+}
+const gdOwnedN = (f = findsState()) => FINDS.filter(x => findCount(f, x.id)).length;
+const gdOpen = (n = gdOwnedN()) => Math.min(GD_MAX, GD_MIN + Math.floor(n / GD_EVERY));
+// What shows in spot k: a find that's owned, else nothing.
+const gdAt = (k, f = findsState()) => { const id = ((store.garden || {}).s || [])[k] || ""; return id && findCount(f, id) ? FINDS.find(x => x.id === id) : null; };
+const gdPlanted = (f = findsState()) => Array.from({ length: gdOpen(gdOwnedN(f)) }, (_, k) => gdAt(k, f)).filter(Boolean).length;
+let gdSel = -1, gdPop = -1;
+function gardenRowHTML() {
+  const f = findsState(), open = gdOpen(gdOwnedN(f)), n = gdPlanted(f);
+  return navRow({ sub: "garden", ico: "flower", t: T("gdName"), s: n ? T("gdRow", n, open) : T("gdRowEmpty"), tag: `${n} / ${open}`, c: "green" });
+}
+const GD_BG = `<svg class="gd-bg" viewBox="0 0 320 240" preserveAspectRatio="none" aria-hidden="true">
+  <rect width="320" height="240" fill="var(--gd-sky)"/><circle cx="270" cy="42" r="20" fill="var(--gd-sun)"/>
+  <path d="M40 56a12 12 0 0 1 22-6 10 10 0 0 1 16 8H34a6 6 0 0 1 6-2z" fill="var(--gd-cloud)"/><path d="M178 34a10 10 0 0 1 18-5 8 8 0 0 1 13 7h-35a5 5 0 0 1 4-2z" fill="var(--gd-cloud)"/>
+  <path d="M0 112q80-40 160-16t160-8v152H0z" fill="var(--gd-hill)"/><path d="M0 132q90-22 170-6t150 0v114H0z" fill="var(--gd-grass)"/>
+  <g stroke="var(--gd-fence-d)" stroke-width="2.5" fill="var(--gd-fence)" stroke-linejoin="round">${[14, 52, 268, 306].map(x => `<path d="M${x - 6} 138v-22l6-7 6 7v22z"/>`).join("")}</g>
+  <path d="M8 122h50M262 122h50" stroke="var(--gd-fence-d)" stroke-width="3" stroke-linecap="round"/>
+  <g fill="var(--gd-tuft)">${[[40, 200], [150, 228], [276, 206], [112, 160], [214, 166]].map(([x, y]) => `<path d="M${x} ${y}q2-9 4 0q2-11 4 0q2-8 4 0z"/>`).join("")}</g></svg>`;
+function gardenHTML() {
+  const f = findsState(), owned = FINDS.filter(x => findCount(f, x.id)), open = gdOpen(owned.length), planted = gdPlanted(f);
+  if (gdSel >= open) gdSel = -1;
+  const spot = k => { const [x, y, s] = GD_POS[k], st = `left:${x}%;top:${y}%;--s:${s}`;
+    if (k >= open) return `<span class="gd-slot soon" style="${st}" aria-hidden="true"><span class="gd-soil"></span></span>`;
+    const it = gdAt(k, f), lv = it ? upLv(it.id) : 0, sh = it && isShiny(f, it.id);
+    const label = it ? T("gdSpotA", k + 1, findName(it.id) + (lv ? " +" + lv : "")) : T("gdSpotEmptyA", k + 1);
+    return `<button type="button" class="gd-slot${it ? " on r" + it.r : ""}${lv ? " glow" : ""}${gdSel === k ? " sel" : ""}${gdPop === k ? " pop" : ""}" style="${st}" data-gd-slot="${k}" aria-expanded="${gdSel === k}" aria-label="${esc(label)}"${owned.length ? "" : " disabled"}>
+      <span class="gd-soil"></span>${it ? `<span class="find-art">${findArt(it)}${sh ? SPARKS : ""}</span>` : `<span class="gd-plus">${I.plus || "+"}</span>`}</button>`; };
+  const line = owned.length < (GD_MAX - GD_MIN) * GD_EVERY ? T("gdNext", GD_EVERY - (owned.length % GD_EVERY)) : T("gdAllOpen");
+  return `<section class="me-trophy me-garden" aria-labelledby="gdT"><div class="me-th"><h3 id="gdT">${T("gdName")}</h3><span>${planted} / ${open}</span></div>
+    <div class="gd-scene${planted && planted === open ? " full" : ""}">${GD_BG}<div class="mascot gd-tunas ${planted ? "cheer" : "happy"}" aria-hidden="true">${mascotSVG()}</div>
+      ${GD_POS.map((_, k) => spot(k)).join("")}</div>
+    ${owned.length ? `<p class="gd-line">${I.flower}<span>${planted && planted === open ? T("gdFull") + " " : ""}${line}</span></p>` : `<p class="f-empty">${I.chest}<span>${T("gdEmpty")}</span></p>`}
+    ${gdPickHTML(f, owned)}<p class="w-help">${T("gdHelp")}</p></section>`;
+}
+function gdPickHTML(f, owned) {
+  if (gdSel < 0) return "";
+  const s = (store.garden || {}).s || [], here = gdAt(gdSel, f);
+  const opt = x => { const at = s.indexOf(x.id), on = at === gdSel, lv = upLv(x.id);
+    return `<li><button type="button" class="fcell pk-gd r${x.r}${lv ? " g" + lv : ""}${isShiny(f, x.id) ? " shiny" : ""}${on ? " sel" : ""}" data-gd-put="${x.id}" aria-pressed="${on}">
+      <span class="find-art">${findArt(x)}</span><b>${findName(x.id)}${lv ? " +" + lv : ""}</b><small>${on ? T("gdHere") : at >= 0 && at < gdOpen(owned.length) && gdAt(at, f) ? T("gdIn", at + 1) : rarityName(x.r)}</small></button></li>`; };
+  return `<div class="card gd-pick" id="gdPick" role="group" aria-labelledby="gdPickT"><div class="me-th"><h4 id="gdPickT">${T("gdPickH", gdSel + 1)}</h4></div><p class="w-help">${T("gdPickSub")}</p>
+    <ul class="fgrid gd-list">${owned.map(opt).join("")}</ul>
+    <div class="row">${here ? `<button class="btn ghost small" type="button" data-gd-clear>${T("gdClear")}</button>` : ""}<button class="btn small" type="button" data-gd-close>${T("gdClose")}</button></div></div>`;
+}
+function gdFocusSlot(k) { const b = $("shBody").querySelector(`[data-gd-slot="${k}"]`); if (b) b.focus({ preventScroll: true }); }
+// Plant a find in the open spot; if it was in another spot it moves, and whatever was here goes to that spot instead.
+function gdPut(id) {
+  const k = gdSel, f = findsState(); if (k < 0 || !findCount(f, id)) return;
+  const g = (store.garden ||= { s: [] }); gardenState(); const s = g.s; while (s.length <= k) s.push("");
+  const from = s.indexOf(id), was = s[k];
+  if (from === k) { gdSel = -1; renderSheet(true); return gdFocusSlot(k); }
+  if (from >= 0) s[from] = was && findCount(f, was) ? was : "";
+  s[k] = id; gardenState(); save();
+  gdSel = -1; gdPop = k; sfx("ding"); buzz(15); renderSheet(true); gdPop = -1;
+  const av = $("shBody").querySelector(".gd-tunas"); if (av) { setMood(av, "cheer"); jump(av); }
+  say(T("gdSay", findName(id)), "", "cheer", 2600); gdFocusSlot(k);
+}
+function gdClear() {
+  const k = gdSel, g = store.garden; if (k < 0 || !g || !g.s) return;
+  g.s[k] = ""; gardenState(); save(); sfx("undo"); gdSel = -1; renderSheet(true); gdFocusSlot(k);
+}
+$("shBody").addEventListener("click", e => {
+  if (sheetId !== "me" || subPane !== "garden") return;
+  const sl = e.target.closest("[data-gd-slot]");
+  if (sl) { audio(); const k = +sl.dataset.gdSlot; gdSel = gdSel === k ? -1 : k; sfx("pop"); renderSheet(true);
+    const p = $("gdPick"); if (p) { p.scrollIntoView({ block: "nearest", behavior: reduced() ? "auto" : "smooth" }); const b = p.querySelector('[aria-pressed="true"]') || p.querySelector("[data-gd-put]"); if (b) b.focus({ preventScroll: true }); }
+    else gdFocusSlot(k); return; }
+  const pu = e.target.closest("[data-gd-put]"); if (pu) { audio(); return gdPut(pu.dataset.gdPut); }
+  if (e.target.closest("[data-gd-clear]")) { audio(); return gdClear(); }
+  if (e.target.closest("[data-gd-close]")) { const k = gdSel; gdSel = -1; renderSheet(true); return gdFocusSlot(k); }
 });
 
 /* ================= Tunas grows ================= */
