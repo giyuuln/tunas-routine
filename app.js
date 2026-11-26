@@ -425,7 +425,7 @@ const pauseHint = (i, s) => !isPausedNow(i.id) && s.pct != null && s.due >= 10 &
   && dayNum(routineDate()) - dayNum(keyToDate(sinceDay())) >= PAUSE_HINT_DAYS;
 const beforeJoinDay = d => !!store.join && store.join.day === dkey(d);
 const beforeJoin = (n, d) => beforeJoinDay(d) && n.to != null && n.to <= store.join.at;
-function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); backState(); planState(); woState(); exState(); joinState(); notesState(); pauseState(); gardenState(); trailState(); goldState(); eveState(); monthState(); if (typeof asstState === "function") asstState(); }
+function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); backState(); planState(); woState(); exState(); joinState(); notesState(); pauseState(); recsState(); gardenState(); trailState(); goldState(); eveState(); monthState(); if (typeof asstState === "function") asstState(); }
 normStore();
 function save() { return storeSet(DATA_KEY, JSON.stringify(store)); }
 let soundOn = true; try { soundOn = localStorage.getItem(SND_KEY) !== "off"; } catch (e) {}
@@ -599,8 +599,12 @@ function computeAll() {
   const d = routineDate(), today = dkey(d), pr = computePRs();
   const all = new Set([...Object.keys(store.days), ...Object.keys(store.logs)]);
   let xp = 0, perfectDays = 0, workouts = 0, ticks = 0, quests = 0; const count = {}, woWeeks = {};
-  all.forEach(k => { xp += dayXP(k, pr.byDay); const dn = store.days[k] || {}, dd = keyToDate(k), ids = itemsFor(dd), keys = keyIds(dd);
-    ids.forEach(id => { if (dn[id]) { ticks++; if (keys.includes(id) && id !== "wo-done") count[id] = (count[id] || 0) + 1; } });
+  // Personal records (see Personal records): the best XP day and the week with the most ticks, plus the bests before today
+  // and before this week, so a record can tell when it was just beaten.
+  const wk = wkey(d), wTicks = {}; let bestDay = { xp: 0, k: null }, prevDayXP = 0, xpDays = 0;
+  all.forEach(k => { const dx = dayXP(k, pr.byDay); xp += dx; const dn = store.days[k] || {}, dd = keyToDate(k), ids = itemsFor(dd), keys = keyIds(dd);
+    if (k <= today && dx > bestDay.xp) bestDay = { xp: dx, k }; if (k < today && dx > 0) { xpDays++; prevDayXP = Math.max(prevDayXP, dx); }
+    ids.forEach(id => { if (dn[id]) { ticks++; if (k <= today) { const w = wkey(dd); wTicks[w] = (wTicks[w] || 0) + 1; } if (keys.includes(id) && id !== "wo-done") count[id] = (count[id] || 0) + 1; } });
     if (ids.length && ids.every(id => dn[id])) perfectDays++;
     if (keys.length && keys.every(id => dn[id])) quests++;
     if (dn["wo-done"]) { workouts++; const w = wkey(dd); woWeeks[w] = (woWeeks[w] || 0) + 1; } });
@@ -608,12 +612,17 @@ function computeAll() {
   let streak = 0; const x = new Date(d); if (!dayOK(x)) x.setDate(x.getDate() - 1);
   while (dayOK(x) && streak < 3650) { streak++; x.setDate(x.getDate() - 1); }
   let bestStreak = 0, run = 0; const dk = [...Object.keys(store.days), ...Object.keys(store.rest)].sort();
-  if (dk.length) { const c = keyToDate(dk[0]); let g = 0; while (dkey(c) <= today && g++ < 3650) { if (dayOK(c) || isKept(c)) { run++; bestStreak = Math.max(bestStreak, run); } else run = 0; c.setDate(c.getDate() + 1); } }
+  // pastStreak is the longest streak that has already ended; run ends as the streak still going (today not done yet doesn't end it).
+  let pastStreak = 0;
+  if (dk.length) { const c = keyToDate(dk[0]); let g = 0; while (dkey(c) <= today && g++ < 3650) { if (dayOK(c) || isKept(c)) { run++; bestStreak = Math.max(bestStreak, run); } else if (dkey(c) !== today) { pastStreak = Math.max(pastStreak, run); run = 0; } c.setDate(c.getDate() + 1); } }
+  let bestWeek = { n: 0, k: null }, prevWeek = 0, weeksBefore = 0;
+  Object.keys(wTicks).sort().forEach(w => { const n = wTicks[w]; if (n > bestWeek.n) bestWeek = { n, k: w }; if (w < wk) { weeksBefore++; prevWeek = Math.max(prevWeek, n); } });
   const perWeek = Object.keys(WORKOUTS).length || 99;
   const L = levelOf(xp), tIds = itemsFor(d), tDone = store.days[today] || {}, tKeys = keyIds(d);
   return { xp, level: L.n, L, ticks, perfectDays, workouts, quests, prs: pr.total, prsToday: pr.byDay[today] || 0,
     topQuestCount: Math.max(0, ...Object.values(count)),
-    fullWeeks: Object.values(woWeeks).filter(n => n >= perWeek).length, streak, bestStreak, todayXP: dayXP(today, pr.byDay),
+    fullWeeks: Object.values(woWeeks).filter(n => n >= perWeek).length, streak, bestStreak, pastStreak, runNow: run,
+    bestDay, prevDayXP, xpDays, bestWeek, prevWeek, weeksBefore, weekNow: wTicks[wk] || 0, todayXP: dayXP(today, pr.byDay),
     doneToday: tIds.filter(id => tDone[id]).length, totalToday: tIds.length,
     questDone: tKeys.filter(id => tDone[id]).length, questTotal: tKeys.length, woToday: !!tDone["wo-done"],
     back: backOn(today), backNeed: backNeed(d), backWon: backOn(today) && tIds.filter(id => tDone[id]).length >= backNeed(d) };
@@ -1120,7 +1129,7 @@ function renderProgressSheet(kind, keep) {
   const body = $("shBody"), top = keep ? body.scrollTop : 0, S = lastS || computeAll();
   if (kind === "history") {
     $("shHead").innerHTML = sheetHead("cal", T("tabProgress"), T("histSub"), null, "--green"); $("shHead").querySelector(".sh-ico").innerHTML = I.chart;
-    body.innerHTML = `<div class="card streak-card" id="streakCard"></div><div class="card trail month" id="monthCard"></div><div class="card hist wsum" id="wsum"></div><div class="card hist" id="hist"></div>${habitListHTML()}`;
+    body.innerHTML = `<div class="card streak-card" id="streakCard"></div><div class="card trail month" id="monthCard"></div><div class="card hist wsum" id="wsum"></div><div class="card hist" id="hist"></div>${recordsHTML(S)}${habitListHTML()}`;
     renderStreak(S); renderMonth(); renderWeekSum(); renderHistory();
   } else {
     const n = BADGES.filter(b => b.test(S)).length, total = badgesFor(S).length;
@@ -1412,9 +1421,10 @@ function habitStats(it) {
   // Days it isn't on the list, rest days and today (still to do) don't break the streak.
   let streak = 0; const x = new Date(d0);
   for (let g = 0; g < 3650; g++) { const s = stat(x); if (s === "done") streak++; else if (s === "miss") break; if (dkey(x) <= start) break; x.setDate(x.getDate() - 1); }
-  let best = 0, run = 0; const c = keyToDate(start);
-  for (let g = 0; g < 3650 && dkey(c) <= today; g++) { const s = stat(c); if (s === "done") best = Math.max(best, ++run); else if (s === "miss") run = 0; c.setDate(c.getDate() + 1); }
-  return { days, done, due, pct: due ? Math.round(100 * done / due) : null, streak, best };
+  // past is the longest run that has already ended (see Personal records).
+  let best = 0, run = 0, past = 0; const c = keyToDate(start);
+  for (let g = 0; g < 3650 && dkey(c) <= today; g++) { const s = stat(c); if (s === "done") best = Math.max(best, ++run); else if (s === "miss") { past = Math.max(past, run); run = 0; } c.setDate(c.getDate() + 1); }
+  return { days, done, due, pct: due ? Math.round(100 * done / due) : null, streak, best, past };
 }
 /* ---- Habit mastery ----
    Every day a habit is ticked counts toward its medal: Bronze at 7, Silver at 30, Gold at 100 (all time, not in a row,
@@ -1485,6 +1495,69 @@ function medalShelfHTML() {
       ${r.next ? `<span class="shelf-to" aria-hidden="true">${medalSVG(r.t + 1)}<b>${r.left}</b></span>` : ""}</button>`; }).join("");
   return `<div class="card hist shelf-card"><div class="shelf-pods">${pod}</div>${next}</div>
     <div class="card hist hs-list">${list}</div><p class="shelf-how">${T("shelfHow")}</p>`;
+}
+/* ---- Personal records ----
+   Progress has a Personal records card: the best streak, the week with the most habits ticked (Monday to Sunday), the
+   best XP day, and each habit's longest run and total days. When one is beaten, a small "New record!" toast says so.
+   Records give no XP and nothing can be lost: they are worked out from the days already saved, so old data shows its
+   records straight away, and a missed day never takes one away.
+   When a toast fires: a streak or a habit's run on the day it passes the longest run that already ended (that run had to
+   be REC_RUN days or more, so a new player's first runs, which grow every day, don't toast daily); the best day once a
+   day, after REC_DAYS earlier days with XP; the best week once a week, after REC_WEEKS earlier weeks.
+   Saved as store.recs = { streak: n, run: { habitId: n }, xp: "YYYY-MM-DD", week: "YYYY-MM-DD" }: what was already
+   toasted, so unticking and ticking again never repeats one. Backups carry it with the rest of store. */
+const REC_RUN = 2, REC_DAYS = 3, REC_WEEKS = 2, REC_LIST = 3;
+function recsState() {
+  const r = store.recs && typeof store.recs === "object" && !Array.isArray(store.recs) ? store.recs : {}, day = /^\d{4}-\d\d-\d\d$/;
+  const out = { streak: Math.max(0, Math.round(+r.streak) || 0), run: {} };
+  if (r.run && typeof r.run === "object" && !Array.isArray(r.run)) Object.keys(r.run).forEach(id => { const n = Math.round(+r.run[id]); if (n > 0) out.run[id] = n; });
+  if (day.test(r.xp)) out.xp = r.xp; if (day.test(r.week)) out.week = r.week;
+  store.recs = out; return out;
+}
+// Each habit's longest run and total days, longest run first.
+const recRows = () => { const d = routineDate();
+  return BLOCKS.flatMap(b => b.items).map(i => { const s = habitStats(i); return { i, s, best: s.best, total: habitTicks(i.id), title: itemTitle(i, d) }; })
+    .filter(r => r.total).sort((a, b) => b.best - a.best || b.total - a.total); };
+function checkRecords(S, live) {
+  const r = recsState(), d = routineDate(), today = dkey(d), wk = wkey(d), out = [], runs = [];
+  if (S.runNow > r.streak && S.runNow === S.pastStreak + 1 && S.pastStreak >= REC_RUN) out.push(T("recTStreak", S.runNow));
+  r.streak = Math.max(r.streak, S.runNow);
+  if (S.weekNow > S.prevWeek && S.weeksBefore >= REC_WEEKS && r.week !== wk) { r.week = wk; out.push(T("recTWeek", S.weekNow)); }
+  if (S.todayXP > S.prevDayXP && S.xpDays >= REC_DAYS && r.xp !== today) { r.xp = today; out.push(T("recTDay", S.todayXP)); }
+  BLOCKS.flatMap(b => b.items).forEach(i => { const s = habitStats(i), was = r.run[i.id] || 0;
+    if (s.streak > was && s.streak === s.past + 1 && s.past >= REC_RUN) runs.push(T("recTRun", esc(itemTitle(i, d)), s.streak));
+    if (s.streak > was) r.run[i.id] = s.streak; });
+  Object.keys(r.run).forEach(id => { if (!habitById(id)) delete r.run[id]; });
+  if (runs.length > 2) runs.splice(2, runs.length, T("recTMore", runs.length - 2));
+  out.push(...runs);
+  if (JSON.stringify(r) !== JSON.stringify(recsLast)) { recsLast = JSON.parse(JSON.stringify(r)); save(); }
+  if (!live || !out.length) return;
+  // One record toast at a time: a new one replaces the last and counts today's records, so ticking habit after habit
+  // the day they all beat an old run never stacks a pile of toasts. Kept in memory only.
+  if (recShown.day !== today) recShown = { day: today, n: 0 };
+  recShown.n += out.length;
+  if (recToastEl) { recToastEl.dataset.gone = 1; clearTimeout(recToastEl._out); recToastEl.remove(); }
+  recToastEl = toast(recShown.n > out.length ? T("recToastN", out.join(" · "), recShown.n) : T("recToast", out.join(" · ")), "trophy", 4000);
+  sfx("ding"); buzz([10, 40, 14]);
+}
+let recsLast = null, recShown = { day: "", n: 0 }, recToastEl = null;
+function recordsHTML(S) {
+  const rows = recRows(); if (!rows.length) return `<div class="card hist rec-card"><div class="ws-h"><b>${T("recTitle")}</b></div><p class="ws-line">${T("recEmpty")}</p></div>`;
+  const f = { day: "numeric", month: "short" }, fy = { day: "numeric", month: "short", year: "numeric" };
+  const tiles = [{ k: T("recStreak"), v: S.bestStreak, i: "flame", c: "--orange" }, { k: T("recWeek"), v: S.bestWeek.n, i: "check", c: "--green" }, { k: T("recDay"), v: `+${S.bestDay.xp}`, i: "bolt", c: "--gold" }];
+  const lines = [];
+  if (S.bestWeek.k) { const a = keyToDate(S.bestWeek.k), b = new Date(a); b.setDate(b.getDate() + 6);
+    lines.push(T("recWeekLine", `${a.toLocaleDateString(locale(), f)} – ${b.toLocaleDateString(locale(), fy)}`, S.bestWeek.n)); }
+  if (S.bestDay.k) lines.push(T("recDayLine", keyToDate(S.bestDay.k).toLocaleDateString(locale(), fy), S.bestDay.xp));
+  const row = r => `<button class="hs-row rec-row" type="button" data-habit="${esc(r.i.id)}" aria-label="${esc(r.title)}: ${T("recRowA", r.best, r.total)}">
+      <span class="hs-t"><b>${esc(r.title)}</b><small>${T("recRow", r.total)}</small></span><span class="rec-run" aria-hidden="true">${I.flame}${r.best}</span></button>`;
+  const more = rows.slice(REC_LIST);
+  return `<div class="card hist rec-card"><div class="ws-h"><b>${T("recTitle")}</b><span>${T("recSub")}</span></div>
+    <div class="tiles">${tiles.map(t => `<div class="tile" style="--c:var(${t.c})"><small>${t.k}</small><b>${I[t.i]}${t.v}</b></div>`).join("")}</div>
+    ${lines.map(l => `<p class="ws-line">${l}</p>`).join("")}
+    <div class="rec-h"><b>${T("recHabits")}</b></div>${rows.slice(0, REC_LIST).map(row).join("")}
+    ${more.length ? `<details class="rec-more"><summary>${T("recAll", more.length)}</summary>${more.map(row).join("")}</details>` : ""}
+    <p class="shelf-how">${T("recHow")}</p></div>`;
 }
 function renderHabitSheet(id, keep) {
   const h0 = habitById(id); if (!h0) { closeSheet(); return; }
@@ -3920,7 +3993,7 @@ function refresh(keepSheet) {
     const node = nodesFor(d).find(n => n.id === sheetId); if (node) { const st = nodeState(node, d), bar = $("shHead").querySelector(".bar"); if (bar) { setFill(bar.querySelector("i"), 100*st.n/st.total); bar.querySelector("b").textContent = `${st.n} / ${st.total}`; } }
   }
   const states = {}; nodesFor(d).forEach(n => states[n.id] = nodeState(n, d));
-  checkMastery(!!lastS);
+  checkMastery(!!lastS); checkRecords(S, !!lastS);
   const fresh = got.filter(b => !store.seen[b.id]);
   if (fresh.length) { fresh.forEach(b => store.seen[b.id] = dkey(d)); save();
     if (lastS) fresh.forEach(b => toast(T("badgeOne", badgeName(b.id)), "trophy"));

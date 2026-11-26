@@ -1537,6 +1537,22 @@ p.wo-say{display:block}
 .shelf-to .medal-ico{width:18px;height:18px;margin:0;filter:grayscale(.6);opacity:.8}
 .shelf-how{margin:10px 4px 0;font-size:13px;color:var(--muted);font-weight:700;text-align:center}
 .nr-ico .medal-ico{width:22px;height:22px;margin:0}
+/* Personal records (Progress) */
+.rec-card .tiles{flex-wrap:nowrap}
+.rec-card .tile{flex:1;min-width:0}
+.rec-card .tile small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.04em}
+.rec-card .tile b{font-size:20px}
+.rec-card .ws-line{font-size:13.5px;color:var(--muted);font-weight:700;text-align:center}
+.rec-h b{font-size:14px;font-weight:900}
+.rec-row .hs-t{gap:2px}
+.rec-row .hs-t small{font-size:12.5px;font-weight:700;color:var(--muted)}
+.rec-run{flex:none;display:inline-flex;align-items:center;gap:3px;font-family:var(--display);font-weight:900;font-size:16px;color:var(--orange-ink);font-variant-numeric:tabular-nums}
+.rec-run svg{width:18px;height:18px;fill:var(--orange)}
+.rec-more .rec-row{margin-top:8px}
+.rec-more summary{cursor:pointer;min-height:44px;display:flex;align-items:center;gap:6px;font-size:14px;font-weight:900;color:var(--green-ink);list-style:none}
+.rec-more summary::-webkit-details-marker{display:none}
+.rec-more summary::before{content:"+";font-size:18px;line-height:1;width:16px}
+.rec-more[open] summary::before{content:"−"}
 /* Habit pause */
 .hp-card{padding:14px;display:flex;flex-direction:column;align-items:flex-start;gap:10px}
 .hp-card.on{flex-direction:row;align-items:center;gap:12px;background:var(--soft);border-color:var(--line)}
