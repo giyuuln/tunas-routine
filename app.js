@@ -253,6 +253,8 @@ function applyRoutine(r) {
         key: !!i.quest, alt: !!i.everyOtherDay, hide: Array.isArray(i.hideOnDays) && i.hideOnDays.length ? i.hideOnDays.map(Number) : null, dyn: !!i.useFocus, on: weekdays(i.onDays), dt: i.days === "work" || i.days === "off" ? i.days : null, goal: goalOf(i.target),
         exo: typeof i.exercise === "boolean" ? i.exercise : null })) };
   });
+  // The routine's own times, so Ramadan mode (see below) can move them and always put them back.
+  BLOCKS.forEach((b, k) => { const raw = r.blocks[k]; b.auto = !!(raw.from && raw.to); b.base = { from: b.from, to: b.to, remind: b.remind, range: b.range }; });
   FOCUS = {};
   for (let k = 0; k < 7; k++) { const f = (r.focus || {})[k] || (r.focus || {})[String(k)] || {}; FOCUS[k] = { t: f.title || (LANG === "ms" ? "1 jam: fokus" : "1 hour: focus"), n: f.note || "" }; }
   WORKOUTS = {};
@@ -423,9 +425,75 @@ const activeHabits = () => BLOCKS.flatMap(b => b.items).filter(i => !isPausedNow
 const PAUSE_HINT_DAYS = 30, PAUSE_HINT_PCT = 20;
 const pauseHint = (i, s) => !isPausedNow(i.id) && s.pct != null && s.due >= 10 && s.pct < PAUSE_HINT_PCT
   && dayNum(routineDate()) - dayNum(keyToDate(sinceDay())) >= PAUSE_HINT_DAYS;
+/* ================= Ramadan mode ================= */
+// Optional and off by default. The player sets the first day, 29 or 30 days, and their own sahur and iftar times
+// (nothing is looked up online). On those days the first morning section starts at sahur and the first section from
+// 4pm starts at iftar, each with its reminder at that time; the section before each one stretches or shrinks to meet it.
+// Only times move: habits, ticks, streak, quests and the chest work as usual, and calendar reminders keep the normal
+// times. Turning it off, or the month ending, brings the normal times straight back. Saved as store.ram = { on, start,
+// days, sahur, iftar }; backups carry it with the rest of store, and old data without it is simply off.
+const RAM = { sahur: [240, 450, "05:00"], iftar: [1020, 1230, "19:15"] }; // earliest, latest, default
+function ramState() {
+  const r = store.ram && typeof store.ram === "object" && !Array.isArray(store.ram) ? store.ram : (store.ram = {});
+  r.on = r.on === true; r.days = +r.days === 29 ? 29 : 30;
+  if (typeof r.start !== "string" || !/^\d{4}-\d\d-\d\d$/.test(r.start)) delete r.start;
+  ["sahur", "iftar"].forEach(k => { const [lo, hi, def] = RAM[k], m = tm(r[k], null); r[k] = m != null && m >= lo && m <= hi ? hhmm(m) : def; });
+  if (r.on && !r.start) r.on = false;
+  return r;
+}
+const ramEnd = r => { const e = keyToDate(r.start); e.setDate(e.getDate() + r.days); return dkey(e); }; // the day after the last
+const ramOn = (d = routineDate()) => { const r = ramState(), k = dkey(d); return r.on && k >= r.start && k < ramEnd(r); };
+const ramDay = (d = routineDate()) => dayNum(d) - dayNum(keyToDate(ramState().start)) + 1;
+const ramDate = k => keyToDate(k).toLocaleDateString(locale(), { day: "numeric", month: "short" });
+// Move the start of the first morning section to sahur (S) and of the first section starting 4pm to 9pm to iftar (F),
+// in minutes. A section only moves if it would still last 30 minutes; the section that ended where it began, or that
+// would overlap it, ends where it now starts.
+function ramShift(bs, S, F) {
+  const L = bs.filter(b => b.from != null && b.to != null && b.from >= 240 && b.from < 1440).sort((a, b) => a.from - b.from);
+  const range = b => { if (b.auto) b.range = fmtRange(b.from, b.to); };
+  const move = (b, m) => {
+    const old = b.from;
+    bs.forEach(p => { if (p === b || p.from == null || p.to == null) return;
+      const touch = p.to % 1440 === old % 1440, over = p.from < m && p.to > m; if (!touch && !over) return;
+      const to = p.from + (((m - p.from) % 1440) + 1440) % 1440; if (to - p.from < 30) return;
+      p.to = to; if (p.remind != null && (p.remind < p.from ? p.remind + 1440 : p.remind) >= to) p.remind = p.from; range(p); });
+    b.from = m; b.remind = m; range(b);
+  };
+  const m1 = L.find(b => b.from < 720 && b.to > S + 30), e1 = L.find(b => b.from >= 960 && b.from < 1260 && b.to > F + 30 && b !== m1);
+  if (m1) move(m1, S); if (e1) move(e1, F);
+}
+// Puts the right times on the sections for today; only does work when Ramadan mode turns on or off or its times change.
+function ramSync(d = routineDate()) {
+  const r = ramState(), sig = ramOn(d) ? `${r.sahur}|${r.iftar}` : "";
+  if (BLOCKS.ramSig === sig) return;
+  BLOCKS.forEach(b => Object.assign(b, b.base || {}));
+  if (sig) ramShift(BLOCKS, tm(r.sahur, 300), tm(r.iftar, 1155));
+  BLOCKS.ramSig = sig;
+}
+function ramRow() {
+  const r = ramState(), d = routineDate();
+  return !r.on ? T("ramRowOff") : ramOn(d) ? T("ramRowDay", ramDay(d), r.days) : dkey(d) < r.start ? T("ramRowSoon", ramDate(r.start)) : T("ramRowEnded", ramDate(dkey(new Date(keyToDate(ramEnd(r)).getTime() - 864e5))));
+}
+function ramHTML() {
+  const r = ramState(), d = routineDate(), on = ramOn(d), k = dkey(d);
+  const status = !r.on ? "" : on ? T("ramNow", ramDay(d), r.days) : k < r.start ? T("ramSoon", ramDate(r.start)) : T("ramDone", ramDate(dkey(new Date(keyToDate(ramEnd(r)).getTime() - 864e5))));
+  const prev = BLOCKS.map(b => ({ ...b, ...(b.base || {}) })); ramShift(prev, tm(r.sahur, 300), tm(r.iftar, 1155));
+  const time = (key, label) => `<label class="w-time">${label}<input class="field" type="time" data-ram="${key}" min="${hhmm(RAM[key][0])}" max="${hhmm(RAM[key][1])}" value="${esc(r[key])}"></label>`;
+  return `<div class="set-group ram"><span class="ram-art" aria-hidden="true">${RAM_SVG}</span><p>${T("ramHelp")}</p>
+    <div class="sw-row inline"><div><b>${T("ramSwitch")}</b><span>${T("ramSwitchHelp")}</span></div><button class="toggle" type="button" role="switch" aria-checked="${r.on}" data-act="ramOn" aria-label="${T("ramSwitch")}"><i></i></button></div>
+    ${r.on ? `${status ? `<p class="rt-meta ram-status">${status}</p>` : ""}
+      <label class="w-time">${T("ramStart")}<input class="field" type="date" data-ram="start" value="${esc(r.start)}"></label>
+      <b class="rt-sub">${T("ramDaysQ")}</b><div class="seg" role="group" aria-label="${T("ramDaysQ")}">${[29, 30].map(n => `<button type="button" data-act="ramDays" data-n="${n}" aria-pressed="${r.days === n}">${T("ramDaysN", n)}</button>`).join("")}</div>
+      <div class="w-times">${time("sahur", T("ramSahur"))}${time("iftar", T("ramIftar"))}</div>
+      <p class="wo-hint">${T("ramDatesHelp")}</p>
+      <b class="rt-sub">${T("ramPreview")}</b><ul class="ram-list">${prev.map(b => `<li><span>${esc(b.title)}</span><b>${esc(b.range)}</b></li>`).join("")}</ul>
+      <p class="wo-hint">${T("ramCalNote")}</p>` : ""}</div>`;
+}
+function ramSet(change) { change(ramState()); ramState(); if (!save()) return; lastS = null; refresh(true); contextSay(); }
+const RAM_SVG = `<svg viewBox="0 0 64 48"><path d="M30 6a18 18 0 1 0 18 24A15 15 0 0 1 30 6z" fill="var(--gold)" stroke="var(--gold-d)" stroke-width="3" stroke-linejoin="round"/><path d="M48 8l1.6 3.4 3.4 1.6-3.4 1.6L48 18l-1.6-3.4-3.4-1.6 3.4-1.6z" fill="var(--gold)"/><path d="M53 24v6M50 27h6" stroke="var(--gold)" stroke-width="2.5" stroke-linecap="round"/></svg>`;
 const beforeJoinDay = d => !!store.join && store.join.day === dkey(d);
 const beforeJoin = (n, d) => beforeJoinDay(d) && n.to != null && n.to <= store.join.at;
-function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); backState(); planState(); woState(); exState(); joinState(); notesState(); pauseState(); recsState(); gardenState(); trailState(); goldState(); eveState(); monthState(); if (typeof asstState === "function") asstState(); }
+function normStore() { store.days ||= {}; store.weeks ||= {}; store.logs ||= {}; store.seen ||= {}; store.rest ||= {}; store.rem ||= {}; store.counts ||= {}; findsState(); shieldState(); wchestState(); lvupState(); backState(); planState(); woState(); exState(); joinState(); notesState(); pauseState(); ramState(); recsState(); gardenState(); trailState(); goldState(); eveState(); monthState(); if (typeof asstState === "function") asstState(); }
 normStore();
 function save() { return storeSet(DATA_KEY, JSON.stringify(store)); }
 let soundOn = true; try { soundOn = localStorage.getItem(SND_KEY) !== "off"; } catch (e) {}
@@ -630,6 +698,7 @@ function computeAll() {
 
 /* ================= Path nodes ================= */
 function nodesFor(d) {
+  ramSync(d);
   const W = WORKOUTS[d.getDay()], out = [];
   const woNode = () => ({ id: "workout", kind: "workout", W, title: W.name, icon: "dumb", range: W.when, from: W.from, to: W.to, say: W.say });
   // A section with nothing to do today (e.g. all its habits are work-day only on a day off) is left off the path.
@@ -999,6 +1068,8 @@ function renderPath(S) {
       ${starRow(k, "", from)}<span class="lvl-name" aria-hidden="true">${esc(n.title)}</span></div>`;
   }).join("");
   $("pathTitle").textContent = T("todayIs", d.toLocaleDateString(locale(), { weekday: "long" }));
+  const rl = $("ramLine"), rr = ramState(); rl.hidden = !ramOn(d);
+  if (!rl.hidden) rl.innerHTML = `${I.moon}<span>${T("ramLine", ramDay(d), fmtClock(tm(rr.sahur, 300)), fmtClock(tm(rr.iftar, 1155)))}</span>`;
   renderLevelDetail(d, mins, target, S || lastS || computeAll());
   // Centre the level to play whenever it changes; otherwise keep where the person scrolled to.
   const t = strip.querySelector(".is-target"), tid = target ? target.id : "";
@@ -1705,7 +1776,7 @@ const TZ = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZon
 const DAYS2 = ["SU","MO","TU","WE","TH","FR","SA"];
 function reminderList() {
   const out = [];
-  BLOCKS.forEach(b => { const m = b.remind != null ? b.remind : b.from; if (m != null) out.push({ id: b.id, title: b.title, mins: m % 1440, rule: "RRULE:FREQ=DAILY" }); });
+  BLOCKS.forEach(b => { const o = b.base || b, m = o.remind != null ? o.remind : o.from; if (m != null) out.push({ id: b.id, title: b.title, mins: m % 1440, rule: "RRULE:FREQ=DAILY" }); });
   Object.entries(WORKOUTS).forEach(([day, W]) => { if (W.remind != null) out.push({ id: "workout", title: W.name, mins: W.remind % 1440, rule: `RRULE:FREQ=WEEKLY;BYDAY=${DAYS2[+day]}`, weekday: +day }); });
   return out;
 }
@@ -2056,6 +2127,7 @@ function renderRoutinePage(keep) {
   const nPacks = (Array.isArray(RAW.packs) ? RAW.packs : []).map(packById).filter(Boolean).length, g = CFG.guide;
   const SUB = {
     week: { ico: "cal", t: T("yourWeek"), html: weekHTML },
+    ramadan: { ico: "moon", t: T("ramTitle"), html: ramHTML },
     packs: { ico: "sprout", t: T("packsTitle"), html: packsSettingsHTML },
     reminders: { ico: "bell", t: T("reminders"), html: () => eveSettingsHTML() + `<div class="set-group"><p class="rt-meta">${T("remCount", added, L.length)}</p><p>${T("remShort")}</p><details class="more-help"><summary>${T("remHow")}</summary><p>${T("remHelp")}</p></details>
       ${L.map(remRow).join("")}
@@ -2085,6 +2157,7 @@ function renderRoutinePage(keep) {
     </div>
     ${navList(T("rtManage"), [
       navRow({ sub: "week", ico: "cal", t: T("yourWeek"), s: A ? T("weekSummary", off || T("none")) : T("weekNone"), c: "info" }),
+      navRow({ sub: "ramadan", ico: "moon", t: T("ramTitle"), s: ramRow(), c: "gold" }),
       navRow({ sub: "packs", ico: "sprout", t: T("packsTitle"), s: nPacks ? T("packsRow", nPacks) : T("packsRowNone") }),
       navRow({ sub: "reminders", ico: "bell", t: T("reminders"), s: T("remCount", added, L.length), c: "gold" }),
       navRow({ sub: "guide", ico: "book", t: esc((g && g.title) || T("guide")), s: T("guideRow"), c: "pink" }),
@@ -2095,6 +2168,9 @@ function renderRoutinePage(keep) {
     eveState().at = Math.min(EVE_MAX, Math.max(EVE_MIN, m)); save(); renderEve(); renderSheet(true); }));
   body.querySelectorAll("[data-week]").forEach(f => f.addEventListener("change", () => { if (!/^\d{2}:\d{2}$/.test(f.value)) return;
     saveWeek(A => ({ ...A, [f.dataset.week]: f.value })); }));
+  body.querySelectorAll("[data-ram]").forEach(f => f.addEventListener("change", () => { const k = f.dataset.ram;
+    if (k === "start" ? !/^\d{4}-\d\d-\d\d$/.test(f.value) : tm(f.value, null) == null) return renderSheet(true);
+    ramSet(r => { r[k] = f.value; }); }));
   $("shClose").onclick = closeSheet;
   if (keep) body.scrollTop = top;
   if (settingsPane === "paste" && $("pasteBox")) $("pasteBox").focus();
@@ -2209,6 +2285,9 @@ function settingsAction(act, el) {
   if (act === "toggleWo") { const r = { ...RAW, showWorkouts: CFG.showWorkouts === false }; if (!saveRoutine(r)) return renderSheet(true); lastS = null; prevCleared = null; refresh(true); toast(r.showWorkouts ? T("woShown") : T("woHidden"), "check"); return; }
   if (act === "edit") return openEditor();
   if (act === "editGuide") return openEditor("guide");
+  if (act === "ramOn") { const was = ramState().on; ramSet(r => { r.on = !r.on; if (r.on && !r.start) r.start = dkey(routineDate()); });
+    return toast(T(was ? "ramToastOff" : "ramToastOn"), was ? "check" : "star"); }
+  if (act === "ramDays") return ramSet(r => { r.days = +el.dataset.n; });
   if (act === "weekBusy") return saveWeek(A => A ? null : { from: "08:30", to: "17:00", days: [...WEEKDAYS], say: T("awaySay") });
   if (act === "template") { closeSheet(); return openWelcome(2, true); }
   if (act === "importRoutine") return $("fileRoutine").click();
@@ -3981,6 +4060,7 @@ async function shareYear() {
 /* ================= Refresh + comparisons ================= */
 let prevCleared = null;
 function refresh(keepSheet) {
+  ramSync();
   if (recordPlan()) save();
   if (goldStart()) save();
   sinceDay(); // fixes the start date the first time (saved), so later counts don't move

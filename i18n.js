@@ -489,6 +489,16 @@ window.TUNAS_I18N = {
     qtTitle: "Quick tick", qtLink: "Quick tick: just the list", qtLeft: n => `${n} left to tick now`, qtAllDone: "All caught up for now!", qtNone: "Nothing due right now",
     qtNoneNow: "Nothing due yet. Your next habits start later today.", qtNothing: "No habits today. Enjoy the break!",
     qtLater: n => `Show later today (${n})`, qtPath: "Back to today's path",
+    // Ramadan mode
+    ramTitle: "Ramadan mode", ramRowOff: "Off", ramRowDay: (n, t) => `Day ${n} of ${t}`, ramRowSoon: x => `Starts ${x}`, ramRowEnded: x => `Ended ${x}`,
+    ramHelp: "For the fasting month. Your morning section starts at sahur and your evening section starts at iftar. Habits, streak, quests and the chest work as usual.",
+    ramSwitch: "Use Ramadan times", ramSwitchHelp: "Turn it off any time and your normal times come straight back.",
+    ramStart: "First day of Ramadan", ramDaysQ: "How many days?", ramDaysN: n => `${n} days`, ramSahur: "Sahur", ramIftar: "Iftar",
+    ramDatesHelp: "You set the dates and times yourself. Tunas doesn't look anything up online.",
+    ramPreview: "Your sections during Ramadan", ramCalNote: "Calendar reminders you've added keep your normal times.",
+    ramNow: (n, t) => `Today is day ${n} of ${t}.`, ramSoon: x => `Ramadan times start on ${x}.`, ramDone: x => `Ramadan ended on ${x}, so your normal times are back.`,
+    ramToastOn: "Ramadan times are on. Ramadan Kareem!", ramToastOff: "Your normal times are back.",
+    ramLine: (n, s, f) => `Ramadan day ${n} · Sahur ${s} · Iftar ${f}`,
   },
   ms: {
     locale: "ms-MY",
@@ -975,5 +985,15 @@ window.TUNAS_I18N = {
     qtTitle: "Tanda cepat", qtLink: "Tanda cepat: senarai je", qtLeft: n => `${n} lagi nak ditanda`, qtAllDone: "Semua dah siap buat masa ni!", qtNone: "Tiada apa-apa buat masa ni",
     qtNoneNow: "Belum ada lagi. Tabiat seterusnya mula nanti.", qtNothing: "Tiada tabiat hari ni. Rehatlah!",
     qtLater: n => `Tunjuk tabiat nanti (${n})`, qtPath: "Balik ke laluan hari ini",
+    // Mod Ramadan
+    ramTitle: "Mod Ramadan", ramRowOff: "Tutup", ramRowDay: (n, t) => `Hari ke-${n} daripada ${t}`, ramRowSoon: x => `Mula ${x}`, ramRowEnded: x => `Tamat ${x}`,
+    ramHelp: "Untuk bulan puasa. Bahagian pagi mula waktu sahur, bahagian petang mula waktu berbuka. Tabiat, streak, misi dan peti jalan macam biasa.",
+    ramSwitch: "Guna waktu Ramadan", ramSwitchHelp: "Boleh tutup bila-bila masa, waktu biasa terus kembali.",
+    ramStart: "Hari pertama Ramadan", ramDaysQ: "Berapa hari?", ramDaysN: n => `${n} hari`, ramSahur: "Sahur", ramIftar: "Berbuka",
+    ramDatesHelp: "Tarikh dan waktu ditetapkan sendiri. Tunas tak semak apa-apa dalam talian.",
+    ramPreview: "Bahagian rutin sepanjang Ramadan", ramCalNote: "Peringatan kalendar yang dah ditambah kekal ikut waktu biasa.",
+    ramNow: (n, t) => `Hari ni hari ke-${n} daripada ${t}.`, ramSoon: x => `Waktu Ramadan mula pada ${x}.`, ramDone: x => `Ramadan dah habis pada ${x}, jadi waktu biasa dah kembali.`,
+    ramToastOn: "Waktu Ramadan dah dipasang. Selamat berpuasa!", ramToastOff: "Waktu biasa dah kembali.",
+    ramLine: (n, s, f) => `Ramadan hari ke-${n} · Sahur ${s} · Berbuka ${f}`,
   }
 };
