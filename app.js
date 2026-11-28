@@ -487,7 +487,8 @@ function ramHTML() {
       <div class="w-times">${time("sahur", T("ramSahur"))}${time("iftar", T("ramIftar"))}</div>
       <p class="wo-hint">${T("ramDatesHelp")}</p>
       <b class="rt-sub">${T("ramPreview")}</b><ul class="ram-list">${prev.map(b => `<li><span>${esc(b.title)}</span><b>${esc(b.range)}</b></li>`).join("")}</ul>
-      <p class="wo-hint">${T("ramCalNote")}</p>` : ""}</div>`;
+      <p class="wo-hint">${T("ramCalNote")}</p>
+      <p class="rt-meta ram-finds">${I.chest}<span>${T("ramFindsHelp", FINDS.filter(x => x.ram).map(x => findName(x.id)).join(", "))}</span></p>` : ""}</div>`;
 }
 function ramSet(change) { change(ramState()); ramState(); if (!save()) return; lastS = null; refresh(true); contextSay(); }
 const RAM_SVG = `<svg viewBox="0 0 64 48"><path d="M30 6a18 18 0 1 0 18 24A15 15 0 0 1 30 6z" fill="var(--gold)" stroke="var(--gold-d)" stroke-width="3" stroke-linejoin="round"/><path d="M48 8l1.6 3.4 3.4 1.6-3.4 1.6L48 18l-1.6-3.4-3.4-1.6 3.4-1.6z" fill="var(--gold)"/><path d="M53 24v6M50 27h6" stroke="var(--gold)" stroke-width="2.5" stroke-linecap="round"/></svg>`;
@@ -2201,7 +2202,7 @@ function renderMe(keep) {
     $("shHead").innerHTML = sheetHead("star", T("tabMe"), T("meSub"), null, "--green");
     $("shHead").querySelector(".sh-ico").innerHTML = I.sprout;
     const stat = (ico, n, label) => `<div class="me-stat"><span class="me-n">${I[ico]}<b>${n}</b></span><span>${label}</span></div>`;
-    const f = findsState(), owned = FINDS.filter(x => findCount(f, x.id)).length, wOpen = WEAR.filter(x => wearOpen(x, wearOwned())).length;
+    const f = findsState(), book = bookFinds(f), owned = book.filter(x => findCount(f, x.id)).length, wBook = bookWear(f), wOpen = wBook.filter(x => wearOpen(x, wearOwned())).length;
     const newBadge = got.some(b => store.seen[b.id] === today), newFind = !!f.log[today];
     body.innerHTML = `
     <div class="card me-card">
@@ -2221,8 +2222,8 @@ function renderMe(keep) {
     </div>
     <section class="nav-list"><h3 class="nl-h">${T("meCollection")}</h3><div class="tile-grid">
       ${navTile({ sub: "badges", ico: "trophy", t: T("badges"), n: `${got.length} / ${bTotal}`, p: 100 * got.length / bTotal, c: "gold", isNew: newBadge })}
-      ${navTile({ sub: "finds", ico: "chest", t: T("findsTitle"), n: `${owned} / ${FINDS.length}`, p: 100 * owned / FINDS.length, c: "warn", isNew: newFind })}
-      ${navTile({ sub: "wear", ico: "sprout", t: T("wearTitle"), n: `${wOpen} / ${WEAR.length}`, p: 100 * wOpen / WEAR.length, c: "green" })}
+      ${navTile({ sub: "finds", ico: "chest", t: T("findsTitle"), n: `${owned} / ${book.length}`, p: 100 * owned / book.length, c: "warn", isNew: newFind })}
+      ${navTile({ sub: "wear", ico: "sprout", t: T("wearTitle"), n: `${wOpen} / ${wBook.length}`, p: 100 * wOpen / wBook.length, c: "green" })}
     </div></section>
     ${navList("", [shelfRowHTML(), gardenRowHTML(), navRow({ sub: "year", ico: "cal", t: T("yrName"), s: T("yrRow", yearDefault()), c: "info" })])}
     ${moneyCardHTML()}
@@ -3302,8 +3303,15 @@ const FINDS = [
   // always one in season and nobody misses one for good. In season and not owned yet, it's the first pick for a Rare.
   { id: "umbrella", s: "umbrella", c: ["#6fb8ff", "#2a6fb8"], r: 1, m: [10, 11, 0] }, { id: "wau", s: "wau", c: ["#ff8a5c", "#c2461d"], r: 1, m: [1, 2, 3, 4] },
   { id: "durian", s: "durian", c: ["#a8c94a", "#5f7d1a"], r: 1, m: [5, 6, 7] }, { id: "lantern", s: "lantern", c: ["#ff5a5a", "#b3261e"], r: 1, m: [8, 9] },
+  // Ramadan finds (Rare, ram): only drop on Ramadan-mode days and come back every Ramadan. Like seasonal finds, one not
+  // owned yet is the first pick for a Rare then. They only show in the book (and count in its total) once Ramadan mode
+  // has been turned on or one is owned, so players who never use the mode don't see slots they can't fill.
+  { id: "ketupat", s: "ketupat", c: ["#9fd65a", "#4f8a1f"], r: 1, ram: true }, { id: "pelita", s: "pelita", c: ["#f0a94a", "#9a5a14"], r: 1, ram: true },
+  { id: "kurma", s: "kurma", c: ["#b0623a", "#5e2a10"], r: 1, ram: true },
 ];
-const inSeason = (x, d = routineDate()) => !x.m || x.m.includes(d.getMonth());
+const inSeason = (x, d = routineDate()) => x.ram ? ramOn(d) : !x.m || x.m.includes(d.getMonth());
+const ramShown = (f = findsState()) => ramState().on || FINDS.some(x => x.ram && findCount(f, x.id));
+const bookFinds = (f = findsState()) => { const r = ramShown(f); return FINDS.filter(x => !x.ram || r); };
 // "Nov – Jan" for a seasonal find.
 const seasonName = x => { const f = { month: "short" }, mo = k => new Date(2024, k, 1).toLocaleDateString(locale(), f); return `${mo(x.m[0])} – ${mo(x.m[x.m.length - 1])}`; };
 const FIND_ODDS = [0.70, 0.25, 0.05], RARE_PITY = 5, EPIC_PITY = 15, FIRST_FIND = "pandan", SHINY_AT = 3;
@@ -3316,7 +3324,9 @@ const SETS = [
   { id: "night", ids: ["kelip", "crystal", "star"], wear: "nightcap" },
   { id: "treasure", ids: ["goldleaf", "rambutan", "goldsprout"], wear: "medal" },
   { id: "seasons", ids: ["umbrella", "wau", "durian", "lantern"], wear: "wauclip" },
+  { id: "ramadan", ids: ["ketupat", "pelita", "kurma"], wear: "ketupatcharm", ram: true },
 ];
+const bookSets = (f = findsState()) => { const r = ramShown(f); return SETS.filter(x => !x.ram || r); };
 const setName = id => (T("sets") || {})[id] || id;
 const setHave = (st, f = findsState()) => st.ids.filter(id => findCount(f, id)).length;
 const setDone = (id, f = findsState()) => { const st = SETS.find(x => x.id === id); return !!st && setHave(st, f) === st.ids.length; };
@@ -3340,6 +3350,9 @@ const FIND_ART = {
   wau: (f, d) => `<path d="M24 4l7 10-7 26-7-26z" fill="${f}" stroke="${d}" stroke-width="3" stroke-linejoin="round"/><path d="M6 15q9-4 18 1 9-5 18-1-3 7-11 6l-7-3-7 3c-8 1-11-6-11-6z" fill="${f}" stroke="${d}" stroke-width="3" stroke-linejoin="round"/><path d="M10 37q14-4 28 0-6 6-14 3-8 3-14-3z" fill="#ffd34d" stroke="${d}" stroke-width="2.5" stroke-linejoin="round"/><circle cx="24" cy="17" r="2.5" fill="#fff"/>`,
   durian: (f, d) => `${Array.from({ length: 14 }, (_, i) => `<path d="M24 11l2.4-4.5h-4.8z" fill="${d}" transform="rotate(${i * 360 / 14} 24 26)"/>`).join("")}<ellipse cx="24" cy="26" rx="14" ry="15" fill="${f}" stroke="${d}" stroke-width="3"/><path d="M24 11V5q1-2 4-2" stroke="#8a5a2b" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M17 22l2 2M28 19l2 2M21 31l2 2M30 28l2 2" stroke="${d}" stroke-width="2.2" stroke-linecap="round"/>`,
   lantern: (f, d) => `<path d="M24 3v5" stroke="${d}" stroke-width="3" stroke-linecap="round"/><rect x="17" y="7" width="14" height="5" rx="2" fill="#ffd34d" stroke="#c48a00" stroke-width="2.5"/><ellipse cx="24" cy="24" rx="15" ry="12.5" fill="${f}" stroke="${d}" stroke-width="3"/><path d="M24 11.5q-8 12.5 0 25M24 11.5q8 12.5 0 25" stroke="${d}" stroke-width="2" fill="none"/><rect x="17" y="35" width="14" height="5" rx="2" fill="#ffd34d" stroke="#c48a00" stroke-width="2.5"/><path d="M21 40v5M24 40v6M27 40v5" stroke="#ffd34d" stroke-width="2" stroke-linecap="round"/>`,
+  ketupat: (f, d) => `<path d="M24 11q-3-5-9-6M24 11q4-5 10-4" stroke="${d}" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M24 11l14 14-14 14-14-14z" fill="${f}" stroke="${d}" stroke-width="3" stroke-linejoin="round"/><path d="M17 18l14 14M31 18L17 32" stroke="${d}" stroke-width="2" stroke-linecap="round" fill="none" opacity=".8"/><path d="M20.5 35.5l14-14M13.5 28.5l14-14" stroke="#e4f7b8" stroke-width="2" stroke-linecap="round" fill="none" opacity=".7"/>`,
+  pelita: (f, d) => `<circle cx="24" cy="16" r="11" fill="#ffd23f" opacity=".3"/><path d="M24 6c-5 6-6 10-3.5 13.5 2 2 5 2 7 0C30 16 29 12 24 6z" fill="#ffd23f" stroke="#e07a1a" stroke-width="2.5" stroke-linejoin="round"/><path d="M8 26h32q-1 11-16 11T8 26z" fill="${f}" stroke="${d}" stroke-width="3" stroke-linejoin="round"/><path d="M40 26q4-1 5-4" stroke="${d}" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M24 22v4" stroke="${d}" stroke-width="2.5" stroke-linecap="round"/><rect x="17" y="37" width="14" height="5" rx="2.5" fill="${f}" stroke="${d}" stroke-width="3"/><path d="M13 30q11 3 22 0" stroke="#ffe0a8" stroke-width="2" stroke-linecap="round" fill="none" opacity=".8"/>`,
+  kurma: (f, d) => `<path d="M24 4v6M24 10q-6 2-7 8M24 10q6 2 7 8" stroke="#6b8f2a" stroke-width="3" stroke-linecap="round" fill="none"/><ellipse cx="17" cy="29" rx="7.5" ry="12" fill="${f}" stroke="${d}" stroke-width="3" transform="rotate(12 17 29)"/><ellipse cx="31" cy="29" rx="7.5" ry="12" fill="${f}" stroke="${d}" stroke-width="3" transform="rotate(-12 31 29)"/><path d="M14 24q1-4 4-5M28 24q1-4 4-5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" opacity=".5" fill="none"/>`,
   rafflesia: (f, d) => `${[0, 72, 144, 216, 288].map(a => `<path d="M24 22c-9-2-12-10-8-16 5-3 12-3 16 0 4 6 1 14-8 16z" fill="${f}" stroke="${d}" stroke-width="2.5" stroke-linejoin="round" transform="rotate(${a} 24 25)"/>`).join("")}<circle cx="24" cy="25" r="8" fill="${d}"/><circle cx="24" cy="25" r="4.5" fill="#3a0c05"/><circle cx="18" cy="9" r="1.6" fill="#fff"/><circle cx="38" cy="18" r="1.6" fill="#fff"/><circle cx="34" cy="38" r="1.6" fill="#fff"/><circle cx="12" cy="36" r="1.6" fill="#fff"/><circle cx="9" cy="20" r="1.6" fill="#fff"/>`,
 };
 const SHINE = '<ellipse cx="18" cy="17" rx="4" ry="2.5" fill="#fff" opacity=".55" transform="rotate(-35 18 17)"/>';
@@ -3362,7 +3375,7 @@ function rollRarity(f, rand, minR = 0) {
 function openFind(today, rand = Math.random, minR = 0) {
   const f = findsState(), first = !minR && !FINDS.some(x => findCount(f, x.id));
   const r = first ? 0 : rollRarity(f, rand, minR), day = keyToDate(today), pool = FINDS.filter(x => x.r === r && inSeason(x, day)), fresh = pool.filter(x => !findCount(f, x.id));
-  const dull = pool.filter(x => !isShiny(f, x.id)), season = fresh.filter(x => x.m), from = season.length ? season : fresh.length ? fresh : dull.length ? dull : pool;
+  const dull = pool.filter(x => !isShiny(f, x.id)), season = fresh.filter(x => x.m || x.ram), from = season.length ? season : fresh.length ? fresh : dull.length ? dull : pool;
   const item = first ? FINDS.find(x => x.id === FIRST_FIND) : from[Math.floor(rand() * from.length)];
   const n = findCount(f, item.id) + 1;
   f.got[item.id] = { n, d: (f.got[item.id] || {}).d || today }; f.log[today] = item.id;
@@ -3379,21 +3392,22 @@ function findCard({ item, n }) {
 // The collection book: every find has a fixed slot (common, then rare, then epic). Ones not found yet show as a
 // silhouette with "? ? ?" and their rarity, so players can see what's left to collect.
 function findsHTML() {
-  const f = findsState(), today = dkey(routineDate()), owned = FINDS.filter(x => findCount(f, x.id)), shinyN = FINDS.filter(x => isShiny(f, x.id)).length;
+  const f = findsState(), today = dkey(routineDate()), book = bookFinds(f), owned = book.filter(x => findCount(f, x.id)), shinyN = book.filter(x => isShiny(f, x.id)).length;
   const pity = Math.max(1, RARE_PITY - f.dry);
   const cell = x => { const n = findCount(f, x.id);
-    const sz = x.m ? (inSeason(x) ? T("seasonNow") : seasonName(x)) : "";
-    if (!n) return `<li class="fcell lock r${x.r}${x.m && inSeason(x) ? " now" : ""}"><span class="sr">${T("findLocked")} · ${rarityName(x.r)}${sz ? " · " + sz : ""}</span><span class="find-art">${findArt(x)}</span><b aria-hidden="true">? ? ?</b><small aria-hidden="true">${sz || rarityName(x.r)}</small></li>`;
+    const sz = x.m || x.ram ? (inSeason(x) ? T("seasonNow") : x.ram ? T("ramFindTag") : seasonName(x)) : "";
+    if (!n) return `<li class="fcell lock r${x.r}${(x.m || x.ram) && inSeason(x) ? " now" : ""}"><span class="sr">${T("findLocked")} · ${rarityName(x.r)}${sz ? " · " + sz : ""}</span><span class="find-art">${findArt(x)}</span><b aria-hidden="true">? ? ?</b><small aria-hidden="true">${sz || rarityName(x.r)}</small></li>`;
     const sh = n >= SHINY_AT, lv = upLv(x.id), mk = upState().mark[x.id], label = `${findName(x.id)}${lv ? " +" + lv : ""} · ${rarityName(x.r)}${sh ? " · " + T("shinyTag") : ""} · ×${n}${mk ? " · " + T("rpMarkA", mk) : ""}`;
     return `<li class="fcell r${x.r}${sh ? " shiny" : ""}${lv ? " g" + lv : ""}${upSel === x.id ? " sel" : ""}">${lv ? `<i class="f-lv" aria-hidden="true">+${lv}</i>` : ""}${mk ? `<i class="f-mk" aria-hidden="true">${RP_ICO}</i>` : ""}<button class="fc-hit" type="button" data-up="${x.id}" aria-expanded="${upSel === x.id}" aria-label="${esc(label)}${f.log[today] === x.id ? " · " + T("newBadge") : ""} · ${T("upOpenA")}"></button><span class="find-art">${findArt(x)}${sh ? SPARKS : ""}</span><b aria-hidden="true">${findName(x.id)}</b><small aria-hidden="true">${rarityName(x.r)}${n > 1 ? ` · ×${n}` : ""}</small>${f.log[today] === x.id ? `<i class="b-new" aria-hidden="true">${T("newBadge")}</i>` : ""}</li>`; };
-  return `<section class="me-trophy me-finds" aria-labelledby="findsT"><div class="me-th"><h3 id="findsT">${T("findsTitle")}</h3><span>${owned.length} / ${FINDS.length}</span></div>
-    <div class="bar"><i style="${fillPct(100 * owned.length / FINDS.length)}"></i></div>
-    ${owned.length ? (owned.length < FINDS.length ? `<p class="f-pity">${I.chest}<span>${T("findsPity", pity)}</span></p>` : "")
+  return `<section class="me-trophy me-finds" aria-labelledby="findsT"><div class="me-th"><h3 id="findsT">${T("findsTitle")}</h3><span>${owned.length} / ${book.length}</span></div>
+    <div class="bar"><i style="${fillPct(100 * owned.length / book.length)}"></i></div>
+    ${owned.length ? (owned.length < book.length ? `<p class="f-pity">${I.chest}<span>${T("findsPity", pity)}</span></p>` : "")
       : `<p class="f-empty">${I.chest}<span>${T("findsEmpty")}</span></p>`}
     ${owned.length ? `<p class="f-up">${I.star}<span>${T("upStars", starsLeft())}</span></p><p class="f-rp">${RP_ICO}<span>${T("rpHave", rpHeld())}</span></p>${upPanelHTML()}` : ""}
-    ${owned.length ? `<p class="f-shiny"><i aria-hidden="true">${I.spark}</i><span><b>${T("findsShiny", shinyN, FINDS.length)}</b> ${shinyN === FINDS.length ? T("findsShinyAll") : T("findsShinyHelp", SHINY_AT)}</span></p>` : ""}
+    ${owned.length ? `<p class="f-shiny"><i aria-hidden="true">${I.spark}</i><span><b>${T("findsShiny", shinyN, book.length)}</b> ${shinyN === book.length ? T("findsShinyAll") : T("findsShinyHelp", SHINY_AT)}</span></p>` : ""}
     ${FINDS.filter(x => x.m && inSeason(x)).map(x => `<p class="f-season">${I.spark}<span>${findCount(f, x.id) ? T("seasonGot", findName(x.id)) : T("seasonLine", seasonName(x))}</span></p>`).join("")}
-    <div class="fsets">${SETS.map(st => { const n = setHave(st, f), all = n === st.ids.length, w = WEAR.find(x => x.id === st.wear);
+    ${FINDS.some(x => x.ram && inSeason(x)) ? `<p class="f-season">${I.spark}<span>${FINDS.some(x => x.ram && !findCount(f, x.id)) ? T("ramFindsLine") : T("ramFindsGot")}</span></p>` : ""}
+    <div class="fsets">${bookSets(f).map(st => { const n = setHave(st, f), all = n === st.ids.length, w = WEAR.find(x => x.id === st.wear);
       return `<section class="fset${all ? " done" : ""}" aria-labelledby="fs-${st.id}"><div class="fs-h"><h4 id="fs-${st.id}">${setName(st.id)}</h4><span>${all ? I.check : ""}${n} / ${st.ids.length}</span></div>
         <ul class="fgrid">${st.ids.map(id => cell(FINDS.find(x => x.id === id))).join("")}</ul>
         <p class="fs-rew"><span class="find-art">${wearArt(w)}</span><span>${all ? T("setRewardGot", wearName(w.id)) : T("setReward", wearName(w.id))}</span></p></section>`; }).join("")}</div></section>`;
@@ -3664,6 +3678,10 @@ WEAR.push(
     svg: `<path d="M47 82l9 15h8l-6-15zM73 82l-9 15h-8l6-15z" fill="#25aaf0" stroke="#13709f" stroke-width="2.5" stroke-linejoin="round"/><circle cx="60" cy="102" r="9" fill="#ffcc33" stroke="#c48a00" stroke-width="3"/><path d="M60 96.5l1.7 3.4 3.8.6-2.7 2.6.6 3.7-3.4-1.8-3.4 1.8.6-3.7-2.7-2.6 3.8-.6z" fill="#fff6d6"/>` },
   { id: "wauclip", set: "seasons", box: "16 18 36 40", hide: "flower",
     svg: `<g transform="rotate(-20 32 36)"><path d="M32 20l5 7-5 18-5-18z" fill="#ff8a5c" stroke="#c2461d" stroke-width="2.2" stroke-linejoin="round"/><path d="M20 28q6-3 12 1 6-4 12-1-2 5-8 4l-4-2-4 2c-6 1-8-4-8-4z" fill="#ff8a5c" stroke="#c2461d" stroke-width="2.2" stroke-linejoin="round"/><path d="M24 43q8-3 16 0-4 4-8 2-4 2-8-2z" fill="#ffd34d" stroke="#c2461d" stroke-width="2" stroke-linejoin="round"/><circle cx="32" cy="29" r="1.8" fill="#fff"/></g>` });
+// The Ramadan set's outfit: a little ketupat on a gold string. Shown in Dress up only when the Ramadan set is.
+WEAR.push({ id: "ketupatcharm", set: "ramadan", box: "40 78 40 36",
+  svg: `<path d="M47 82L60 89 73 82" fill="none" stroke="#c48a00" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M60 89l10 10-10 10-10-10z" fill="#9fd65a" stroke="#4f8a1f" stroke-width="2.5" stroke-linejoin="round"/><path d="M55 94l10 10M65 94L55 104" stroke="#4f8a1f" stroke-width="1.8" stroke-linecap="round"/><path d="M58 109q-2 3-4 3M62 109q2 3 4 3" stroke="#4f8a1f" stroke-width="2" stroke-linecap="round" fill="none"/>` });
+const bookWear = (f = findsState()) => { const r = ramShown(f); return WEAR.filter(x => !x.set || !SETS.find(st => st.id === x.set).ram || r); };
 function wearState() {
   const w = store.wear && typeof store.wear === "object" && !Array.isArray(store.wear) ? store.wear : (store.wear = {});
   if (typeof w.on !== "string" || !WEAR.some(x => x.id === w.on)) w.on = "";
@@ -3690,13 +3708,13 @@ function wearNewCards() {
   return fresh.map(x => `<div class="find wear-find"><span class="find-art">${wearArt(x)}</span><span class="find-txt"><small>${x.set ? T("setDoneTag", setName(x.set)) : T("wearNewTag")}</small><b>${wearName(x.id)}</b><span>${T("wearNewSub")}</span></span></div>`).join("");
 }
 function wearHTML() {
-  const w = wearState(), owned = wearOwned(), open = WEAR.filter(x => wearOpen(x, owned)).length;
+  const w = wearState(), owned = wearOwned(), list = bookWear(), open = list.filter(x => wearOpen(x, owned)).length;
   const tile = x => { const ok = wearOpen(x, owned), on = w.on === x.id;
     if (!ok) return `<li><span class="wcell lock"><span class="sr">${wearName(x.id)} · ${T("findLocked")} · ${wearNeed(x)}</span><span class="find-art">${wearArt(x)}</span><b aria-hidden="true">${wearName(x.id)}</b><small aria-hidden="true">${wearNeed(x)}</small></span></li>`;
     return `<li><button type="button" class="wcell${on ? " on" : ""}" data-wear="${x.id}" aria-pressed="${on}"><span class="find-art">${wearArt(x)}</span><b>${wearName(x.id)}</b><small>${on ? T("wearOn") : T("wearTry")}</small>${on ? `<i class="w-tick" aria-hidden="true">${I.check}</i>` : ""}</button></li>`; };
-  return `<section class="me-trophy me-wear" aria-labelledby="wearT"><div class="me-th"><h3 id="wearT">${T("wearTitle")}</h3><span>${open} / ${WEAR.length}</span></div>
+  return `<section class="me-trophy me-wear" aria-labelledby="wearT"><div class="me-th"><h3 id="wearT">${T("wearTitle")}</h3><span>${open} / ${list.length}</span></div>
     <p class="w-help">${T("wearHelp")}</p>
-    <ul class="wgrid"><li><button type="button" class="wcell none${w.on ? "" : " on"}" data-wear="" aria-pressed="${!w.on}"><span class="find-art">${I.sprout}</span><b>${T("wearNone")}</b><small>${w.on ? T("wearTry") : T("wearOn")}</small></button></li>${WEAR.map(tile).join("")}</ul></section>`;
+    <ul class="wgrid"><li><button type="button" class="wcell none${w.on ? "" : " on"}" data-wear="" aria-pressed="${!w.on}"><span class="find-art">${I.sprout}</span><b>${T("wearNone")}</b><small>${w.on ? T("wearTry") : T("wearOn")}</small></button></li>${list.map(tile).join("")}</ul></section>`;
 }
 function putOn(id) {
   const w = wearState(), x = WEAR.find(v => v.id === id);

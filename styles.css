@@ -1607,6 +1607,7 @@ p.wo-say{display:block}
 .ram-line .ico{width:16px;height:16px;flex:none;fill:currentColor}
 .ram-art{align-self:center;width:72px;height:54px} .ram-art svg{width:100%;height:100%}
 .ram .ram-status{color:var(--gold-ink)}
+.ram .ram-finds{display:flex;align-items:flex-start;gap:8px} .ram .ram-finds svg{flex:none;width:20px;height:20px;fill:var(--gold)}
 .ram-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;border:2px solid var(--line);border-radius:12px;overflow:hidden}
 .ram-list li{display:flex;justify-content:space-between;gap:10px;padding:10px 12px;font-size:14px;font-weight:800}
 .ram-list li + li{border-top:2px solid var(--line)}
